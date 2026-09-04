@@ -40,4 +40,18 @@ class CalculadoraFisica {
         require(altura >= 0) { "La altura no puede ser negativa: $altura" }
         return sqrt(2.0 * g * altura)
     }
+
+    /**
+     * Calcula el tiempo transcurrido en movimiento de caída libre (MRUV con v₀ = 0).
+     *
+     * Fórmula: t = √(2 * h / g)
+     *
+     * @param altura La altura de caída en metros. Debe ser >= 0.
+     * @return El tiempo de caída en segundos.
+     * @throws IllegalArgumentException si la altura es negativa.
+     */
+    fun calcularTiempo(altura: Double): Double {
+        require(altura >= 0) { "La altura no puede ser negativa: $altura" }
+        return sqrt(2.0 * altura / g)
+    }
 }

@@ -11,15 +11,50 @@ package gravityquest
  */
 
 fun main() {
-    // Instanciar la calculadora física
     val calculadora = CalculadoraFisica()
 
-    // Probar el cálculo de velocidad final para una altura de 20.0 metros
+    // ──────────────────────────────────────────────────
+    // Ejemplo 1: Caída libre - Velocidad final
+    // ──────────────────────────────────────────────────
     val altura = 20.0
     val velocidadFinal = calculadora.calcularVelocidadFinal(altura)
 
-    println("=== GravityQuest: Cálculo de Velocidad Final ===\n")
+    println("=== GravityQuest: Cálculos Físicos ===\n")
+
+    println("--- Caída Libre: Velocidad Final ---")
     println("  Gravedad (g):     ${calculadora.g} m/s²")
     println("  Altura:           $altura m")
-    println("  Velocidad final:  ${"%.2f".format(velocidadFinal)} m/s")
+    println("  Velocidad final:  ${"%.2f".format(velocidadFinal)} m/s\n")
+
+    // ──────────────────────────────────────────────────
+    // Ejemplo 2: Caída libre - Tiempo de caída
+    // ──────────────────────────────────────────────────
+    val tiempoCaida = calculadora.calcularTiempo(altura)
+
+    println("--- Caída Libre: Tiempo de Caída ---")
+    println("  Altura:           $altura m")
+    println("  Tiempo de caída:  ${"%.2f".format(tiempoCaida)} s\n")
+
+    // ──────────────────────────────────────────────────
+    // Ejemplo 3: Manejo de errores
+    // ──────────────────────────────────────────────────
+    println("--- Pruebas de validación (entradas inválidas) ---\n")
+
+    // Altura negativa en caída libre
+    print("  calcularVelocidadFinal(-5.0):  ")
+    try {
+        calculadora.calcularVelocidadFinal(-5.0)
+        println("¡Debería haber fallado!")
+    } catch (e: IllegalArgumentException) {
+        println("Error: ${e.message}")
+    }
+
+    // Altura negativa en tiempo de caída
+    print("  calcularTiempo(-5.0):          ")
+    try {
+        calculadora.calcularTiempo(-5.0)
+        println("¡Debería haber fallado!")
+    } catch (e: IllegalArgumentException) {
+        println("Error: ${e.message}")
+    }
 }
