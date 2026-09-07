@@ -40,4 +40,18 @@ class CalculadoraFisica {
         require(altura >= 0) { "La altura no puede ser negativa: $altura" }
         return sqrt(2.0 * g * altura)
     }
+
+    /**
+     * Calcula el tiempo transcurrido de un objeto en caída libre desde una altura dada.
+     *
+     * Fórmula: t = √(2 * h / g)
+     *
+     * @param altura La altura desde la que cae el objeto (en metros). Debe ser >= 0.
+     * @return El tiempo en segundos.
+     * @throws IllegalArgumentException si la altura es negativa.
+     */
+    fun calcularTiempo(altura: Double): Double {
+        require(altura >= 0) { "La altura no puede ser negativa: $altura" }
+        return sqrt(2.0 * altura / g)
+    }
 }
