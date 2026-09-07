@@ -14,12 +14,26 @@ fun main() {
     // Instanciar la calculadora física
     val calculadora = CalculadoraFisica()
 
-    // Probar el cálculo de velocidad final para una altura de 20.0 metros
+    // Altura de prueba
     val altura = 20.0
-    val velocidadFinal = calculadora.calcularVelocidadFinal(altura)
 
-    println("=== GravityQuest: Cálculo de Velocidad Final ===\n")
+    println("=== GravityQuest: Cálculos de Caída Libre ===\n")
     println("  Gravedad (g):     ${calculadora.g} m/s²")
-    println("  Altura:           $altura m")
+    println("  Altura:           $altura m\n")
+
+    // 1. Calcular velocidad final
+    val velocidadFinal = calculadora.calcularVelocidadFinal(altura)
     println("  Velocidad final:  ${"%.2f".format(velocidadFinal)} m/s")
+
+    // 2. Calcular tiempo de caída
+    val tiempo = calculadora.calcularTiempo(altura)
+    println("  Tiempo de caída:  ${"%.2f".format(tiempo)} s\n")
+
+    // Validación de error con altura negativa
+    println("--- Prueba de validación (altura negativa) ---")
+    try {
+        calculadora.calcularTiempo(-5.0)
+    } catch (e: IllegalArgumentException) {
+        println("  ✓ Excepción capturada correctamente: ${e.message}")
+    }
 }
