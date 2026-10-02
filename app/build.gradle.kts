@@ -29,6 +29,20 @@ dependencies {
 
     // This dependency is used by the application.
     implementation(libs.guava)
+
+    // JavaFX dependencies
+    val javafxVersion = "21.0.2"
+    implementation("org.openjfx:javafx-controls:$javafxVersion")
+    val osName = System.getProperty("os.name").lowercase()
+    val osArch = System.getProperty("os.arch").lowercase()
+    val currentPlatform = when {
+        osName.contains("win") -> "win"
+        osName.contains("mac") -> if (osArch.contains("aarch64") || osArch.contains("arm")) "mac-aarch64" else "mac"
+        else -> "linux"
+    }
+    implementation("org.openjfx:javafx-base:$javafxVersion:$currentPlatform")
+    implementation("org.openjfx:javafx-graphics:$javafxVersion:$currentPlatform")
+    implementation("org.openjfx:javafx-controls:$javafxVersion:$currentPlatform")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -40,7 +54,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "org.example.AppKt"
+    mainClass = "gravityquest.MainKt"
 }
 
 tasks.named<Test>("test") {
