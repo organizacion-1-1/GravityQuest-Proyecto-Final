@@ -5,7 +5,9 @@ import javafx.application.Platform
 import org.junit.jupiter.api.BeforeAll
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class MainTest {
 
@@ -43,11 +45,28 @@ class MainTest {
     }
 
     @Test
+    fun testUIComponentsStyleClasses() {
+        val app = Main()
+        assertTrue(app.lblTitulo.styleClass.contains("titulo"), "El título debe tener la clase CSS 'titulo'")
+        assertTrue(app.lblInstruccion.styleClass.contains("label"), "La instrucción debe tener la clase CSS 'label'")
+        assertTrue(app.txtRespuesta.styleClass.contains("text-field"), "El campo de texto debe tener la clase CSS 'text-field'")
+        assertTrue(app.btnValidar.styleClass.contains("button"), "El botón debe tener la clase CSS 'button'")
+    }
+
+    @Test
+    fun testStylesheetResourceExists() {
+        val resource = Main::class.java.getResource("/assets/style.css")
+        assertNotNull(resource, "El archivo de recursos /assets/style.css debe existir en el classpath")
+    }
+
+    @Test
     fun testValidarRespuestaEntradaInvalida() {
         val app = Main()
         app.txtRespuesta.text = "no-es-numero"
         app.validarRespuesta()
         assertEquals("Por favor, ingresa un número válido.", app.lblResultado.text)
+        assertTrue(app.lblResultado.styleClass.contains("resultado-error"), "Debe tener clase CSS 'resultado-error'")
+        assertFalse(app.lblResultado.styleClass.contains("resultado-exito"), "No debe tener clase CSS 'resultado-exito'")
     }
 
     @Test
@@ -57,11 +76,14 @@ class MainTest {
         app.txtRespuesta.text = String.format(java.util.Locale.US, "%.2f", tiempoEsperado)
         app.validarRespuesta()
         assertTrue(app.lblResultado.text.startsWith("¡Correcto!"), "Debe indicar resultado correcto con punto")
+        assertTrue(app.lblResultado.styleClass.contains("resultado-exito"), "Debe tener clase CSS 'resultado-exito'")
+        assertFalse(app.lblResultado.styleClass.contains("resultado-error"), "No debe tener clase CSS 'resultado-error'")
 
         // Probar también con coma decimal
         app.txtRespuesta.text = "2,02"
         app.validarRespuesta()
         assertTrue(app.lblResultado.text.startsWith("¡Correcto!"), "Debe indicar resultado correcto con coma")
+        assertTrue(app.lblResultado.styleClass.contains("resultado-exito"), "Debe tener clase CSS 'resultado-exito'")
     }
 
     @Test
@@ -70,5 +92,7 @@ class MainTest {
         app.txtRespuesta.text = "99.9"
         app.validarRespuesta()
         assertEquals("Incorrecto. Intenta de nuevo.", app.lblResultado.text)
+        assertTrue(app.lblResultado.styleClass.contains("resultado-error"), "Debe tener clase CSS 'resultado-error'")
+        assertFalse(app.lblResultado.styleClass.contains("resultado-exito"), "No debe tener clase CSS 'resultado-exito'")
     }
 }

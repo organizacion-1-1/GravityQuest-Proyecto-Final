@@ -1,0 +1,95 @@
+/* ==========================================================================
+   GravityQuest - Hoja de Estilos Orientada a Componentes (assets/style.css)
+   Temática: Espacio / Física del Universo
+   Paleta: Fondos oscuros (#0f172a), Acentos cian/azul neón, Texto claro
+   ========================================================================== */
+
+/* 1. Contenedor principal de la interfaz */
+.root {
+    -fx-background-color: #0f172a;
+    -fx-font-family: 'Segoe UI', 'DejaVu Sans', sans-serif;
+    -fx-font-size: 14px;
+}
+
+/* 2. Textos: Título principal con brillo neón */
+.titulo {
+    -fx-text-fill: #38bdf8;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+    -fx-effect: dropshadow(gaussian, rgba(56, 189, 248, 0.6), 12, 0.4, 0, 0);
+}
+
+/* 3. Textos: Etiquetas generales con acentos claros */
+.label {
+    -fx-text-fill: #e2e8f0;
+    -fx-font-size: 13px;
+    -fx-font-weight: normal;
+}
+
+/* 4. Campo de entrada de texto con bordes redondeados y foco neón */
+.text-field {
+    -fx-background-color: #1e293b;
+    -fx-text-fill: #f8fafc;
+    -fx-prompt-text-fill: #64748b;
+    -fx-highlight-fill: #0284c7;
+    -fx-highlight-text-fill: #ffffff;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: #334155;
+    -fx-border-width: 1.5px;
+    -fx-padding: 8px 12px;
+    -fx-font-size: 13px;
+    -fx-alignment: center;
+}
+
+.text-field:focused {
+    -fx-background-color: #1e293b;
+    -fx-border-color: #38bdf8;
+    -fx-effect: dropshadow(three-pass-box, rgba(56, 189, 248, 0.6), 8, 0.3, 0, 0);
+}
+
+/* 5. Botón interactivo con gradientes, hover y efecto al presionar */
+.button {
+    -fx-background-color: linear-gradient(to bottom, #0284c7, #0369a1);
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: #38bdf8;
+    -fx-border-width: 1px;
+    -fx-padding: 9px 20px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(three-pass-box, rgba(2, 132, 199, 0.4), 6, 0.2, 0, 2);
+}
+
+.button:hover {
+    -fx-background-color: linear-gradient(to bottom, #0ea5e9, #0284c7);
+    -fx-border-color: #7dd3fc;
+    -fx-effect: dropshadow(three-pass-box, rgba(56, 189, 248, 0.7), 10, 0.4, 0, 0);
+}
+
+.button:pressed {
+    -fx-background-color: #075985;
+    -fx-border-color: #0284c7;
+    -fx-effect: innershadow(three-pass-box, rgba(0, 0, 0, 0.6), 5, 0.3, 0, 1);
+}
+
+/* 6. Etiquetas dinámicas de estado del resultado: Éxito (verde neón) */
+.resultado-exito {
+    -fx-text-fill: #4ade80;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-effect: dropshadow(gaussian, rgba(74, 222, 128, 0.6), 8, 0.4, 0, 0);
+    -fx-alignment: center;
+}
+
+/* 7. Etiquetas dinámicas de estado del resultado: Error (rojo neón) */
+.resultado-error {
+    -fx-text-fill: #f87171;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-effect: dropshadow(gaussian, rgba(248, 113, 113, 0.6), 8, 0.4, 0, 0);
+    -fx-alignment: center;
+}

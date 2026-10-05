@@ -13,23 +13,35 @@ import javafx.stage.Stage
 /**
  * Ventana principal de la aplicación GravityQuest implementada con JavaFX.
  *
- * Estructurada bajo el paradigma de Programación Orientada a Objetos (POO),
- * hereda del ciclo de vida de [Application] y delega los cálculos físicos
- * a una instancia de [CalculadoraFisica].
+ * Estructurada bajo el paradigma de Programación Orientada a Objetos (POO)
+ * y el Principio de Responsabilidad Única (SRP):
+ * - Física y cálculos: Delegados a [CalculadoraFisica] en Formulas.kt.
+ * - Estructura visual y eventos: Encapsulados en [Main].
+ * - Apariencia estética: Definida exclusivamente en assets/style.css.
  */
 class Main : Application() {
 
-    // 1. Instancia de la clase de lógica física
+    // 1. Instancia de la clase de lógica física (SRP: delegación de física)
     val calculadora: CalculadoraFisica = CalculadoraFisica()
 
     // Altura para el problema de caída libre
     val alturaProblema: Double = 20.0
 
     // 2. Componentes de la interfaz visual encapsulados como propiedades
+    val lblTitulo: Label = Label("GravityQuest")
     val lblInstruccion: Label = Label("Un objeto cae desde 20m. ¿Cuál es su tiempo de caída en segundos?")
     val txtRespuesta: TextField = TextField()
     val btnValidar: Button = Button("Validar Respuesta")
     val lblResultado: Label = Label()
+
+    init {
+        // Asignación de clases de estilo CSS a los componentes visuales
+        lblTitulo.styleClass.add("titulo")
+        lblInstruccion.styleClass.add("label")
+        txtRespuesta.styleClass.add("text-field")
+        btnValidar.styleClass.add("button")
+        lblResultado.styleClass.add("label")
+    }
 
     /**
      * Sobrescribe el método del ciclo de vida de JavaFX para inicializar
@@ -40,7 +52,7 @@ class Main : Application() {
         txtRespuesta.promptText = "Ingresa tu respuesta (ej. 2.02)"
         txtRespuesta.maxWidth = 200.0
 
-        // 3. Invocación de objetos y manejo del evento OnAction
+        // Invocación de objetos y manejo del evento OnAction
         btnValidar.setOnAction {
             validarRespuesta()
         }
@@ -49,7 +61,9 @@ class Main : Application() {
         val contenedorPrincipal = VBox(15.0).apply {
             alignment = Pos.CENTER
             padding = Insets(20.0)
+            styleClass.add("root")
             children.addAll(
+                lblTitulo,
                 lblInstruccion,
                 txtRespuesta,
                 btnValidar,
@@ -57,8 +71,11 @@ class Main : Application() {
             )
         }
 
-        // Creación del objeto Scene con dimensiones recomendadas (400 x 300)
-        val scene = Scene(contenedorPrincipal, 400.0, 300.0)
+        // Creación del objeto Scene con dimensiones recomendadas (400 x 320)
+        val scene = Scene(contenedorPrincipal, 400.0, 320.0)
+
+        // Carga del archivo de recursos assets/style.css y asociación al objeto Scene
+        scene.stylesheets.add(javaClass.getResource("/assets/style.css")?.toExternalForm())
 
         // Configuración del Stage
         primaryStage.title = "GravityQuest - Motor Básico"
@@ -68,15 +85,18 @@ class Main : Application() {
 
     /**
      * Valida la respuesta numérica ingresada por el usuario delegando la verificación
-     * al objeto [calculadora] y actualizando la interfaz con el resultado.
+     * al objeto [calculadora] y actualizando la interfaz y las clases CSS dinámicas.
      */
     fun validarRespuesta() {
         val entrada = txtRespuesta.text.trim().replace(',', '.')
         val valorIngresado = entrada.toDoubleOrNull()
 
+        // Limpiar clases de estado previas para mantener consistencia visual
+        lblResultado.styleClass.removeAll("resultado-exito", "resultado-error")
+
         if (valorIngresado == null) {
             lblResultado.text = "Por favor, ingresa un número válido."
-            lblResultado.style = "-fx-text-fill: red;"
+            lblResultado.styleClass.add("resultado-error")
             return
         }
 
@@ -89,10 +109,10 @@ class Main : Application() {
         if (esCorrecto) {
             val tiempoFormateado = String.format(java.util.Locale.US, "%.2f", tiempoEsperado)
             lblResultado.text = "¡Correcto! El tiempo de caída es aproximadamente $tiempoFormateado s."
-            lblResultado.style = "-fx-text-fill: green;"
+            lblResultado.styleClass.add("resultado-exito")
         } else {
             lblResultado.text = "Incorrecto. Intenta de nuevo."
-            lblResultado.style = "-fx-text-fill: red;"
+            lblResultado.styleClass.add("resultado-error")
         }
     }
 }
