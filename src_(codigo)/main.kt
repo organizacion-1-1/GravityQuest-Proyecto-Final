@@ -1,68 +1,105 @@
 package gravityquest
 
+import javafx.application.Application
+import javafx.geometry.Insets
+import javafx.geometry.Pos
+import javafx.scene.Scene
+import javafx.scene.control.Button
+import javafx.scene.control.Label
+import javafx.scene.control.TextField
+import javafx.scene.layout.VBox
+import javafx.stage.Stage
+
 /**
- * GravityQuest - Punto de entrada del programa (main.kt)
+ * Ventana principal de la aplicación GravityQuest implementada con JavaFX.
  *
- * Este archivo contiene la función main(), que actúa como
- * el punto de entrada de la aplicación. Instancia la clase
- * [CalculadoraFisica] y realiza pruebas de cálculo.
- *
- * Toda la lógica de cálculo físico se encuentra en Formulas.kt.
+ * Estructurada bajo el paradigma de Programación Orientada a Objetos (POO),
+ * hereda del ciclo de vida de [Application] y delega los cálculos físicos
+ * a una instancia de [CalculadoraFisica].
  */
+class Main : Application() {
 
-fun main() {
-    // Instanciar la calculadora física
-    val calculadora = CalculadoraFisica()
+    // 1. Instancia de la clase de lógica física
+    val calculadora: CalculadoraFisica = CalculadoraFisica()
 
-    // Altura de prueba
-    val altura = 20.0
+    // Altura para el problema de caída libre
+    val alturaProblema: Double = 20.0
 
-    println("=== GravityQuest: Cálculos de Caída Libre ===\n")
-    println("  Gravedad (g):     ${calculadora.g} m/s²")
-    println("  Altura:           $altura m\n")
+    // 2. Componentes de la interfaz visual encapsulados como propiedades
+    val lblInstruccion: Label = Label("Un objeto cae desde 20m. ¿Cuál es su tiempo de caída en segundos?")
+    val txtRespuesta: TextField = TextField()
+    val btnValidar: Button = Button("Validar Respuesta")
+    val lblResultado: Label = Label()
 
-    // 1. Calcular velocidad final
-    val velocidadFinal = calculadora.calcularVelocidadFinal(altura)
-    println("  Velocidad final:  ${"%.2f".format(velocidadFinal)} m/s")
+    /**
+     * Sobrescribe el método del ciclo de vida de JavaFX para inicializar
+     * y desplegar el escenario principal (Stage y Scene).
+     */
+    override fun start(primaryStage: Stage) {
+        // Configuración de controles
+        txtRespuesta.promptText = "Ingresa tu respuesta (ej. 2.02)"
+        txtRespuesta.maxWidth = 200.0
 
-    // 2. Calcular tiempo de caída
-    val tiempo = calculadora.calcularTiempo(altura)
-    println("  Tiempo de caída:  ${"%.2f".format(tiempo)} s\n")
+        // 3. Invocación de objetos y manejo del evento OnAction
+        btnValidar.setOnAction {
+            validarRespuesta()
+        }
 
-    // Validación de error con altura negativa
-    println("--- Prueba de validación (altura negativa) ---")
-    try {
-        calculadora.calcularTiempo(-5.0)
-    } catch (e: IllegalArgumentException) {
-        println("  ✓ Excepción capturada correctamente: ${e.message}\n")
+        // Organización de componentes en contenedor VBox con espaciado y relleno
+        val contenedorPrincipal = VBox(15.0).apply {
+            alignment = Pos.CENTER
+            padding = Insets(20.0)
+            children.addAll(
+                lblInstruccion,
+                txtRespuesta,
+                btnValidar,
+                lblResultado
+            )
+        }
+
+        // Creación del objeto Scene con dimensiones recomendadas (400 x 300)
+        val scene = Scene(contenedorPrincipal, 400.0, 300.0)
+
+        // Configuración del Stage
+        primaryStage.title = "GravityQuest - Motor Básico"
+        primaryStage.scene = scene
+        primaryStage.show()
     }
 
-    // 3. Pruebas de validación de resultados (validarResultado)
-    println("=== Pruebas de Validación de Resultados (validarResultado) ===\n")
+    /**
+     * Valida la respuesta numérica ingresada por el usuario delegando la verificación
+     * al objeto [calculadora] y actualizando la interfaz con el resultado.
+     */
+    fun validarRespuesta() {
+        val entrada = txtRespuesta.text.trim().replace(',', '.')
+        val valorIngresado = entrada.toDoubleOrNull()
 
-    // Caso exitoso (dentro de la tolerancia)
-    val estimacionCercana = 19.82
-    val esValidoExitoso = calculadora.validarResultado(estimacionCercana, velocidadFinal, 0.05)
-    println("  [Caso Exitoso]")
-    println("    Valor ingresado: $estimacionCercana")
-    println("    Valor esperado:  ${"%.2f".format(velocidadFinal)}")
-    println("    Margen de error: 0.05")
-    println("    ¿Resultado válido?: $esValidoExitoso\n")
+        if (valorIngresado == null) {
+            lblResultado.text = "Por favor, ingresa un número válido."
+            lblResultado.style = "-fx-text-fill: red;"
+            return
+        }
 
-    // Caso fallido (fuera de la tolerancia)
-    val estimacionLejana = 21.50
-    val esValidoFallido = calculadora.validarResultado(estimacionLejana, velocidadFinal, 0.05)
-    println("  [Caso Fallido]")
-    println("    Valor ingresado: $estimacionLejana")
-    println("    Valor esperado:  ${"%.2f".format(velocidadFinal)}")
-    println("    Margen de error: 0.05")
-    println("    ¿Resultado válido?: $esValidoFallido\n")
+        // Delegar cálculo del tiempo a la instancia de CalculadoraFisica
+        val tiempoEsperado = calculadora.calcularTiempo(alturaProblema)
 
-    // Prueba del manejo de excepciones mediante un bloque try-catch cuando se pasa un margenError negativo
-    println("--- Prueba de validación (margenError negativo) ---")
-    try {
-        calculadora.validarResultado(estimacionCercana, velocidadFinal, margenError = -0.05)
-    } catch (e: IllegalArgumentException) {
-        println("  ✓ Excepción capturada correctamente: ${e.message}")
+        // Invocar el método miembro validarResultado para evaluar la respuesta
+        val esCorrecto = calculadora.validarResultado(valorIngresado, tiempoEsperado)
+
+        if (esCorrecto) {
+            val tiempoFormateado = String.format(java.util.Locale.US, "%.2f", tiempoEsperado)
+            lblResultado.text = "¡Correcto! El tiempo de caída es aproximadamente $tiempoFormateado s."
+            lblResultado.style = "-fx-text-fill: green;"
+        } else {
+            lblResultado.text = "Incorrecto. Intenta de nuevo."
+            lblResultado.style = "-fx-text-fill: red;"
+        }
     }
+}
+
+/**
+ * Punto de entrada principal de la aplicación.
+ */
+fun main(args: Array<String>) {
+    Application.launch(Main::class.java, *args)
 }
