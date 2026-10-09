@@ -22,6 +22,34 @@ import javafx.util.Duration
 import java.util.Locale
 
 /**
+ * ============================================================================
+ * GravityQuest - Bucle de Juego Interactivo y Arquitectura SOLID
+ * ============================================================================
+ *
+ * Estructura de Arquitectura:
+ * 1. Principio de Responsabilidad Única (SRP):
+ *    - Cálculos matemáticos y cinemáticos: [CalculadoraFisica] ([ICalculadoraFisica]) en Formulas.kt.
+ *    - Ciclo de vida y orquestación general: [GravityQuestApp].
+ *    - Componentes de interfaz desacoplados:
+ *        * [VistaFormulario]: Entradas de datos, enunciado, botón de validación y etiqueta de estado.
+ *        * [VistaSimulacion]: Lienzo gráfico [Canvas] y controles de simulación.
+ *        * [GestorFeedbackVisual]: Animaciones y estilos CSS dinámicos de retroalimentación.
+ *        * [RenderizadorCanvas]: Conversión de física a píxeles y renderizado gráfico.
+ *
+ * 2. Principio Abierto/Cerrado (OCP):
+ *    - Definición de ejercicios mediante la abstracción [NivelEjercicio].
+ *    - Extensible para futuros niveles (tiro vertical, planetas con gravedades alternas)
+ *      en el Milestone 2 sin modificar el orquestador ni la interfaz gráfica.
+ *
+ * 3. Inversión de Dependencias (DIP) y Encapsulamiento:
+ *    - Vistas y controladores dependen de interfaces ([ICalculadoraFisica], [RenderizadorSimulacion],
+ *      [IGestorFeedback], [NivelEjercicio]).
+ *    - Estado físico protegido en [ObjetoSimulado] mediante propiedades con setters privados.
+ *    - Todas las llamadas de cálculo y validación física se canalizan mediante la instancia
+ *      de [CalculadoraFisica].
+ */
+
+/**
  * Modelo de estado que encapsula las propiedades físicas del objeto en caída libre.
  *
  * Principio POO (Encapsulamiento):
@@ -74,31 +102,74 @@ class ObjetoSimulado(
 }
 
 /**
+ * Contrato de abstracción para definir ejercicios o niveles en GravityQuest.
+ *
+ * Principio Abierto/Cerrado (OCP):
+ * Permite incorporar nuevos desafíos físicos (lanzamientos con velocidad inicial, gravedad lunar, etc.)
+ * en el Milestone 2 sin necesidad de reescribir la interfaz de usuario ni la orquestación principal.
+ */
+interface NivelEjercicio {
+    val idNivel: Int
+    val titulo: String
+    val enunciado: String
+    val alturaInicialMetros: Double
+    val unidadRespuesta: String
+    val margenError: Double
+
+    /**
+     * Calcula la respuesta teórica esperada utilizando la física asociada al nivel.
+     */
+    fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double
+
+    /**
+     * Valida la respuesta numérica ingresada por el usuario contra el valor físico teórico.
+     */
+    fun validarRespuesta(calculadora: ICalculadoraFisica, valorIngresado: Double): Boolean {
+        val valorEsperado = calcularRespuestaEsperada(calculadora)
+        return calculadora.validarResultado(valorIngresado, valorEsperado, margenError)
+    }
+}
+
+/**
+ * Nivel 1: Caída Libre desde 20.0 metros.
+ *
+ * Implementa [NivelEjercicio] para el problema de cinemática fundamental.
+ */
+class NivelCaidaLibre(
+    override val idNivel: Int = 1,
+    override val titulo: String = "Nivel 1: Caída Libre",
+    override val enunciado: String = "Un objeto cae libremente desde una altura de 20.0 metros (20m). Calcula el tiempo de caída en segundos (g = 9.81 m/s²).",
+    override val alturaInicialMetros: Double = 20.0,
+    override val unidadRespuesta: String = "s",
+    override val margenError: Double = 0.05
+) : NivelEjercicio {
+    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double {
+        return calculadora.calcularTiempo(alturaInicialMetros)
+    }
+}
+
+/**
  * Contrato de abstracción para el renderizado visual de la simulación.
  *
  * Principio de Inversión de Dependencias (DIP):
  * Desacopla la lógica de simulación y actualización del estado físico de los detalles
- * concretos del subsistema de renderizado gráfico (JavaFX Canvas, GraphicsContext, etc.).
+ * concretos del subsistema de dibujo gráfico (Canvas, GraphicsContext, etc.).
  */
 interface RenderizadorSimulacion {
-    /**
-     * Dibuja el estado actual del [ObjetoSimulado] sobre la superficie de renderizado.
-     */
+    /** Dibuja el estado actual del [ObjetoSimulado] sobre la superficie de renderizado. */
     fun renderizar(objeto: ObjetoSimulado)
 
-    /**
-     * Limpia la superficie de renderizado para preparar el siguiente fotograma.
-     */
+    /** Limpia la superficie de renderizado para preparar el siguiente fotograma. */
     fun limpiar()
 }
 
 /**
- * Implementación de [RenderizadorSimulacion] para un [Canvas] de JavaFX.
+ * Implementación de [RenderizadorSimulacion] sobre un [Canvas] de JavaFX.
  *
  * Principio de Responsabilidad Única (SRP):
  * Se encarga exclusivamente de:
  * 1. La conversión de unidades físicas (metros) a coordenadas del lienzo (píxeles).
- * 2. La limpieza y renderizado de la escena en el [GraphicsContext].
+ * 2. La limpieza y renderizado estético de la escena en el [GraphicsContext].
  */
 class RenderizadorCanvas(
     val canvas: Canvas,
@@ -111,18 +182,14 @@ class RenderizadorCanvas(
     val margenSuperior: Double = 35.0
     val margenInferior: Double = 35.0
 
-    /**
-     * Factor de escala para convertir metros a píxeles en el lienzo.
-     */
+    /** Factor de escala para convertir metros físicos a píxeles en el lienzo. */
     val escalaPixelesPorMetro: Double
         get() {
             val alturaUtil = canvas.height - margenSuperior - margenInferior - diametroObjeto
             return if (alturaMaximaMetros > 0.0) alturaUtil / alturaMaximaMetros else 1.0
         }
 
-    /**
-     * Convierte una posición física en metros a la coordenada vertical Y en píxeles.
-     */
+    /** Convierte una posición física en metros a la coordenada vertical Y en píxeles. */
     fun convertirMetroAPixelY(metros: Double): Double {
         return margenSuperior + (metros * escalaPixelesPorMetro)
     }
@@ -173,7 +240,7 @@ class RenderizadorCanvas(
         val pixelY = convertirMetroAPixelY(objeto.posicionY)
         val pixelX = (ancho / 2.0) - radioObjeto
 
-        // Dibujo del objeto en caída libre (esfera con resplandor neón)
+        // Esfera con resplandor neón según estado
         val colorEsfera = if (objeto.enSuelo) Color.web("#4ade80") else Color.web("#38bdf8")
         gc.fill = colorEsfera
         gc.fillOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
@@ -201,8 +268,8 @@ class RenderizadorCanvas(
  * Contrato de abstracción para la gestión de retroalimentación de la interfaz de usuario.
  *
  * Principio de Inversión de Dependencias (DIP):
- * Permite que los controladores o componentes de lógica dependan de una interfaz de feedback
- * en lugar de implementaciones concretas de animaciones y estilos de JavaFX.
+ * Permite que los controladores dependan de un contrato de feedback sin acoplarse
+ * a las clases concretas de animación o controles de JavaFX.
  */
 interface IGestorFeedback {
     fun mostrarExito(mensaje: String = "¡Correcto! Respuesta dentro del margen de error.")
@@ -216,8 +283,7 @@ interface IGestorFeedback {
  *
  * Principio de Responsabilidad Única (SRP):
  * Centraliza y aisla exclusivamente los estilos visuales CSS (.resultado-exito, .resultado-error)
- * y los efectos de animación ([ScaleTransition], [TranslateTransition]) sobre el componente [Label],
- * manteniéndolos completamente desacoplados de la lógica de validación matemática.
+ * y los efectos de animación ([ScaleTransition], [TranslateTransition]) sobre el componente [Label].
  */
 class GestorFeedbackVisual(
     private val labelResultado: Label
@@ -285,7 +351,7 @@ class GestorFeedbackVisual(
     }
 
     /**
-     * Ejecuta una animación [TranslateTransition] para generar un efecto de vibración ante respuestas erróneas.
+     * Ejecuta una animación [TranslateTransition] para generar un efecto de vibración horizontal ante respuestas erróneas.
      */
     private fun ejecutarAnimacionError() {
         restablecerTransformaciones()
@@ -307,78 +373,146 @@ class GestorFeedbackVisual(
 }
 
 /**
- * Ventana principal de la aplicación GravityQuest implementada con JavaFX.
+ * Componente desacoplado de la vista del formulario de entrada y estado.
  *
- * Arquitectura basada en Programación Orientada a Objetos (POO) y Principios SOLID:
- * - SRP:
- *     * Cálculos y fórmulas físicas: Delegados a [CalculadoraFisica].
- *     * Representación y dibujo en pantalla: Delegados a [RenderizadorCanvas].
- *     * Estilos y animaciones de feedback: Delegados a [GestorFeedbackVisual].
- * - DIP:
- *     * Desacoplamiento entre la lógica de simulación y el renderizado a través de [RenderizadorSimulacion].
- *     * Desacoplamiento de la retroalimentación visual a través de [IGestorFeedback].
- *     * Desacoplamiento de la calculadora mediante [ICalculadoraFisica].
+ * Principio de Responsabilidad Única (SRP):
+ * Aísla y estructura los componentes de control del usuario: título, enunciado del ejercicio,
+ * campo de texto para la respuesta numérica, botón "Validar y Simular" y etiqueta de resultado.
  */
-class Main : Application() {
+class VistaFormulario(
+    val lblTitulo: Label = Label("GravityQuest"),
+    val lblInstruccion: Label = Label(),
+    val txtRespuesta: TextField = TextField(),
+    val btnValidar: Button = Button("Validar y Simular"),
+    val lblResultado: Label = Label()
+) {
+    val root: VBox
 
-    // 1. Delegación de física (SRP)
+    init {
+        lblTitulo.styleClass.add("titulo")
+        lblInstruccion.styleClass.addAll("label", "enunciado")
+        lblInstruccion.isWrapText = true
+        lblInstruccion.maxWidth = 320.0
+
+        txtRespuesta.styleClass.add("text-field")
+        txtRespuesta.promptText = "Ingresa tu respuesta (ej. 2.02)"
+        txtRespuesta.maxWidth = 220.0
+
+        btnValidar.styleClass.addAll("button", "btn-primario")
+        btnValidar.maxWidth = 220.0
+
+        lblResultado.styleClass.add("label")
+        lblResultado.isWrapText = true
+        lblResultado.maxWidth = 320.0
+
+        root = VBox(16.0).apply {
+            alignment = Pos.CENTER
+            maxWidth = 340.0
+            styleClass.add("panel-control")
+            children.addAll(
+                lblTitulo,
+                lblInstruccion,
+                txtRespuesta,
+                btnValidar,
+                lblResultado
+            )
+        }
+    }
+
+    fun configurarEnunciado(texto: String) {
+        lblInstruccion.text = texto
+    }
+}
+
+/**
+ * Componente desacoplado de la vista del área de simulación física.
+ *
+ * Principio de Responsabilidad Única (SRP):
+ * Aísla el contenedor del lienzo [Canvas] y los controles auxiliares de reproducción visual.
+ */
+class VistaSimulacion(
+    val canvasSimulacion: Canvas = Canvas(300.0, 300.0),
+    val btnSimular: Button = Button("Simular Caída")
+) {
+    val root: VBox
+
+    init {
+        canvasSimulacion.styleClass.add("canvas-simulacion")
+        btnSimular.styleClass.addAll("button", "btn-secundario")
+        btnSimular.maxWidth = 200.0
+
+        root = VBox(14.0).apply {
+            alignment = Pos.CENTER
+            styleClass.add("panel-simulacion")
+            children.addAll(
+                canvasSimulacion,
+                btnSimular
+            )
+        }
+    }
+}
+
+/**
+ * Orquestador principal y ciclo de vida de JavaFX para GravityQuest.
+ *
+ * Principio de Responsabilidad Única (SRP):
+ * Conecta el bucle de interacción de usuario, la validación física y el bucle
+ * de sincronización gráfica en tiempo real.
+ */
+open class GravityQuestApp : Application() {
+
+    // 1. Delegación física mediante CalculadoraFisica (SRP / DIP)
     val calculadora: CalculadoraFisica = CalculadoraFisica()
 
-    // Altura fijada para el problema de caída libre
-    val alturaProblema: Double = 20.0
+    // 2. Modelo de ejercicio extensible (OCP)
+    var nivelActual: NivelEjercicio = NivelCaidaLibre()
 
-    // 2. Modelo de estado físico simulado (POO / Encapsulamiento)
+    // Altura del problema actual en metros
+    val alturaProblema: Double
+        get() = nivelActual.alturaInicialMetros
+
+    // 3. Estado físico simulado encapsulado (POO)
     val objetoSimulado: ObjetoSimulado = ObjetoSimulado(alturaMaxima = alturaProblema)
 
-    // 3. Componentes visuales de la interfaz de usuario
-    val lblTitulo: Label = Label("GravityQuest")
-    val lblInstruccion: Label = Label("Un objeto cae desde 20m. ¿Cuál es su tiempo de caída en segundos?")
-    val txtRespuesta: TextField = TextField()
-    val btnValidar: Button = Button("Validar Respuesta")
-    val lblResultado: Label = Label()
+    // 4. Vistas desacopladas (SRP)
+    val vistaFormulario: VistaFormulario = VistaFormulario()
+    val vistaSimulacion: VistaSimulacion = VistaSimulacion()
 
-    // Componentes del área de simulación física
-    val canvasSimulacion: Canvas = Canvas(300.0, 300.0)
-    val btnSimular: Button = Button("Simular Caída")
+    // Acceso directo a controles para máxima compatibilidad
+    val lblTitulo: Label get() = vistaFormulario.lblTitulo
+    val lblInstruccion: Label get() = vistaFormulario.lblInstruccion
+    val txtRespuesta: TextField get() = vistaFormulario.txtRespuesta
+    val btnValidar: Button get() = vistaFormulario.btnValidar
+    val lblResultado: Label get() = vistaFormulario.lblResultado
+    val canvasSimulacion: Canvas get() = vistaSimulacion.canvasSimulacion
+    val btnSimular: Button get() = vistaSimulacion.btnSimular
 
-    // 4. Abstracciones de renderizado y feedback (DIP)
+    // Abstracciones de renderizado y feedback (DIP)
     var renderizador: RenderizadorSimulacion
     var gestorFeedback: IGestorFeedback
 
-    // Control del bucle de animación con AnimationTimer a 60 FPS
+    // Control del temporizador de animación sincronizado a 60 FPS
     var timerSimulacion: AnimationTimer? = null
     var tiempoInicioNano: Long = 0L
     var simulacionEnCurso: Boolean = false
         private set
 
     init {
-        // Asignación de clases de estilo CSS a los componentes visuales
-        lblTitulo.styleClass.add("titulo")
-        lblInstruccion.styleClass.add("label")
-        txtRespuesta.styleClass.add("text-field")
-        btnValidar.styleClass.add("button")
-        btnSimular.styleClass.add("button")
-        lblResultado.styleClass.add("label")
-        canvasSimulacion.styleClass.add("canvas-simulacion")
-
-        // Instanciación de abstracciones desacopladas (DIP / SRP)
+        vistaFormulario.configurarEnunciado(nivelActual.enunciado)
         renderizador = RenderizadorCanvas(canvasSimulacion, alturaProblema)
         gestorFeedback = GestorFeedbackVisual(lblResultado)
-
-        // Configuración del bucle de simulación a 60 FPS
         configurarAnimationTimer()
-
-        // Renderizado del fotograma inicial en reposo
         renderizador.renderizar(objetoSimulado)
     }
 
     /**
-     * Configura el bucle de animación de 60 FPS utilizando [AnimationTimer].
+     * Configura el bucle de animación a 60 FPS con [AnimationTimer].
      *
-     * Bucle de renderizado:
-     * - Actualiza la posición del objeto usando la física de caída libre (y = 1/2 * g * t²).
-     * - Convierte unidades físicas (metros) a coordenadas del lienzo (píxeles) en el renderizador.
-     * - Dibuja el estado actualizado limpiando la pantalla en cada fotograma.
+     * Sincroniza en tiempo real la cinemática de caída libre:
+     * - Calcula delta de tiempo real en segundos.
+     * - Actualiza la posición física usando CalculadoraFisica (y = 1/2 * g * t²).
+     * - Renderiza la esfera en la coordenada escalada en píxeles.
+     * - Detiene automáticamente la simulación al alcanzar el suelo.
      */
     private fun configurarAnimationTimer() {
         timerSimulacion = object : AnimationTimer() {
@@ -391,13 +525,11 @@ class Main : Application() {
                 val tiempoTotalCaida = calculadora.calcularTiempo(alturaProblema)
 
                 if (deltaSegundos >= tiempoTotalCaida) {
-                    // El objeto alcanza el suelo: se detiene el movimiento
                     val vFinal = calculadora.calcularVelocidadFinal(alturaProblema)
                     objetoSimulado.actualizar(alturaProblema, vFinal, tiempoTotalCaida, haLlegadoAlSuelo = true)
                     renderizador.renderizar(objetoSimulado)
                     detenerSimulacion()
                 } else {
-                    // Actualización de física delegada a CalculadoraFisica (SRP): y = 1/2 * g * t²
                     val posY = calculadora.calcularPosicionCaida(deltaSegundos)
                     val vY = calculadora.g * deltaSegundos
                     objetoSimulado.actualizar(posY, vY, deltaSegundos, haLlegadoAlSuelo = false)
@@ -408,7 +540,7 @@ class Main : Application() {
     }
 
     /**
-     * Inicia o reinicia la simulación del objeto en caída libre.
+     * Inicia o reinicia la simulación del objeto en caída libre en el Canvas.
      */
     fun iniciarOReiniciarSimulacion() {
         detenerSimulacion()
@@ -420,7 +552,7 @@ class Main : Application() {
     }
 
     /**
-     * Detiene el temporizador de la simulación.
+     * Detiene el temporizador de la simulación gráfica.
      */
     fun detenerSimulacion() {
         timerSimulacion?.stop()
@@ -428,13 +560,54 @@ class Main : Application() {
     }
 
     /**
-     * Inicializa y despliega el escenario principal (Stage y Scene).
+     * Valida la respuesta numérica ingresada en el [TextField]:
+     * 1. Captura el valor y gestiona excepciones si no es un número ([toDoubleOrNull]).
+     * 2. Calcula internamente el valor real mediante [CalculadoraFisica.calcularTiempo].
+     * 3. Invoca [CalculadoraFisica.validarResultado] con tolerancia (margenError = 0.05).
+     * 4. Feedback dinámico:
+     *    - Correcto: Aplica clase CSS .resultado-exito, pulso animado ([ScaleTransition])
+     *      y desencadena en tiempo real la animación gráfica de caída.
+     *    - Incorrecto / Inválido: Aplica clase CSS .resultado-error, vibración horizontal
+     *      ([TranslateTransition]) y bloquea/detiene la simulación gráfica.
+     *
+     * @return `true` si la respuesta fue correcta, `false` en caso contrario.
+     */
+    fun validarRespuesta(): Boolean {
+        val entrada = txtRespuesta.text.trim().replace(',', '.')
+        val valorIngresado = entrada.toDoubleOrNull()
+
+        if (valorIngresado == null) {
+            detenerSimulacion()
+            objetoSimulado.reiniciar()
+            renderizador.renderizar(objetoSimulado)
+            gestorFeedback.mostrarErrorFormato("¡Entrada inválida! Por favor ingresa un número.")
+            return false
+        }
+
+        val esCorrecto = nivelActual.validarRespuesta(calculadora, valorIngresado)
+
+        if (esCorrecto) {
+            gestorFeedback.mostrarExito("¡Correcto! Respuesta dentro del margen de error.")
+            iniciarOReiniciarSimulacion()
+            return true
+        } else {
+            detenerSimulacion()
+            objetoSimulado.reiniciar()
+            renderizador.renderizar(objetoSimulado)
+            gestorFeedback.mostrarErrorPrecision("¡Intenta de nuevo! Tu respuesta no es precisa.")
+            return false
+        }
+    }
+
+    /**
+     * Inicializa y despliega la ventana principal de la aplicación JavaFX.
      */
     override fun start(primaryStage: Stage) {
-        txtRespuesta.promptText = "Ingresa tu respuesta (ej. 2.02)"
-        txtRespuesta.maxWidth = 200.0
-
         btnValidar.setOnAction {
+            validarRespuesta()
+        }
+
+        txtRespuesta.setOnAction {
             validarRespuesta()
         }
 
@@ -442,44 +615,19 @@ class Main : Application() {
             iniciarOReiniciarSimulacion()
         }
 
-        // Renderizado del fotograma inicial
         renderizador.renderizar(objetoSimulado)
 
-        // Panel izquierdo: Formulario de interacción y validación
-        val panelControl = VBox(15.0).apply {
-            alignment = Pos.CENTER
-            maxWidth = 320.0
-            children.addAll(
-                lblTitulo,
-                lblInstruccion,
-                txtRespuesta,
-                btnValidar,
-                lblResultado
-            )
-        }
-
-        // Panel derecho: Lienzo de simulación gráfica y botón interactivo
-        val panelSimulacion = VBox(12.0).apply {
-            alignment = Pos.CENTER
-            styleClass.add("panel-simulacion")
-            children.addAll(
-                canvasSimulacion,
-                btnSimular
-            )
-        }
-
-        // Contenedor principal horizontal
         val contenedorPrincipal = HBox(25.0).apply {
             alignment = Pos.CENTER
             padding = Insets(20.0)
             styleClass.add("root")
             children.addAll(
-                panelControl,
-                panelSimulacion
+                vistaFormulario.root,
+                vistaSimulacion.root
             )
         }
 
-        val scene = Scene(contenedorPrincipal, 720.0, 440.0)
+        val scene = Scene(contenedorPrincipal, 740.0, 460.0)
         scene.stylesheets.add(javaClass.getResource("/assets/style.css")?.toExternalForm())
 
         primaryStage.title = "GravityQuest - Motor Básico"
@@ -487,34 +635,20 @@ class Main : Application() {
         primaryStage.show()
     }
 
-    /**
-     * Valida la respuesta numérica ingresada por el usuario delegando la verificación física
-     * a [calculadora] (SRP) y estructurando la retroalimentación dinámica y visual mediante [gestorFeedback].
-     */
-    fun validarRespuesta() {
-        val entrada = txtRespuesta.text.trim().replace(',', '.')
-        val valorIngresado = entrada.toDoubleOrNull()
-
-        if (valorIngresado == null) {
-            gestorFeedback.mostrarErrorFormato("¡Entrada inválida! Por favor ingresa un número.")
-            return
-        }
-
-        // Delegar cálculo físico a CalculadoraFisica (SRP)
-        val tiempoEsperado = calculadora.calcularTiempo(alturaProblema)
-        val esCorrecto = calculadora.validarResultado(valorIngresado, tiempoEsperado)
-
-        if (esCorrecto) {
-            gestorFeedback.mostrarExito("¡Correcto! Respuesta dentro del margen de error.")
-        } else {
-            gestorFeedback.mostrarErrorPrecision("¡Intenta de nuevo! Tu respuesta no es precisa.")
-        }
+    override fun stop() {
+        detenerSimulacion()
+        super.stop()
     }
 }
+
+/**
+ * Subclase de compatibilidad directa con puntos de entrada y pruebas preexistentes.
+ */
+class Main : GravityQuestApp()
 
 /**
  * Punto de entrada principal de la aplicación.
  */
 fun main(args: Array<String>) {
-    Application.launch(Main::class.java, *args)
+    Application.launch(GravityQuestApp::class.java, *args)
 }
