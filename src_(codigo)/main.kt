@@ -20,6 +20,11 @@ import javafx.scene.text.FontWeight
 import javafx.stage.Stage
 import javafx.util.Duration
 import java.util.Locale
+import gravityquest.models.Dificultad
+import gravityquest.models.GeneradorProblemas
+import gravityquest.models.Problema
+import gravityquest.models.TipoProblema
+import gravityquest.models.IRepositorioProblemas
 
 /**
  * ============================================================================
@@ -467,6 +472,9 @@ open class GravityQuestApp : Application() {
     // 2. Modelo de ejercicio extensible (OCP)
     var nivelActual: NivelEjercicio = NivelCaidaLibre()
 
+    // Repositorio de problemas de física estructurados con POO y SOLID (SRP / DIP)
+    val repositorioProblemas: GeneradorProblemas = GeneradorProblemas()
+
     // Altura del problema actual en metros
     val alturaProblema: Double
         get() = nivelActual.alturaInicialMetros
@@ -647,8 +655,132 @@ open class GravityQuestApp : Application() {
 class Main : GravityQuestApp()
 
 /**
+ * Realiza una demostración y validación en consola de los modelos de dominio (POO y Principios SOLID).
+ *
+ * 1. Single Responsibility Principle (SRP): Separa los modelos de datos ([Dificultad], [Problema])
+ *    de la lógica del repositorio ([GeneradorProblemas]).
+ * 2. Encapsulamiento y Contratos Seguros: Imprime la información inmutable ([val]) y comprueba
+ *    la validación de respuestas matemáticas en tiempo de ejecución.
+ * 3. Open/Closed Principle (OCP): Incorpora un nuevo tipo de ejercicio sin modificar clases existentes.
+ * 4. Invariantes de Dominio: Demuestra que los bloques require/init bloquean estados inválidos.
+ *
+ * @param repositorio Instancia de [IRepositorioProblemas] a consultar y demostrar.
+ * @return El repositorio con la información procesada.
+ */
+fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProblemas()): IRepositorioProblemas {
+    println("=".repeat(85))
+    println("🌌 GRAVITYQUEST - DEMOSTRACIÓN DE MODELOS DE DOMINIO Y PRINCIPIOS SOLID")
+    println("=".repeat(85))
+    println("Catálogo de problemas inicializado correctamente.")
+    println("Total de problemas registrados: ${repositorio.cantidadTotal()}\n")
+
+    // 1. Consulta y visualización por cada Dificultad (SRP y Encapsulamiento)
+    for (dificultad in Dificultad.entries) {
+        println("─".repeat(85))
+        println("📌 NIVEL: ${dificultad.nombreVisible.uppercase()} (${dificultad.name})")
+        println("   Descripción : ${dificultad.descripcion}")
+        println("   Tolerancia  : ±${dificultad.margenErrorTolerable}")
+        println("─".repeat(85))
+
+        val problemasNivel = repositorio.obtenerPorDificultad(dificultad)
+        println("   Ejercicios disponibles en este nivel: ${problemasNivel.size}")
+
+        for (problema in problemasNivel) {
+            println("\n   [Problema #${problema.id}] ── Tipo: ${problema.tipo.nombre}")
+            println("   • Enunciado : ${problema.enunciado}")
+            println("   • Solución  : ${problema.respuestaFormateada()} (tolerancia: ±${problema.dificultad.margenErrorTolerable})")
+            println("   • Pista     : ${problema.pista}")
+
+            // Validación POO encapsulada
+            val esExacto = problema.validarRespuesta(problema.valorEsperado)
+            val esDentroTolerancia = problema.validarRespuesta(problema.valorEsperado + (problema.dificultad.margenErrorTolerable * 0.8))
+            val esFueraTolerancia = problema.validarRespuesta(problema.valorEsperado + 5.0)
+
+            println("   • Validación POO:")
+            println("       ✓ Valor exacto (${problema.valorEsperado})                   -> ${if (esExacto) "APROBADO" else "RECHAZADO"}")
+            println("       ✓ Con tolerancia límite (+${problema.dificultad.margenErrorTolerable * 0.8})     -> ${if (esDentroTolerancia) "APROBADO" else "RECHAZADO"}")
+            println("       ✗ Valor erróneo (+5.0)                         -> ${if (!esFueraTolerancia) "RECHAZADO CORRECTAMENTE" else "FALLO"}")
+        }
+        println()
+    }
+
+    // 2. Demostración de Principio Abierto/Cerrado (OCP)
+    println("=".repeat(85))
+    println("🚀 DEMOSTRACIÓN DE PRINCIPIO ABIERTO/CERRADO (OCP)")
+    println("=".repeat(85))
+    println("Extendiendo el catálogo con un nuevo ejercicio (Caída en la Luna) sin modificar estructuras existentes...")
+
+    val nuevoProblemaLunar = Problema(
+        id = 99,
+        enunciado = "Un astronauta suelta un martillo desde 10.0 metros en la Luna (g = 1.62 m/s²). ¿Cuál es el tiempo de caída?",
+        dificultad = Dificultad.MEDIO,
+        valorEsperado = 3.51,
+        unidadMedida = "s",
+        pista = "Aplica t = √(2h / g_luna) con g_luna = 1.62 m/s².",
+        tipo = TipoProblema.OTRO,
+        datosAdicionales = mapOf("lugar" to "Luna", "gravedad" to 1.62, "altura" to 10.0)
+    )
+    repositorio.agregarProblema(nuevoProblemaLunar)
+    val problemaRecuperado = repositorio.obtenerPorId(99)
+    println("✓ Nuevo problema registrado dinámicamente: ID=${problemaRecuperado?.id}, Tipo=${problemaRecuperado?.tipo?.nombre}")
+    println("✓ Total de problemas actualizados en el repositorio: ${repositorio.cantidadTotal()}")
+
+    // 3. Demostración de Contratos Seguros e Invariantes de Dominio
+    println("\n" + "=".repeat(85))
+    println("🛡️ DEMOSTRACIÓN DE CONTRATOS SEGUROS E INVARIANTES DE DOMINIO")
+    println("=".repeat(85))
+
+    try {
+        // Intento de instanciar un problema con datos inconsistentes (enunciado vacío)
+        Problema(
+            id = 100,
+            enunciado = "",
+            dificultad = Dificultad.FACIL,
+            valorEsperado = 10.0,
+            unidadMedida = "s",
+            pista = "Pista de prueba"
+        )
+        println("✗ Fallo: Se permitió crear un problema con enunciado vacío.")
+    } catch (e: IllegalArgumentException) {
+        println("✓ Invariante de dominio activo: Se impidió crear un problema con enunciado vacío.")
+        println("  Excepción capturada: \"${e.message}\"")
+    }
+
+    try {
+        // Intento de registrar problema con ID duplicado
+        repositorio.agregarProblema(nuevoProblemaLunar)
+        println("✗ Fallo: Se permitió duplicar un ID de problema existente.")
+    } catch (e: IllegalArgumentException) {
+        println("✓ Invariante de repositorio activo: Se impidió duplicar un problema con ID ya existente.")
+        println("  Excepción capturada: \"${e.message}\"")
+    }
+
+    println("=".repeat(85))
+    println("✨ DEMOSTRACIÓN DE MODELOS DE DOMINIO COMPLETADA CON ÉXITO")
+    println("=".repeat(85) + "\n")
+
+    return repositorio
+}
+
+/**
  * Punto de entrada principal de la aplicación.
+ *
+ * Ejecuta primero la demostración y validación en consola de los modelos de dominio (POO / SOLID),
+ * y posteriormente inicializa la interfaz gráfica JavaFX interactiva.
  */
 fun main(args: Array<String>) {
-    Application.launch(GravityQuestApp::class.java, *args)
+    // 1. Demostración y validación por consola de los modelos de dominio
+    demostrarModelosDominio()
+
+    // 2. Si se solicitó ejecución exclusiva en consola (ej. CI o entornos headless), no iniciar JavaFX
+    if (args.contains("--cli") || args.contains("--console") || args.contains("--demo-only")) {
+        return
+    }
+
+    // 3. Lanzamiento de la interfaz gráfica JavaFX
+    try {
+        Application.launch(GravityQuestApp::class.java, *args)
+    } catch (e: Exception) {
+        println("Aviso: Ejecución JavaFX finalizada o entorno sin display gráfico: ${e.message}")
+    }
 }
