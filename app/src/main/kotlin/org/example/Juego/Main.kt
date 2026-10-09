@@ -20,6 +20,7 @@ import javafx.scene.text.FontWeight
 import javafx.stage.Stage
 import javafx.util.Duration
 import java.util.Locale
+import kotlin.math.abs
 import gravityquest.models.Dificultad
 import gravityquest.models.GeneradorProblemas
 import gravityquest.models.Problema
@@ -150,6 +151,46 @@ class NivelCaidaLibre(
 ) : NivelEjercicio {
     override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double {
         return calculadora.calcularTiempo(alturaInicialMetros)
+    }
+}
+
+/**
+ * Nivel 2: Lanzamiento Vertical Hacia Abajo (Milestone 2 - Issue 12).
+ *
+ * Implementa [NivelEjercicio] para un objeto lanzado hacia abajo con velocidad inicial v₀.
+ * Principio OCP: Amplía la cinemática física soportada sin modificar clases existentes.
+ */
+class NivelLanzamientoAbajo(
+    override val idNivel: Int = 2,
+    override val titulo: String = "Nivel 2: Lanzamiento Hacia Abajo",
+    override val enunciado: String = "Un dron lanza un paquete hacia abajo desde 20.0 metros con v₀ = 5.0 m/s. Calcula la velocidad final en m/s (g = 9.81 m/s²).",
+    override val alturaInicialMetros: Double = 20.0,
+    val velocidadInicial: Double = 5.0,
+    override val unidadRespuesta: String = "m/s",
+    override val margenError: Double = 0.05
+) : NivelEjercicio {
+    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double {
+        return calculadora.calcularVelocidadFinalLanzamientoAbajo(velocidadInicial, alturaInicialMetros)
+    }
+}
+
+/**
+ * Nivel 3: Lanzamiento Vertical Hacia Arriba (Milestone 2 - Issue 13).
+ *
+ * Implementa [NivelEjercicio] para un objeto lanzado verticalmente hacia arriba desacelerando por gravedad.
+ * Principio OCP: Incorpora cinemática en desaceleración preservando la arquitectura y clases previas.
+ */
+class NivelLanzamientoArriba(
+    override val idNivel: Int = 3,
+    override val titulo: String = "Nivel 3: Lanzamiento Hacia Arriba",
+    override val enunciado: String = "Un cohete sonda es disparado verticalmente hacia arriba con v₀ = 15.0 m/s. Calcula la altura máxima alcanzada en metros (g = 9.81 m/s²).",
+    override val alturaInicialMetros: Double = 0.0,
+    val velocidadInicial: Double = 15.0,
+    override val unidadRespuesta: String = "m",
+    override val margenError: Double = 0.05
+) : NivelEjercicio {
+    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double {
+        return calculadora.calcularAlturaMaxima(velocidadInicial)
     }
 }
 
@@ -763,21 +804,186 @@ fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProble
 }
 
 /**
+ * Realiza una demostración y validación por consola de las extensiones del motor físico
+ * aplicando Programación Orientada a Objetos (POO) y Principios SOLID (OCP, SRP y contratos de dominio).
+ *
+ * Cubre:
+ * 1. Lanzamiento Vertical Hacia Abajo (Milestone 2 - Issue 12):
+ *    - Velocidad final: v_f = √(v₀² + 2gh) con v₀ = 5.0 m/s, h = 20.0 m.
+ *    - Tiempo de caída:  t = (-v₀ + √(v₀² + 2gh)) / g.
+ *    - Comparación con valores teóricos y validación con margen de tolerancia (±0.05).
+ *    - Demostración de OCP: Equivalencia con caída libre cuando v₀ = 0.0 m/s.
+ *    - Manejo riguroso de excepciones mediante bloques try-catch ante entradas inválidas (v₀ < 0 y h < 0).
+ *
+ * 2. Lanzamiento Vertical Hacia Arriba (Milestone 2 - Issue 13):
+ *    - Altura máxima:     h_máx = v₀² / (2g) con v₀ = 15.0 m/s.
+ *    - Tiempo de subida:   t_subida = v₀ / g.
+ *    - Tiempo total vuelo: t_total = 2v₀ / g.
+ *    - Comprobación de simetría cinemática (t_total == 2 * t_subida).
+ *    - Manejo riguroso de excepciones mediante bloques try-catch ante entradas inválidas (v₀ <= 0).
+ *
+ * @param calculadora Instancia de la clase de servicio puro [CalculadoraFisica].
+ * @return La calculadora evaluada.
+ */
+fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): CalculadoraFisica {
+    println("=".repeat(85))
+    println("🔬 GRAVITYQUEST - DEMOSTRACIÓN DEL MOTOR FÍSICO (POO Y PRINCIPIOS SOLID)")
+    println("=".repeat(85))
+    println("Aceleración de gravedad terrestre estándar: g = ${calculadora.g} m/s²\n")
+
+    // ========================================================================
+    // 1. Demostración Issue 12: Lanzamiento Vertical Hacia Abajo (v₀ >= 0, a favor de g)
+    // ========================================================================
+    println("─".repeat(85))
+    println("⬇️ MILESTONE 2 (ISSUE 12): LANZAMIENTO VERTICAL HACIA ABAJO")
+    println("   Principio OCP: Extensión de CalculadoraFisica sin alterar caída libre previa.")
+    println("   Principio SRP: Servicio puro de cálculo cinemático sin dependencias de UI.")
+    println("─".repeat(85))
+
+    val v0Abajo = 5.0 // m/s
+    val hAbajo = 20.0 // m
+
+    // Valores teóricos:
+    // v_f = sqrt(5.0^2 + 2 * 9.81 * 20.0) = sqrt(25.0 + 392.4) = sqrt(417.4) ≈ 20.4304 m/s
+    // t   = (-5.0 + 20.43037) / 9.81 ≈ 1.5729 s
+    val vfTeorico = 20.43
+    val tTeorico = 1.57
+
+    val vfCalculado = calculadora.calcularVelocidadFinalLanzamientoAbajo(v0Abajo, hAbajo)
+    val tCalculado = calculadora.calcularTiempoLanzamientoAbajo(v0Abajo, hAbajo)
+
+    val vfValido = calculadora.validarResultado(vfCalculado, vfTeorico, margenError = 0.05)
+    val tValido = calculadora.validarResultado(tCalculado, tTeorico, margenError = 0.05)
+
+    println("Parámetros de prueba: v₀ = $v0Abajo m/s, h = $hAbajo m")
+    println(String.format(Locale.US, "• Velocidad final calculada : %.4f m/s (Teórico: %.2f m/s) -> %s",
+        vfCalculado, vfTeorico, if (vfValido) "APROBADO (±0.05)" else "RECHAZADO"))
+    println(String.format(Locale.US, "• Tiempo de caída calculado  : %.4f s   (Teórico: %.2f s)   -> %s",
+        tCalculado, tTeorico, if (tValido) "APROBADO (±0.05)" else "RECHAZADO"))
+
+    // Comprobación de OCP: caso v0 = 0 coincide exactamente con caída libre
+    val vfCaidaLibre = calculadora.calcularVelocidadFinal(hAbajo)
+    val vfAbajoV0Cero = calculadora.calcularVelocidadFinalLanzamientoAbajo(0.0, hAbajo)
+    val tCaidaLibre = calculadora.calcularTiempo(hAbajo)
+    val tAbajoV0Cero = calculadora.calcularTiempoLanzamientoAbajo(0.0, hAbajo)
+    println("\n• Verificación OCP (Consistencia con Caída Libre si v₀ = 0 m/s):")
+    println(String.format(Locale.US, "  - v_f (Caída Libre: %.4f m/s) vs v_f (Lanzamiento v₀=0: %.4f m/s) -> %s",
+        vfCaidaLibre, vfAbajoV0Cero, if (abs(vfCaidaLibre - vfAbajoV0Cero) < 1e-9) "COINCIDEN EXACTAMENTE" else "DISCREPANCIA"))
+    println(String.format(Locale.US, "  - t   (Caída Libre: %.4f s)   vs t   (Lanzamiento v₀=0: %.4f s)   -> %s",
+        tCaidaLibre, tAbajoV0Cero, if (abs(tCaidaLibre - tAbajoV0Cero) < 1e-9) "COINCIDEN EXACTAMENTE" else "DISCREPANCIA"))
+
+    // Validación de excepciones y contratos de dominio (try-catch)
+    println("\n• Validación de Precondiciones y Manejo de Excepciones (try-catch):")
+    try {
+        print("  - Probando velocidad inicial negativa (v₀ = -5.0 m/s): ")
+        calculadora.calcularVelocidadFinalLanzamientoAbajo(-5.0, hAbajo)
+        println("✗ ERROR: Se permitió una velocidad inicial negativa.")
+    } catch (e: IllegalArgumentException) {
+        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
+    }
+
+    try {
+        print("  - Probando altura negativa (h = -20.0 m): ")
+        calculadora.calcularTiempoLanzamientoAbajo(v0Abajo, -20.0)
+        println("✗ ERROR: Se permitió una altura negativa.")
+    } catch (e: IllegalArgumentException) {
+        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
+    }
+
+    // ========================================================================
+    // 2. Demostración Issue 13: Lanzamiento Vertical Hacia Arriba (v₀ > 0, contra g)
+    // ========================================================================
+    println("\n" + "─".repeat(85))
+    println("⬆️ MILESTONE 2 (ISSUE 13): LANZAMIENTO VERTICAL HACIA ARRIBA (DESACELERACIÓN)")
+    println("   Principio OCP: Incorporación de física en desaceleración sin alterar métodos previos.")
+    println("   Invariante de Dominio: Velocidad inicial estrictamente positiva (v₀ > 0).")
+    println("─".repeat(85))
+
+    val v0Arriba = 15.0 // m/s
+
+    // Valores teóricos:
+    // h_máx   = 15.0^2 / (2 * 9.81) = 225.0 / 19.62 ≈ 11.4679 m
+    // t_sub   = 15.0 / 9.81 ≈ 1.5291 s
+    // t_total = 2 * 15.0 / 9.81 ≈ 3.0581 s
+    val hMaxTeorico = 11.47
+    val tSubidaTeorico = 1.53
+    val tTotalTeorico = 3.06
+
+    val hMaxCalculada = calculadora.calcularAlturaMaxima(v0Arriba)
+    val tSubidaCalculado = calculadora.calcularTiempoSubida(v0Arriba)
+    val tTotalCalculado = calculadora.calcularTiempoTotalVuelo(v0Arriba)
+
+    val hMaxValida = calculadora.validarResultado(hMaxCalculada, hMaxTeorico, margenError = 0.05)
+    val tSubidaValido = calculadora.validarResultado(tSubidaCalculado, tSubidaTeorico, margenError = 0.05)
+    val tTotalValido = calculadora.validarResultado(tTotalCalculado, tTotalTeorico, margenError = 0.05)
+
+    println("Parámetros de prueba: v₀ = $v0Arriba m/s")
+    println(String.format(Locale.US, "• Altura máxima calculada   : %.4f m (Teórico: %.2f m) -> %s",
+        hMaxCalculada, hMaxTeorico, if (hMaxValida) "APROBADO (±0.05)" else "RECHAZADO"))
+    println(String.format(Locale.US, "• Tiempo de subida calculado: %.4f s (Teórico: %.2f s) -> %s",
+        tSubidaCalculado, tSubidaTeorico, if (tSubidaValido) "APROBADO (±0.05)" else "RECHAZADO"))
+    println(String.format(Locale.US, "• Tiempo total de vuelo     : %.4f s (Teórico: %.2f s) -> %s",
+        tTotalCalculado, tTotalTeorico, if (tTotalValido) "APROBADO (±0.05)" else "RECHAZADO"))
+
+    // Comprobación de simetría cinemática
+    val esSimetrico = abs(tTotalCalculado - (2.0 * tSubidaCalculado)) < 1e-9
+    println(String.format(Locale.US, "• Simetría temporal (t_total == 2 * t_subida): %s (%.4fs == 2 * %.4fs)",
+        if (esSimetrico) "VERIFICADA EXITOSAMENTE" else "FALLO EN SIMETRÍA",
+        tTotalCalculado, tSubidaCalculado))
+
+    // Validación de excepciones y contratos de dominio ante v₀ <= 0 (try-catch)
+    println("\n• Validación de Contratos Seguros e Invariantes de Dominio (v₀ <= 0):")
+    try {
+        print("  - Probando velocidad inicial nula (v₀ = 0.0 m/s en calcularAlturaMaxima): ")
+        calculadora.calcularAlturaMaxima(0.0)
+        println("✗ ERROR: Se permitió v₀ = 0 en lanzamiento hacia arriba.")
+    } catch (e: IllegalArgumentException) {
+        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
+    }
+
+    try {
+        print("  - Probando velocidad inicial negativa (v₀ = -10.0 m/s en calcularTiempoSubida): ")
+        calculadora.calcularTiempoSubida(-10.0)
+        println("✗ ERROR: Se permitió v₀ < 0 en cálculo de tiempo de subida.")
+    } catch (e: IllegalArgumentException) {
+        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
+    }
+
+    try {
+        print("  - Probando velocidad inicial negativa (v₀ = -15.0 m/s en calcularTiempoTotalVuelo): ")
+        calculadora.calcularTiempoTotalVuelo(-15.0)
+        println("✗ ERROR: Se permitió v₀ < 0 en tiempo total de vuelo.")
+    } catch (e: IllegalArgumentException) {
+        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
+    }
+
+    println("=".repeat(85))
+    println("✨ DEMOSTRACIÓN DE MOTOR FÍSICO COMPLETADA CON ÉXITO")
+    println("=".repeat(85) + "\n")
+
+    return calculadora
+}
+
+/**
  * Punto de entrada principal de la aplicación.
  *
- * Ejecuta primero la demostración y validación en consola de los modelos de dominio (POO / SOLID),
- * y posteriormente inicializa la interfaz gráfica JavaFX interactiva.
+ * 1. Ejecuta la demostración y validación en consola de los modelos de dominio (POO / SOLID).
+ * 2. Ejecuta la demostración y validación en consola de las extensiones del motor físico (Issues 12 y 13).
+ * 3. Inicializa la interfaz gráfica JavaFX interactiva (a menos que se especifique modo consola).
  */
 fun main(args: Array<String>) {
     // 1. Demostración y validación por consola de los modelos de dominio
     demostrarModelosDominio()
 
-    // 2. Si se solicitó ejecución exclusiva en consola (ej. CI o entornos headless), no iniciar JavaFX
+    // 2. Demostración y validación por consola de las extensiones del motor físico (Issues 12 y 13)
+    demostrarMotorFisico()
+
+    // 3. Si se solicitó ejecución exclusiva en consola (ej. CI o entornos headless), no iniciar JavaFX
     if (args.contains("--cli") || args.contains("--console") || args.contains("--demo-only")) {
         return
     }
 
-    // 3. Lanzamiento de la interfaz gráfica JavaFX
+    // 4. Lanzamiento de la interfaz gráfica JavaFX
     try {
         Application.launch(GravityQuestApp::class.java, *args)
     } catch (e: Exception) {
