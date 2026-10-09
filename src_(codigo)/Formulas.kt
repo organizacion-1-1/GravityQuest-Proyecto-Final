@@ -1,15 +1,22 @@
 package gravityquest
 
 /**
- * Formulas.kt - GravityQuest: Físicas y cálculos del juego.
+ * Formulas.kt - GravityQuest: Físicas y cálculos cinemáticos del juego.
  *
- * Contiene la clase [CalculadoraFisica] con la lógica matemática
- * y las fórmulas de física para el juego GravityQuest.
+ * Contiene la interfaz [ICalculadoraFisica] y la clase [CalculadoraFisica]
+ * con la lógica matemática y fórmulas cinemáticas puras para el juego GravityQuest.
  *
- * Fórmula principal: v_f = √(2 * g * h)
- * Derivada de la ecuación de movimiento:
- *   v² = v₀² + 2 * a * d
- * Para caída libre con v₀ = 0 → v = √(2 * g * h)
+ * Cumple estrictamente con los principios POO y SOLID:
+ * - Principio de Responsabilidad Única (SRP): Contiene exclusivamente las fórmulas
+ *   matemáticas y física pura, sin dependencias con JavaFX ni subsistemas visuales.
+ * - Inversión de Dependencias (DIP): Los módulos del motor y vistas dependen de
+ *   la abstracción [ICalculadoraFisica].
+ *
+ * Fórmulas cinemáticas (para caída libre con v₀ = 0 y aceleración g = 9.81 m/s²):
+ * - Velocidad final: v_f = √(2 * g * h)
+ * - Tiempo de caída:  t = √(2 * h / g)
+ * - Posición:        y = 1/2 * g * t²
+ * - Validación:      |v_ingresado - v_esperado| <= margenError
  */
 
 import kotlin.math.abs
@@ -31,12 +38,13 @@ interface ICalculadoraFisica {
 }
 
 /**
- * Clase que encapsula las fórmulas de física del juego GravityQuest.
+ * Clase que encapsula las fórmulas de física pura del juego GravityQuest.
  *
- * Utiliza únicamente la aceleración de gravedad terrestre (g = 9.81 m/s²).
- * Los distintos tipos de movimiento (caída libre, lanzamiento hacia abajo,
- * lanzamiento hacia arriba) se determinan por el contexto de uso, no por
- * el planeta.
+ * Principio de Responsabilidad Única (SRP):
+ * Contiene únicamente las fórmulas matemáticas y física pura, sin acoplamiento
+ * a la interfaz gráfica ni a librerías de UI.
+ *
+ * Utiliza la aceleración de gravedad terrestre estándar (g = 9.81 m/s²).
  */
 class CalculadoraFisica : ICalculadoraFisica {
 

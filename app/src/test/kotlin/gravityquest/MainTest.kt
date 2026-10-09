@@ -27,6 +27,7 @@ class MainTest {
     fun testMainInheritsFromApplication() {
         val app = Main()
         assertTrue(app is Application, "Main debe heredar de javafx.application.Application")
+        assertTrue(app is GravityQuestApp, "Main debe extender de GravityQuestApp")
     }
 
     @Test
@@ -39,9 +40,12 @@ class MainTest {
     @Test
     fun testUIComponentsInitialization() {
         val app = Main()
-        assertTrue(app.lblInstruccion.text.contains("20m"), "El label de instrucción debe mencionar la altura de 20m")
+        assertTrue(
+            app.lblInstruccion.text.contains("20.0 metros") || app.lblInstruccion.text.contains("20m"),
+            "El label de instrucción debe mencionar la altura de 20 metros"
+        )
         assertTrue(app.lblInstruccion.text.contains("tiempo de caída"), "El label debe preguntar por el tiempo de caída")
-        assertEquals("Validar Respuesta", app.btnValidar.text, "El texto del botón debe ser 'Validar Respuesta'")
+        assertEquals("Validar y Simular", app.btnValidar.text, "El texto del botón debe ser 'Validar y Simular'")
     }
 
     @Test
@@ -49,8 +53,10 @@ class MainTest {
         val app = Main()
         assertTrue(app.lblTitulo.styleClass.contains("titulo"), "El título debe tener la clase CSS 'titulo'")
         assertTrue(app.lblInstruccion.styleClass.contains("label"), "La instrucción debe tener la clase CSS 'label'")
+        assertTrue(app.lblInstruccion.styleClass.contains("enunciado"), "La instrucción debe tener la clase CSS 'enunciado'")
         assertTrue(app.txtRespuesta.styleClass.contains("text-field"), "El campo de texto debe tener la clase CSS 'text-field'")
         assertTrue(app.btnValidar.styleClass.contains("button"), "El botón debe tener la clase CSS 'button'")
+        assertTrue(app.btnValidar.styleClass.contains("btn-primario"), "El botón debe tener la clase CSS 'btn-primario'")
     }
 
     @Test
@@ -63,10 +69,12 @@ class MainTest {
     fun testValidarRespuestaEntradaInvalida() {
         val app = Main()
         app.txtRespuesta.text = "no-es-numero"
-        app.validarRespuesta()
+        val resultado = app.validarRespuesta()
+        assertFalse(resultado, "Una entrada inválida debe retornar false")
         assertEquals("¡Entrada inválida! Por favor ingresa un número.", app.lblResultado.text)
         assertTrue(app.lblResultado.styleClass.contains("resultado-error"), "Debe tener clase CSS 'resultado-error'")
         assertFalse(app.lblResultado.styleClass.contains("resultado-exito"), "No debe tener clase CSS 'resultado-exito'")
+        assertFalse(app.simulacionEnCurso, "La simulación gráfica debe estar bloqueada ante una entrada inválida")
     }
 
     @Test
@@ -74,26 +82,32 @@ class MainTest {
         val app = Main()
         val tiempoEsperado = app.calculadora.calcularTiempo(app.alturaProblema)
         app.txtRespuesta.text = String.format(java.util.Locale.US, "%.2f", tiempoEsperado)
-        app.validarRespuesta()
+        val resultado = app.validarRespuesta()
+        assertTrue(resultado, "Una respuesta correcta debe retornar true")
         assertEquals("¡Correcto! Respuesta dentro del margen de error.", app.lblResultado.text)
         assertTrue(app.lblResultado.styleClass.contains("resultado-exito"), "Debe tener clase CSS 'resultado-exito'")
         assertFalse(app.lblResultado.styleClass.contains("resultado-error"), "No debe tener clase CSS 'resultado-error'")
+        assertTrue(app.simulacionEnCurso, "La simulación gráfica debe desencadenarse en tiempo real ante respuesta correcta")
 
         // Probar también con coma decimal
         app.txtRespuesta.text = "2,02"
-        app.validarRespuesta()
+        val resultadoComa = app.validarRespuesta()
+        assertTrue(resultadoComa, "La coma decimal debe ser aceptada como separador válido")
         assertEquals("¡Correcto! Respuesta dentro del margen de error.", app.lblResultado.text)
         assertTrue(app.lblResultado.styleClass.contains("resultado-exito"), "Debe tener clase CSS 'resultado-exito'")
+        assertTrue(app.simulacionEnCurso)
     }
 
     @Test
     fun testValidarRespuestaIncorrecta() {
         val app = Main()
         app.txtRespuesta.text = "99.9"
-        app.validarRespuesta()
+        val resultado = app.validarRespuesta()
+        assertFalse(resultado, "Una respuesta incorrecta debe retornar false")
         assertEquals("¡Intenta de nuevo! Tu respuesta no es precisa.", app.lblResultado.text)
         assertTrue(app.lblResultado.styleClass.contains("resultado-error"), "Debe tener clase CSS 'resultado-error'")
         assertFalse(app.lblResultado.styleClass.contains("resultado-exito"), "No debe tener clase CSS 'resultado-exito'")
+        assertFalse(app.simulacionEnCurso, "La simulación gráfica debe estar bloqueada ante respuesta incorrecta")
     }
 
     @Test
@@ -104,6 +118,7 @@ class MainTest {
         assertTrue(app.canvasSimulacion.styleClass.contains("canvas-simulacion"), "El Canvas debe tener clase CSS 'canvas-simulacion'")
         assertEquals("Simular Caída", app.btnSimular.text, "El botón debe tener el texto 'Simular Caída'")
         assertTrue(app.btnSimular.styleClass.contains("button"), "El botón debe tener la clase CSS 'button'")
+        assertTrue(app.btnSimular.styleClass.contains("btn-secundario"), "El botón debe tener la clase CSS 'btn-secundario'")
     }
 
     @Test
@@ -153,5 +168,40 @@ class MainTest {
 
         assertEquals(renderizador.margenSuperior, pixelYInicio, "En y=0m, pixelY debe ser el margen superior")
         assertTrue(pixelYFin > pixelYInicio, "El pixel final debe ser mayor que el pixel inicial (caída hacia abajo)")
+    }
+
+    @Test
+    fun testPrincipioAbiertoCerradoOCP() {
+        val app = Main()
+        // Verifica que el nivel actual implemente la abstracción NivelEjercicio
+        assertTrue(app.nivelActual is NivelEjercicio, "El nivel debe implementar NivelEjercicio")
+        assertEquals(1, app.nivelActual.idNivel)
+        assertEquals(20.0, app.nivelActual.alturaInicialMetros)
+        assertEquals(0.05, app.nivelActual.margenError)
+
+        // Verificación de extensibilidad para Milestone 2: creación de un nuevo nivel sin modificar el motor
+        val nuevoNivel = object : NivelEjercicio {
+            override val idNivel: Int = 2
+            override val titulo: String = "Nivel 2: Lanzamiento en Marte"
+            override val enunciado: String = "Un objeto cae desde 45.0m en Marte."
+            override val alturaInicialMetros: Double = 45.0
+            override val unidadRespuesta: String = "s"
+            override val margenError: Double = 0.05
+            override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double = 4.92
+        }
+
+        assertEquals(2, nuevoNivel.idNivel)
+        assertEquals(45.0, nuevoNivel.alturaInicialMetros)
+        assertTrue(nuevoNivel.validarRespuesta(app.calculadora, 4.90))
+        assertFalse(nuevoNivel.validarRespuesta(app.calculadora, 6.00))
+    }
+
+    @Test
+    fun testPrincipioResponsabilidadUnicaSRPVistasDesacopladas() {
+        val app = Main()
+        assertNotNull(app.vistaFormulario, "La vista del formulario debe estar desacoplada en su propia clase")
+        assertNotNull(app.vistaSimulacion, "La vista del lienzo de simulación debe estar desacoplada en su propia clase")
+        assertNotNull(app.gestorFeedback, "El gestor de retroalimentación debe ser una abstracción desacoplada")
+        assertNotNull(app.renderizador, "El renderizador gráfico debe ser una abstracción desacoplada")
     }
 }
