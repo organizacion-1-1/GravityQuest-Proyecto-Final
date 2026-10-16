@@ -28,6 +28,9 @@ interface IRepositorioProblemas {
 
     /** Retorna la cantidad de problemas registrados para un nivel de dificultad específico. */
     fun cantidadPorDificultad(dificultad: Dificultad): Int
+
+    /** Retorna un problema aleatorio del catálogo, opcionalmente restringido a una [dificultad]. */
+    fun obtenerProblemaAleatorio(dificultad: Dificultad? = null): Problema?
 }
 
 /**
@@ -94,7 +97,7 @@ class GeneradorProblemas(
      * @param dificultad Dificultad opcional para restringir el sorteo.
      * @return Un [Problema] al azar o `null` si no hay problemas coincidentes.
      */
-    fun obtenerProblemaAleatorio(dificultad: Dificultad? = null): Problema? {
+    override fun obtenerProblemaAleatorio(dificultad: Dificultad?): Problema? {
         val candidatos = if (dificultad != null) obtenerPorDificultad(dificultad) else problemas
         return candidatos.randomOrNull()
     }

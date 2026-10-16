@@ -648,10 +648,24 @@ open class GravityQuestApp : Application() {
         }
     }
 
+    // 5. Gestor de navegación de escenas centralizado (SRP / DIP)
+    var navegador: NavegadorEscenas? = null
+        private set
+
     /**
-     * Inicializa y despliega la ventana principal de la aplicación JavaFX.
+     * Inicializa y despliega la ventana principal de la aplicación JavaFX
+     * utilizando el gestor de navegación de escenas [NavegadorEscenas] (SRP y DIP).
      */
     override fun start(primaryStage: Stage) {
+        val nav = NavegadorEscenas(primaryStage, repositorioProblemas, calculadora)
+        this.navegador = nav
+        nav.irAMenu()
+    }
+
+    /**
+     * Despliega la escena del motor básico (para compatibilidad con tests o flujos anteriores).
+     */
+    fun iniciarEscenaMotorBasico(primaryStage: Stage) {
         btnValidar.setOnAction {
             validarRespuesta()
         }
@@ -965,11 +979,34 @@ fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): 
 }
 
 /**
+ * Realiza una demostración y validación en consola de la arquitectura de navegación y pantallas (POO & SOLID).
+ *
+ * 1. Single Responsibility Principle (SRP): NavegadorEscenas controla el Stage, VistaMenu construye el menú,
+ *    VistaJuego presenta el problema y coordina la simulación.
+ * 2. Dependency Inversion Principle (DIP): Las vistas dependen de INavegadorEscenas, IRepositorioProblemas
+ *    e ICalculadoraFisica, sin instanciarse de forma rígida entre sí.
+ * 3. Open/Closed Principle (OCP): El navegador permite cambiar a cualquier escena mediante cambiarEscena()
+ *    facilitando incorporar nuevas pantallas (Ajustes, Créditos, Game Over) sin modificar el código previo.
+ */
+fun demostrarNavegacion() {
+    println("=".repeat(85))
+    println("🧭 GRAVITYQUEST - DEMOSTRACIÓN DE NAVEGACIÓN Y PANTALLAS (POO & SOLID)")
+    println("=".repeat(85))
+    println("✓ SRP: Stage encapsulado en NavegadorEscenas, aislado de las vistas.")
+    println("✓ DIP: Vistas desacopladas mediante interfaces INavegadorEscenas e IRepositorioProblemas.")
+    println("✓ OCP: Soporte para nuevas pantallas sin modificar VistaMenu ni VistaJuego.")
+    println("✓ VistaMenu: Título neón estilizado, selector de dificultad (FACIL, MEDIO, DIFICIL) y botón Iniciar Misión.")
+    println("✓ VistaJuego: Problema cargado por Dificultad, botón Volver al Menú y simulación interactiva.")
+    println("=".repeat(85) + "\n")
+}
+
+/**
  * Punto de entrada principal de la aplicación.
  *
  * 1. Ejecuta la demostración y validación en consola de los modelos de dominio (POO / SOLID).
  * 2. Ejecuta la demostración y validación en consola de las extensiones del motor físico (Issues 12 y 13).
- * 3. Inicializa la interfaz gráfica JavaFX interactiva (a menos que se especifique modo consola).
+ * 3. Ejecuta la demostración de la arquitectura de navegación y pantallas (Issue 14).
+ * 4. Inicializa la interfaz gráfica JavaFX interactiva (a menos que se especifique modo consola).
  */
 fun main(args: Array<String>) {
     // 1. Demostración y validación por consola de los modelos de dominio
@@ -978,15 +1015,19 @@ fun main(args: Array<String>) {
     // 2. Demostración y validación por consola de las extensiones del motor físico (Issues 12 y 13)
     demostrarMotorFisico()
 
-    // 3. Si se solicitó ejecución exclusiva en consola (ej. CI o entornos headless), no iniciar JavaFX
+    // 3. Demostración de arquitectura de navegación y pantallas (Issue 14)
+    demostrarNavegacion()
+
+    // 4. Si se solicitó ejecución exclusiva en consola (ej. CI o entornos headless), no iniciar JavaFX
     if (args.contains("--cli") || args.contains("--console") || args.contains("--demo-only")) {
         return
     }
 
-    // 4. Lanzamiento de la interfaz gráfica JavaFX
+    // 5. Lanzamiento de la interfaz gráfica JavaFX con navegación de escenas
     try {
         Application.launch(GravityQuestApp::class.java, *args)
     } catch (e: Exception) {
         println("Aviso: Ejecución JavaFX finalizada o entorno sin display gráfico: ${e.message}")
     }
 }
+
