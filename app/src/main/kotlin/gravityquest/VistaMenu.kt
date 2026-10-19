@@ -16,55 +16,51 @@ import gravityquest.models.Dificultad
  * ============================================================================
  *
  * Principio de Responsabilidad Única (SRP):
- * Se encarga exclusivamente de construir, organizar y renderizar los elementos
- * visuales del menú inicial (título con estética espacial neón, selector de dificultad
- * interactivo y botón de inicio de misión). No controla la ventana ([javafx.stage.Stage])
- * ni instancia directamente la vista del juego.
+ * Construye y renderiza exclusivamente los elementos del menú inicial.
+ * Delega la navegación a [INavegadorEscenas] y la lógica de avance y desbloqueo
+ * a la abstracción [IGestorProgreso].
  *
  * Principio de Inversión de Dependencias (DIP):
- * Depende de la abstracción [INavegadorEscenas] para delegar la navegación hacia la
- * pantalla de juego, desacoplándose de otras vistas o del escenario principal.
+ * Depende de contratos abstractos ([INavegadorEscenas], [IGestorProgreso]).
  *
- * Encapsulamiento:
- * Extiende [VBox] y expone propiedades públicas de sólo lectura para que la interfaz
- * sea comprobable mediante pruebas unitarias sin romper el encapsulamiento interno.
- *
- * @param navegador Abstracción del gestor de navegación para coordinar transiciones.
+ * Integración de Progreso del Jugador:
+ * Consulta a [IGestorProgreso] para deshabilitar botones de niveles bloqueados
+ * y aplicarles la clase CSS [.nivel-bloqueado].
  */
 class VistaMenu(
-    private val navegador: INavegadorEscenas
+    private val navegador: INavegadorEscenas,
+    val gestorProgreso: IGestorProgreso = GestorProgreso()
 ) : VBox() {
 
     /** Nodo raíz de la vista (referencia a sí mismo como contenedor). */
     val root: Parent get() = this
 
-    // 1. Título principal y subtítulo con temática espacial
-    val lblTitulo: Label = Label("GravityQuest").apply {
-        styleClass.addAll("titulo")
-    }
+    // 1. Título principal y subtítulo con temática espacial neón
+    val lblTitulo: Label = UIFactory.crearTitulo(GameConfig.TITULO_APP)
 
-    val lblSubtitulo: Label = Label("Misiones de Cinemática y Física Gravitatoria").apply {
-        styleClass.addAll("label", "subtitulo-menu")
-    }
+    val lblSubtitulo: Label = UIFactory.crearEtiqueta(
+        texto = GameConfig.SUBTITULO_APP,
+        clasesEstilo = listOf("label", "subtitulo-menu")
+    )
 
     // 2. Encabezado de la sección de selección de dificultad
-    val lblInstruccionDificultad: Label = Label("SELECCIONA EL NIVEL DE MISIÓN").apply {
-        styleClass.addAll("label")
-        style = "-fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-font-size: 11px;"
-    }
+    val lblInstruccionDificultad: Label = UIFactory.crearEtiqueta(
+        texto = "SELECCIONA EL NIVEL DE MISIÓN",
+        clasesEstilo = listOf("label", "seccion-dificultad-header")
+    )
 
-    // 3. Grupo y botones interactivos de selección de Dificultad (SRP / POO)
+    // 3. Grupo y botones interactivos de selección de Dificultad
     val grupoDificultad: ToggleGroup = ToggleGroup()
     val botonesDificultad: MutableMap<Dificultad, ToggleButton> = mutableMapOf()
 
     // Etiqueta descriptiva que se actualiza reactivamente según la dificultad seleccionada
-    val lblDescripcionDificultad: Label = Label().apply {
-        styleClass.addAll("label", "tarjeta-dificultad-descripcion")
-        isWrapText = true
-        maxWidth = 420.0
-        alignment = Pos.CENTER
-        style = "-fx-text-fill: #38bdf8; -fx-alignment: center; -fx-text-alignment: center; -fx-font-size: 12px;"
-    }
+    val lblDescripcionDificultad: Label = UIFactory.crearEtiqueta(
+        texto = "",
+        clasesEstilo = listOf("label", "tarjeta-dificultad-descripcion"),
+        anchoMax = 440.0,
+        wrap = true,
+        alineacion = Pos.CENTER
+    )
 
     /** Dificultad actualmente seleccionada por el usuario en el menú. */
     var dificultadSeleccionada: Dificultad = Dificultad.FACIL
@@ -85,42 +81,14 @@ class VistaMenu(
         styleClass.add("root")
         spacing = 20.0
 
-        // Construcción de los botones para cada nivel de dificultad del enum Dificultad
-        val panelBotonesDificultad = HBox(12.0).apply {
-            alignment = Pos.CENTER
-        }
+        // Construcción de botones y enlace de eventos
+        val panelBotonesDificultad = construirBotonesDificultad()
+        configurarEventosSeleccion()
 
-        // Niveles de dificultad en orden de desafío
-        val dificultades = listOf(Dificultad.FACIL, Dificultad.MEDIO, Dificultad.DIFICIL)
+        // Sincroniza el bloqueo/desbloqueo según el progreso del jugador
+        refrescarEstadoProgreso()
 
-        for (dif in dificultades) {
-            val btn = ToggleButton(dif.nombreVisible.uppercase()).apply {
-                styleClass.addAll("button", "btn-dificultad")
-                toggleGroup = grupoDificultad
-                userData = dif
-                prefWidth = 120.0
-            }
-            botonesDificultad[dif] = btn
-            panelBotonesDificultad.children.add(btn)
-        }
-
-        // Selección inicial por defecto: Nivel Fácil
-        val botonInicial = botonesDificultad[Dificultad.FACIL]
-        botonInicial?.isSelected = true
-        actualizarDificultad(Dificultad.FACIL)
-
-        // Escuchador reactivo de cambio de selección
-        grupoDificultad.selectedToggleProperty().addListener { _, oldToggle, newToggle ->
-            if (newToggle == null) {
-                // Impide que el usuario deseleccione todas las opciones (mantiene la previa)
-                oldToggle?.isSelected = true
-            } else {
-                val difSeleccionada = newToggle.userData as? Dificultad ?: Dificultad.FACIL
-                actualizarDificultad(difSeleccionada)
-            }
-        }
-
-        // Acción del botón Iniciar Misión: Navega al juego pasando la dificultad seleccionada
+        // Botón Iniciar Misión: Navega al juego pasando la dificultad seleccionada
         btnIniciar.setOnAction {
             navegador.irAJuego(dificultadSeleccionada)
         }
@@ -143,18 +111,82 @@ class VistaMenu(
     }
 
     /**
+     * Construye los botones de alternancia para cada dificultad disponible.
+     */
+    private fun construirBotonesDificultad(): HBox {
+        val panel = HBox(12.0).apply { alignment = Pos.CENTER }
+        val dificultades = listOf(Dificultad.FACIL, Dificultad.MEDIO, Dificultad.DIFICIL)
+
+        for (dif in dificultades) {
+            val btn = UIFactory.crearBotonDificultad(
+                texto = dif.nombreVisible.uppercase(),
+                grupo = grupoDificultad,
+                datos = dif,
+                anchoPref = 120.0
+            )
+            botonesDificultad[dif] = btn
+            panel.children.add(btn)
+        }
+
+        // Selección inicial por defecto: Nivel Fácil
+        botonesDificultad[Dificultad.FACIL]?.isSelected = true
+        actualizarDificultad(Dificultad.FACIL)
+
+        return panel
+    }
+
+    /**
+     * Configura el escuchador reactivo de selección de dificultad.
+     */
+    private fun configurarEventosSeleccion() {
+        grupoDificultad.selectedToggleProperty().addListener { _, oldToggle, newToggle ->
+            if (newToggle == null) {
+                // Impide deseleccionar todas las opciones manteniendo la última válida
+                oldToggle?.isSelected = true
+            } else {
+                val difSeleccionada = newToggle.userData as? Dificultad ?: Dificultad.FACIL
+                actualizarDificultad(difSeleccionada)
+            }
+        }
+    }
+
+    /**
      * Actualiza el estado de la dificultad seleccionada y refresca la descripción visual.
      *
      * @param dif Nueva [Dificultad] seleccionada.
      */
     fun actualizarDificultad(dif: Dificultad) {
         this.dificultadSeleccionada = dif
-        this.lblDescripcionDificultad.text = "Condiciones: ${dif.descripcion} (Margen permitido: ±${dif.margenErrorTolerable})"
+        val estaDesbloqueado = gestorProgreso.esNivelDesbloqueado(dif)
+        val textoCondiciones = "Condiciones: ${dif.descripcion} (Margen permitido: ±${dif.margenErrorTolerable})"
+
+        this.lblDescripcionDificultad.text = if (estaDesbloqueado) {
+            textoCondiciones
+        } else {
+            "$textoCondiciones\n🔒 Nivel Bloqueado: Completa los ejercicios previos para acceder."
+        }
 
         // Sincroniza la selección del botón si fue invocado programáticamente
         val btn = botonesDificultad[dif]
         if (btn != null && !btn.isSelected) {
             btn.isSelected = true
+        }
+    }
+
+    /**
+     * Consulta [GestorProgreso] y actualiza los botones deshabilitando aquellos bloqueados.
+     */
+    fun refrescarEstadoProgreso() {
+        for ((dif, btn) in botonesDificultad) {
+            val desbloqueado = gestorProgreso.esNivelDesbloqueado(dif)
+            btn.isDisable = !desbloqueado
+            if (!desbloqueado) {
+                if (!btn.styleClass.contains("nivel-bloqueado")) {
+                    btn.styleClass.add("nivel-bloqueado")
+                }
+            } else {
+                btn.styleClass.remove("nivel-bloqueado")
+            }
         }
     }
 }

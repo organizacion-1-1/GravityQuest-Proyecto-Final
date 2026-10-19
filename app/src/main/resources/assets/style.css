@@ -109,6 +109,20 @@
     -fx-effect: dropshadow(three-pass-box, rgba(148, 163, 184, 0.4), 8, 0.3, 0, 0);
 }
 
+/* Botón temático de Pista */
+.btn-pista {
+    -fx-background-color: linear-gradient(to bottom, #065f46, #047857);
+    -fx-border-color: #34d399;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+}
+
+.btn-pista:hover {
+    -fx-background-color: linear-gradient(to bottom, #059669, #047857);
+    -fx-border-color: #6ee7b7;
+    -fx-effect: dropshadow(three-pass-box, rgba(52, 211, 153, 0.5), 10, 0.35, 0, 0);
+}
+
 /* 6. Etiquetas dinámicas de estado del resultado: Éxito (verde neón con resplandor) */
 .resultado-exito {
     -fx-text-fill: #4ade80;
@@ -155,7 +169,7 @@
 }
 
 /* ==========================================================================
-   9. Menú Principal y Navegación de Escenas (Issue 14)
+   9. Menú Principal y Navegación de Escenas
    ========================================================================== */
 
 /* Tarjeta / contenedor central del Menú Principal */
@@ -178,6 +192,21 @@
     -fx-font-size: 13px;
     -fx-font-style: italic;
     -fx-alignment: center;
+}
+
+/* Encabezado de la sección de selección de dificultad */
+.seccion-dificultad-header {
+    -fx-font-weight: bold;
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 11px;
+}
+
+/* Descripción de la dificultad seleccionada */
+.tarjeta-dificultad-descripcion {
+    -fx-text-fill: #38bdf8;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+    -fx-font-size: 12px;
 }
 
 /* Botones de selección de Dificultad */
@@ -223,6 +252,20 @@
     -fx-effect: dropshadow(gaussian, rgba(56, 189, 248, 0.75), 14, 0.45, 0, 0);
 }
 
+/* Estilo distintivo para niveles aún bloqueados (Progreso del jugador) */
+.nivel-bloqueado {
+    -fx-opacity: 0.40;
+    -fx-cursor: default;
+    -fx-border-color: #475569;
+    -fx-background-color: #0f172a;
+    -fx-text-fill: #64748b;
+}
+
+.nivel-bloqueado:hover {
+    -fx-border-color: #475569;
+    -fx-effect: none;
+}
+
 /* Botón principal de Iniciar Misión */
 .btn-iniciar {
     -fx-background-color: linear-gradient(to bottom, #0284c7, #0369a1);
@@ -250,6 +293,10 @@
     -fx-border-color: #0284c7;
     -fx-effect: innershadow(three-pass-box, rgba(0, 0, 0, 0.6), 8, 0.4, 0, 1);
 }
+
+/* ==========================================================================
+   10. Pantalla de Juego (VistaJuego)
+   ========================================================================== */
 
 /* Botón Volver al Menú en la pantalla de juego */
 .btn-volver {
@@ -297,3 +344,52 @@
     -fx-spacing: 16px;
 }
 
+/* Título de misión en cabecera de juego */
+.titulo-mision {
+    -fx-font-weight: bold;
+    -fx-text-fill: #38bdf8;
+    -fx-font-size: 14px;
+}
+
+/* Texto de pista conceptual */
+.pista-texto {
+    -fx-font-size: 11px;
+    -fx-text-fill: #94a3b8;
+    -fx-font-style: italic;
+}
+
+/* ==========================================================================
+   11. Modal de Pistas y Fórmulas (VentanaPista)
+   ========================================================================== */
+
+/* Contenedor del diálogo modal */
+.modal-pista {
+    -fx-background-color: #0f172a;
+    -fx-background-radius: 14px;
+    -fx-border-radius: 14px;
+    -fx-border-color: #38bdf8;
+    -fx-border-width: 1.5px;
+    -fx-effect: dropshadow(three-pass-box, rgba(56, 189, 248, 0.4), 22, 0.35, 0, 0);
+}
+
+/* Título destacado del modal */
+.modal-pista-titulo {
+    -fx-font-size: 17px;
+    -fx-text-fill: #38bdf8;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+}
+
+/* Panel de fórmulas dentro del modal */
+.modal-pista-formula {
+    -fx-background-color: #1e293b;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: #334155;
+    -fx-border-width: 1px;
+    -fx-padding: 10px 14px;
+    -fx-text-fill: #a7f3d0;
+    -fx-font-family: 'Consolas', 'Courier New', monospace;
+    -fx-font-size: 11px;
+    -fx-line-spacing: 2px;
+}

@@ -1,8 +1,6 @@
 package gravityquest
 
 import javafx.animation.AnimationTimer
-import javafx.animation.ScaleTransition
-import javafx.animation.TranslateTransition
 import javafx.application.Application
 import javafx.geometry.Insets
 import javafx.geometry.Pos
@@ -18,7 +16,6 @@ import javafx.scene.paint.Color
 import javafx.scene.text.Font
 import javafx.scene.text.FontWeight
 import javafx.stage.Stage
-import javafx.util.Duration
 import java.util.Locale
 import kotlin.math.abs
 import gravityquest.models.Dificultad
@@ -32,10 +29,13 @@ import gravityquest.models.IRepositorioProblemas
  * GravityQuest - Bucle de Juego Interactivo y Arquitectura SOLID
  * ============================================================================
  *
- * Estructura de Arquitectura:
+ * Estructura de Arquitectura y Principios SOLID:
  * 1. Principio de Responsabilidad Única (SRP):
  *    - Cálculos matemáticos y cinemáticos: [CalculadoraFisica] ([ICalculadoraFisica]) en Formulas.kt.
  *    - Ciclo de vida y orquestación general: [GravityQuestApp].
+ *    - Bucle de simulación cinemática temporal: [ControladorSimulacion].
+ *    - Gestión del progreso del jugador y reglas de negocio: [GestorProgreso] ([IGestorProgreso]).
+ *    - Ventana modal de ayuda pedagógica: [VentanaPista].
  *    - Componentes de interfaz desacoplados:
  *        * [VistaFormulario]: Entradas de datos, enunciado, botón de validación y etiqueta de estado.
  *        * [VistaSimulacion]: Lienzo gráfico [Canvas] y controles de simulación.
@@ -43,27 +43,20 @@ import gravityquest.models.IRepositorioProblemas
  *        * [RenderizadorCanvas]: Conversión de física a píxeles y renderizado gráfico.
  *
  * 2. Principio Abierto/Cerrado (OCP):
- *    - Definición de ejercicios mediante la abstracción [NivelEjercicio].
- *    - Extensible para futuros niveles (tiro vertical, planetas con gravedades alternas)
- *      en el Milestone 2 sin modificar el orquestador ni la interfaz gráfica.
+ *    - Ejercicios desacoplados vía [NivelEjercicio].
+ *    - Reglas de desbloqueo extensibles vía [IReglaDesbloqueo].
  *
  * 3. Inversión de Dependencias (DIP) y Encapsulamiento:
  *    - Vistas y controladores dependen de interfaces ([ICalculadoraFisica], [RenderizadorSimulacion],
- *      [IGestorFeedback], [NivelEjercicio]).
- *    - Estado físico protegido en [ObjetoSimulado] mediante propiedades con setters privados.
- *    - Todas las llamadas de cálculo y validación física se canalizan mediante la instancia
- *      de [CalculadoraFisica].
+ *      [IGestorFeedback], [NivelEjercicio], [INavegadorEscenas], [IGestorProgreso]).
+ *    - Estado físico protegido en [ObjetoSimulado] y estado de progreso en [GestorProgreso].
  */
 
 /**
- * Modelo de estado que encapsula las propiedades físicas del objeto en caída libre.
- *
- * Principio POO (Encapsulamiento):
- * Agrupa y protege las variables del estado físico ([posicionY], [velocidadY], [tiempo] y [enSuelo])
- * impidiendo modificaciones inconsistentes desde el exterior y exponiendo métodos de actualización controlada.
+ * Modelo de estado que encapsula las propiedades físicas del objeto en caída.
  */
 class ObjetoSimulado(
-    val alturaMaxima: Double = 20.0
+    val alturaMaxima: Double = PhysicsConstants.ALTURA_DEFAULT
 ) {
     /** Posición vertical actual en metros (desde el punto de lanzamiento y = 0 hasta alturaMaxima). */
     var posicionY: Double = 0.0
@@ -81,14 +74,6 @@ class ObjetoSimulado(
     var enSuelo: Boolean = false
         private set
 
-    /**
-     * Actualiza el estado físico del objeto asegurando que la posición se mantenga dentro de los límites válidos.
-     *
-     * @param posicion Posición vertical actual en metros.
-     * @param velocidad Velocidad instantánea actual en m/s.
-     * @param tiempoTranscurrido Tiempo transcurrido de simulación en segundos.
-     * @param haLlegadoAlSuelo Indicador de si el objeto alcanzó el suelo.
-     */
     fun actualizar(posicion: Double, velocidad: Double, tiempoTranscurrido: Double, haLlegadoAlSuelo: Boolean) {
         this.posicionY = posicion.coerceIn(0.0, alturaMaxima)
         this.velocidadY = velocidad
@@ -96,9 +81,6 @@ class ObjetoSimulado(
         this.enSuelo = haLlegadoAlSuelo
     }
 
-    /**
-     * Restablece el estado físico a las condiciones de inicio (reposo en la altura inicial).
-     */
     fun reiniciar() {
         posicionY = 0.0
         velocidadY = 0.0
@@ -109,10 +91,6 @@ class ObjetoSimulado(
 
 /**
  * Contrato de abstracción para definir ejercicios o niveles en GravityQuest.
- *
- * Principio Abierto/Cerrado (OCP):
- * Permite incorporar nuevos desafíos físicos (lanzamientos con velocidad inicial, gravedad lunar, etc.)
- * en el Milestone 2 sin necesidad de reescribir la interfaz de usuario ni la orquestación principal.
  */
 interface NivelEjercicio {
     val idNivel: Int
@@ -122,14 +100,8 @@ interface NivelEjercicio {
     val unidadRespuesta: String
     val margenError: Double
 
-    /**
-     * Calcula la respuesta teórica esperada utilizando la física asociada al nivel.
-     */
     fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double
 
-    /**
-     * Valida la respuesta numérica ingresada por el usuario contra el valor físico teórico.
-     */
     fun validarRespuesta(calculadora: ICalculadoraFisica, valorIngresado: Double): Boolean {
         val valorEsperado = calcularRespuestaEsperada(calculadora)
         return calculadora.validarResultado(valorIngresado, valorEsperado, margenError)
@@ -138,88 +110,65 @@ interface NivelEjercicio {
 
 /**
  * Nivel 1: Caída Libre desde 20.0 metros.
- *
- * Implementa [NivelEjercicio] para el problema de cinemática fundamental.
  */
 class NivelCaidaLibre(
     override val idNivel: Int = 1,
     override val titulo: String = "Nivel 1: Caída Libre",
-    override val enunciado: String = "Un objeto cae libremente desde una altura de 20.0 metros (20m). Calcula el tiempo de caída en segundos (g = 9.81 m/s²).",
-    override val alturaInicialMetros: Double = 20.0,
+    override val enunciado: String = "Un objeto cae libremente desde una altura de 20.0 metros (20m). Calcula el tiempo de caída en segundos (g = ${PhysicsConstants.GRAVEDAD_TIERRA} m/s²).",
+    override val alturaInicialMetros: Double = PhysicsConstants.ALTURA_DEFAULT,
     override val unidadRespuesta: String = "s",
-    override val margenError: Double = 0.05
+    override val margenError: Double = PhysicsConstants.MARGEN_ERROR_DEFAULT
 ) : NivelEjercicio {
-    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double {
-        return calculadora.calcularTiempo(alturaInicialMetros)
-    }
+    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double =
+        calculadora.calcularTiempo(alturaInicialMetros)
 }
 
 /**
- * Nivel 2: Lanzamiento Vertical Hacia Abajo (Milestone 2 - Issue 12).
- *
- * Implementa [NivelEjercicio] para un objeto lanzado hacia abajo con velocidad inicial v₀.
- * Principio OCP: Amplía la cinemática física soportada sin modificar clases existentes.
+ * Nivel 2: Lanzamiento Vertical Hacia Abajo (v₀ >= 0).
  */
 class NivelLanzamientoAbajo(
     override val idNivel: Int = 2,
     override val titulo: String = "Nivel 2: Lanzamiento Hacia Abajo",
-    override val enunciado: String = "Un dron lanza un paquete hacia abajo desde 20.0 metros con v₀ = 5.0 m/s. Calcula la velocidad final en m/s (g = 9.81 m/s²).",
-    override val alturaInicialMetros: Double = 20.0,
+    override val enunciado: String = "Un dron lanza un paquete hacia abajo desde 20.0 metros con v₀ = 5.0 m/s. Calcula la velocidad final en m/s (g = ${PhysicsConstants.GRAVEDAD_TIERRA} m/s²).",
+    override val alturaInicialMetros: Double = PhysicsConstants.ALTURA_DEFAULT,
     val velocidadInicial: Double = 5.0,
     override val unidadRespuesta: String = "m/s",
-    override val margenError: Double = 0.05
+    override val margenError: Double = PhysicsConstants.MARGEN_ERROR_DEFAULT
 ) : NivelEjercicio {
-    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double {
-        return calculadora.calcularVelocidadFinalLanzamientoAbajo(velocidadInicial, alturaInicialMetros)
-    }
+    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double =
+        calculadora.calcularVelocidadFinalLanzamientoAbajo(velocidadInicial, alturaInicialMetros)
 }
 
 /**
- * Nivel 3: Lanzamiento Vertical Hacia Arriba (Milestone 2 - Issue 13).
- *
- * Implementa [NivelEjercicio] para un objeto lanzado verticalmente hacia arriba desacelerando por gravedad.
- * Principio OCP: Incorpora cinemática en desaceleración preservando la arquitectura y clases previas.
+ * Nivel 3: Lanzamiento Vertical Hacia Arriba (v₀ > 0).
  */
 class NivelLanzamientoArriba(
     override val idNivel: Int = 3,
     override val titulo: String = "Nivel 3: Lanzamiento Hacia Arriba",
-    override val enunciado: String = "Un cohete sonda es disparado verticalmente hacia arriba con v₀ = 15.0 m/s. Calcula la altura máxima alcanzada en metros (g = 9.81 m/s²).",
+    override val enunciado: String = "Un cohete sonda es disparado verticalmente hacia arriba con v₀ = 15.0 m/s. Calcula la altura máxima alcanzada en metros (g = ${PhysicsConstants.GRAVEDAD_TIERRA} m/s²).",
     override val alturaInicialMetros: Double = 0.0,
     val velocidadInicial: Double = 15.0,
     override val unidadRespuesta: String = "m",
-    override val margenError: Double = 0.05
+    override val margenError: Double = PhysicsConstants.MARGEN_ERROR_DEFAULT
 ) : NivelEjercicio {
-    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double {
-        return calculadora.calcularAlturaMaxima(velocidadInicial)
-    }
+    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double =
+        calculadora.calcularAlturaMaxima(velocidadInicial)
 }
 
 /**
  * Contrato de abstracción para el renderizado visual de la simulación.
- *
- * Principio de Inversión de Dependencias (DIP):
- * Desacopla la lógica de simulación y actualización del estado físico de los detalles
- * concretos del subsistema de dibujo gráfico (Canvas, GraphicsContext, etc.).
  */
 interface RenderizadorSimulacion {
-    /** Dibuja el estado actual del [ObjetoSimulado] sobre la superficie de renderizado. */
     fun renderizar(objeto: ObjetoSimulado)
-
-    /** Limpia la superficie de renderizado para preparar el siguiente fotograma. */
     fun limpiar()
 }
 
 /**
  * Implementación de [RenderizadorSimulacion] sobre un [Canvas] de JavaFX.
- *
- * Principio de Responsabilidad Única (SRP):
- * Se encarga exclusivamente de:
- * 1. La conversión de unidades físicas (metros) a coordenadas del lienzo (píxeles).
- * 2. La limpieza y renderizado estético de la escena en el [GraphicsContext].
  */
 class RenderizadorCanvas(
     val canvas: Canvas,
-    val alturaMaximaMetros: Double = 20.0
+    val alturaMaximaMetros: Double = PhysicsConstants.ALTURA_DEFAULT
 ) : RenderizadorSimulacion {
 
     private val gc: GraphicsContext = canvas.graphicsContext2D
@@ -228,17 +177,14 @@ class RenderizadorCanvas(
     val margenSuperior: Double = 35.0
     val margenInferior: Double = 35.0
 
-    /** Factor de escala para convertir metros físicos a píxeles en el lienzo. */
     val escalaPixelesPorMetro: Double
         get() {
             val alturaUtil = canvas.height - margenSuperior - margenInferior - diametroObjeto
             return if (alturaMaximaMetros > 0.0) alturaUtil / alturaMaximaMetros else 1.0
         }
 
-    /** Convierte una posición física en metros a la coordenada vertical Y en píxeles. */
-    fun convertirMetroAPixelY(metros: Double): Double {
-        return margenSuperior + (metros * escalaPixelesPorMetro)
-    }
+    fun convertirMetroAPixelY(metros: Double): Double =
+        margenSuperior + (metros * escalaPixelesPorMetro)
 
     override fun limpiar() {
         gc.clearRect(0.0, 0.0, canvas.width, canvas.height)
@@ -250,16 +196,16 @@ class RenderizadorCanvas(
         val ancho = canvas.width
         val alto = canvas.height
 
-        // Fondo del lienzo con temática espacial oscura
+        // Fondo espacial oscuro
         gc.fill = Color.web("#0f172a")
         gc.fillRect(0.0, 0.0, ancho, alto)
 
-        // Borde estilizado del contenedor del lienzo
+        // Borde estilizado
         gc.stroke = Color.web("#334155")
         gc.lineWidth = 1.5
         gc.strokeRect(1.0, 1.0, ancho - 2.0, alto - 2.0)
 
-        // Línea de referencia inicial (h = 20 m / y = 0 m)
+        // Línea de referencia inicial
         val inicioY = margenSuperior + diametroObjeto
         gc.stroke = Color.web("#475569")
         gc.lineWidth = 1.0
@@ -268,7 +214,7 @@ class RenderizadorCanvas(
         gc.font = Font.font("Segoe UI", FontWeight.NORMAL, 10.0)
         gc.fillText("0 m (Inicio)", 25.0, margenSuperior - 6.0)
 
-        // Línea de suelo (y = alturaMaximaMetros)
+        // Línea de suelo
         val sueloY = margenSuperior + (alturaMaximaMetros * escalaPixelesPorMetro) + diametroObjeto
         gc.stroke = Color.web("#38bdf8")
         gc.lineWidth = 2.0
@@ -277,26 +223,23 @@ class RenderizadorCanvas(
         gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
         gc.fillText("${alturaMaximaMetros.toInt()} m (Suelo)", 25.0, sueloY + 16.0)
 
-        // Guía vertical de trayectoria de caída libre
+        // Guía vertical de trayectoria
         gc.stroke = Color.web("#1e293b")
         gc.lineWidth = 1.0
         gc.strokeLine(ancho / 2.0, inicioY, ancho / 2.0, sueloY)
 
-        // Conversión de unidades físicas a coordenadas del lienzo (píxeles)
+        // Posición de la esfera en píxeles
         val pixelY = convertirMetroAPixelY(objeto.posicionY)
         val pixelX = (ancho / 2.0) - radioObjeto
 
-        // Esfera con resplandor neón según estado
-        val colorEsfera = if (objeto.enSuelo) Color.web("#4ade80") else Color.web("#38bdf8")
-        gc.fill = colorEsfera
+        gc.fill = if (objeto.enSuelo) Color.web("#4ade80") else Color.web("#38bdf8")
         gc.fillOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
 
-        // Contorno nítido de la esfera
         gc.stroke = Color.web("#ffffff")
         gc.lineWidth = 1.5
         gc.strokeOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
 
-        // Telemetría física en tiempo real en la parte superior del lienzo
+        // Telemetría en tiempo real
         gc.fill = Color.web("#e2e8f0")
         gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
         val infoTexto = String.format(
@@ -312,10 +255,6 @@ class RenderizadorCanvas(
 
 /**
  * Contrato de abstracción para la gestión de retroalimentación de la interfaz de usuario.
- *
- * Principio de Inversión de Dependencias (DIP):
- * Permite que los controladores dependan de un contrato de feedback sin acoplarse
- * a las clases concretas de animación o controles de JavaFX.
  */
 interface IGestorFeedback {
     fun mostrarExito(mensaje: String = "¡Correcto! Respuesta dentro del margen de error.")
@@ -325,40 +264,39 @@ interface IGestorFeedback {
 }
 
 /**
- * Gestor dinámico de retroalimentación visual con animaciones y estilos JavaFX.
- *
- * Principio de Responsabilidad Única (SRP):
- * Centraliza y aisla exclusivamente los estilos visuales CSS (.resultado-exito, .resultado-error)
- * y los efectos de animación ([ScaleTransition], [TranslateTransition]) sobre el componente [Label].
+ * Gestor dinámico de retroalimentación visual con animaciones seguras y estilos CSS.
  */
 class GestorFeedbackVisual(
     private val labelResultado: Label
 ) : IGestorFeedback {
 
     override fun mostrarExito(mensaje: String) {
-        labelResultado.text = mensaje
-        labelResultado.styleClass.removeAll("resultado-error")
-        if (!labelResultado.styleClass.contains("resultado-exito")) {
-            labelResultado.styleClass.add("resultado-exito")
-        }
-        ejecutarAnimacionExito()
+        actualizarEstilo(esExito = true, mensaje = mensaje)
+        FxAnimationUtils.animarPulso(labelResultado) { restablecerTransformaciones() }
     }
 
     override fun mostrarErrorPrecision(mensaje: String) {
-        mostrarError(mensaje)
+        mostrarFallo(mensaje)
     }
 
     override fun mostrarErrorFormato(mensaje: String) {
-        mostrarError(mensaje)
+        mostrarFallo(mensaje)
     }
 
-    private fun mostrarError(mensaje: String) {
+    private fun mostrarFallo(mensaje: String) {
+        actualizarEstilo(esExito = false, mensaje = mensaje)
+        FxAnimationUtils.animarVibracion(labelResultado) { restablecerTransformaciones() }
+    }
+
+    private fun actualizarEstilo(esExito: Boolean, mensaje: String) {
         labelResultado.text = mensaje
-        labelResultado.styleClass.removeAll("resultado-exito")
-        if (!labelResultado.styleClass.contains("resultado-error")) {
-            labelResultado.styleClass.add("resultado-error")
+        val agregar = if (esExito) "resultado-exito" else "resultado-error"
+        val remover = if (esExito) "resultado-error" else "resultado-exito"
+        labelResultado.styleClass.remove(remover)
+        if (!labelResultado.styleClass.contains(agregar)) {
+            labelResultado.styleClass.add(agregar)
         }
-        ejecutarAnimacionError()
+        restablecerTransformaciones()
     }
 
     override fun limpiar() {
@@ -372,97 +310,34 @@ class GestorFeedbackVisual(
         labelResultado.scaleY = 1.0
         labelResultado.translateX = 0.0
     }
-
-    /**
-     * Ejecuta una animación [ScaleTransition] para generar un efecto de pulso ante respuestas correctas.
-     */
-    private fun ejecutarAnimacionExito() {
-        restablecerTransformaciones()
-        try {
-            val scaleTransition = ScaleTransition(Duration.millis(200.0), labelResultado).apply {
-                fromX = 1.0
-                fromY = 1.0
-                toX = 1.15
-                toY = 1.15
-                cycleCount = 2
-                isAutoReverse = true
-                setOnFinished {
-                    restablecerTransformaciones()
-                }
-            }
-            scaleTransition.play()
-        } catch (_: Exception) {
-            // Protección ante entornos de pruebas headless sin soporte de animación
-        }
-    }
-
-    /**
-     * Ejecuta una animación [TranslateTransition] para generar un efecto de vibración horizontal ante respuestas erróneas.
-     */
-    private fun ejecutarAnimacionError() {
-        restablecerTransformaciones()
-        try {
-            val translateTransition = TranslateTransition(Duration.millis(50.0), labelResultado).apply {
-                fromX = -8.0
-                toX = 8.0
-                cycleCount = 6
-                isAutoReverse = true
-                setOnFinished {
-                    restablecerTransformaciones()
-                }
-            }
-            translateTransition.play()
-        } catch (_: Exception) {
-            // Protección ante entornos de pruebas headless sin soporte de animación
-        }
-    }
 }
 
 /**
  * Componente desacoplado de la vista del formulario de entrada y estado.
- *
- * Principio de Responsabilidad Única (SRP):
- * Aísla y estructura los componentes de control del usuario: título, enunciado del ejercicio,
- * campo de texto para la respuesta numérica, botón "Validar y Simular" y etiqueta de resultado.
  */
 class VistaFormulario(
-    val lblTitulo: Label = Label("GravityQuest"),
-    val lblInstruccion: Label = Label(),
-    val txtRespuesta: TextField = TextField(),
-    val btnValidar: Button = Button("Validar y Simular"),
-    val lblResultado: Label = Label()
+    val lblTitulo: Label = UIFactory.crearTitulo(),
+    val lblInstruccion: Label = UIFactory.crearEtiqueta(
+        clasesEstilo = listOf("label", "enunciado"),
+        anchoMax = 320.0,
+        wrap = true
+    ),
+    val txtRespuesta: TextField = UIFactory.crearCampoTexto(
+        prompt = "Ingresa tu respuesta (ej. 2.02)",
+        anchoMax = 220.0
+    ),
+    val btnValidar: Button = UIFactory.crearBotonPrimario("Validar y Simular", anchoMax = 220.0),
+    val lblResultado: Label = UIFactory.crearEtiqueta(
+        clasesEstilo = listOf("label"),
+        anchoMax = 320.0,
+        wrap = true
+    )
 ) {
-    val root: VBox
-
-    init {
-        lblTitulo.styleClass.add("titulo")
-        lblInstruccion.styleClass.addAll("label", "enunciado")
-        lblInstruccion.isWrapText = true
-        lblInstruccion.maxWidth = 320.0
-
-        txtRespuesta.styleClass.add("text-field")
-        txtRespuesta.promptText = "Ingresa tu respuesta (ej. 2.02)"
-        txtRespuesta.maxWidth = 220.0
-
-        btnValidar.styleClass.addAll("button", "btn-primario")
-        btnValidar.maxWidth = 220.0
-
-        lblResultado.styleClass.add("label")
-        lblResultado.isWrapText = true
-        lblResultado.maxWidth = 320.0
-
-        root = VBox(16.0).apply {
-            alignment = Pos.CENTER
-            maxWidth = 340.0
-            styleClass.add("panel-control")
-            children.addAll(
-                lblTitulo,
-                lblInstruccion,
-                txtRespuesta,
-                btnValidar,
-                lblResultado
-            )
-        }
+    val root: VBox = VBox(16.0).apply {
+        alignment = Pos.CENTER
+        maxWidth = 340.0
+        styleClass.add("panel-control")
+        children.addAll(lblTitulo, lblInstruccion, txtRespuesta, btnValidar, lblResultado)
     }
 
     fun configurarEnunciado(texto: String) {
@@ -472,38 +347,23 @@ class VistaFormulario(
 
 /**
  * Componente desacoplado de la vista del área de simulación física.
- *
- * Principio de Responsabilidad Única (SRP):
- * Aísla el contenedor del lienzo [Canvas] y los controles auxiliares de reproducción visual.
  */
 class VistaSimulacion(
     val canvasSimulacion: Canvas = Canvas(300.0, 300.0),
-    val btnSimular: Button = Button("Simular Caída")
+    val btnSimular: Button = UIFactory.crearBotonSecundario("Simular Caída", anchoMax = 200.0)
 ) {
-    val root: VBox
-
-    init {
-        canvasSimulacion.styleClass.add("canvas-simulacion")
-        btnSimular.styleClass.addAll("button", "btn-secundario")
-        btnSimular.maxWidth = 200.0
-
-        root = VBox(14.0).apply {
-            alignment = Pos.CENTER
-            styleClass.add("panel-simulacion")
-            children.addAll(
-                canvasSimulacion,
-                btnSimular
-            )
-        }
+    val root: VBox = VBox(14.0).apply {
+        alignment = Pos.CENTER
+        styleClass.add("panel-simulacion")
+        children.addAll(
+            canvasSimulacion.apply { styleClass.add("canvas-simulacion") },
+            btnSimular
+        )
     }
 }
 
 /**
  * Orquestador principal y ciclo de vida de JavaFX para GravityQuest.
- *
- * Principio de Responsabilidad Única (SRP):
- * Conecta el bucle de interacción de usuario, la validación física y el bucle
- * de sincronización gráfica en tiempo real.
  */
 open class GravityQuestApp : Application() {
 
@@ -513,17 +373,20 @@ open class GravityQuestApp : Application() {
     // 2. Modelo de ejercicio extensible (OCP)
     var nivelActual: NivelEjercicio = NivelCaidaLibre()
 
-    // Repositorio de problemas de física estructurados con POO y SOLID (SRP / DIP)
+    // Repositorio de problemas de física
     val repositorioProblemas: GeneradorProblemas = GeneradorProblemas()
+
+    // 3. Gestor de progreso del jugador desacoplado (SRP / DIP)
+    val gestorProgreso: IGestorProgreso = GestorProgreso(repositorioProblemas)
 
     // Altura del problema actual en metros
     val alturaProblema: Double
         get() = nivelActual.alturaInicialMetros
 
-    // 3. Estado físico simulado encapsulado (POO)
+    // 4. Estado físico simulado encapsulado (POO)
     val objetoSimulado: ObjetoSimulado = ObjetoSimulado(alturaMaxima = alturaProblema)
 
-    // 4. Vistas desacopladas (SRP)
+    // 5. Vistas desacopladas (SRP)
     val vistaFormulario: VistaFormulario = VistaFormulario()
     val vistaSimulacion: VistaSimulacion = VistaSimulacion()
 
@@ -540,90 +403,36 @@ open class GravityQuestApp : Application() {
     var renderizador: RenderizadorSimulacion
     var gestorFeedback: IGestorFeedback
 
-    // Control del temporizador de animación sincronizado a 60 FPS
-    var timerSimulacion: AnimationTimer? = null
+    // 6. Controlador de simulación cinemática desacoplado (DRY / SRP)
+    private val controladorSimulacion: ControladorSimulacion
+
+    val timerSimulacion: AnimationTimer? get() = controladorSimulacion.timer
     var tiempoInicioNano: Long = 0L
-    var simulacionEnCurso: Boolean = false
-        private set
+    val simulacionEnCurso: Boolean get() = controladorSimulacion.enCurso
 
     init {
         vistaFormulario.configurarEnunciado(nivelActual.enunciado)
         renderizador = RenderizadorCanvas(canvasSimulacion, alturaProblema)
         gestorFeedback = GestorFeedbackVisual(lblResultado)
-        configurarAnimationTimer()
+        controladorSimulacion = ControladorSimulacion(
+            objetoSimulado = objetoSimulado,
+            calculadora = calculadora,
+            alturaMetros = alturaProblema,
+            alActualizar = { renderizador.renderizar(it) }
+        )
         renderizador.renderizar(objetoSimulado)
     }
 
-    /**
-     * Configura el bucle de animación a 60 FPS con [AnimationTimer].
-     *
-     * Sincroniza en tiempo real la cinemática de caída libre:
-     * - Calcula delta de tiempo real en segundos.
-     * - Actualiza la posición física usando CalculadoraFisica (y = 1/2 * g * t²).
-     * - Renderiza la esfera en la coordenada escalada en píxeles.
-     * - Detiene automáticamente la simulación al alcanzar el suelo.
-     */
-    private fun configurarAnimationTimer() {
-        timerSimulacion = object : AnimationTimer() {
-            override fun handle(now: Long) {
-                if (tiempoInicioNano == 0L) {
-                    tiempoInicioNano = now
-                }
-
-                val deltaSegundos = (now - tiempoInicioNano) / 1_000_000_000.0
-                val tiempoTotalCaida = calculadora.calcularTiempo(alturaProblema)
-
-                if (deltaSegundos >= tiempoTotalCaida) {
-                    val vFinal = calculadora.calcularVelocidadFinal(alturaProblema)
-                    objetoSimulado.actualizar(alturaProblema, vFinal, tiempoTotalCaida, haLlegadoAlSuelo = true)
-                    renderizador.renderizar(objetoSimulado)
-                    detenerSimulacion()
-                } else {
-                    val posY = calculadora.calcularPosicionCaida(deltaSegundos)
-                    val vY = calculadora.g * deltaSegundos
-                    objetoSimulado.actualizar(posY, vY, deltaSegundos, haLlegadoAlSuelo = false)
-                    renderizador.renderizar(objetoSimulado)
-                }
-            }
-        }
-    }
-
-    /**
-     * Inicia o reinicia la simulación del objeto en caída libre en el Canvas.
-     */
     fun iniciarOReiniciarSimulacion() {
-        detenerSimulacion()
-        tiempoInicioNano = 0L
-        objetoSimulado.reiniciar()
-        renderizador.renderizar(objetoSimulado)
-        simulacionEnCurso = true
-        timerSimulacion?.start()
+        controladorSimulacion.iniciarOReiniciar(alturaProblema)
     }
 
-    /**
-     * Detiene el temporizador de la simulación gráfica.
-     */
     fun detenerSimulacion() {
-        timerSimulacion?.stop()
-        simulacionEnCurso = false
+        controladorSimulacion.detener()
     }
 
-    /**
-     * Valida la respuesta numérica ingresada en el [TextField]:
-     * 1. Captura el valor y gestiona excepciones si no es un número ([toDoubleOrNull]).
-     * 2. Calcula internamente el valor real mediante [CalculadoraFisica.calcularTiempo].
-     * 3. Invoca [CalculadoraFisica.validarResultado] con tolerancia (margenError = 0.05).
-     * 4. Feedback dinámico:
-     *    - Correcto: Aplica clase CSS .resultado-exito, pulso animado ([ScaleTransition])
-     *      y desencadena en tiempo real la animación gráfica de caída.
-     *    - Incorrecto / Inválido: Aplica clase CSS .resultado-error, vibración horizontal
-     *      ([TranslateTransition]) y bloquea/detiene la simulación gráfica.
-     *
-     * @return `true` si la respuesta fue correcta, `false` en caso contrario.
-     */
     fun validarRespuesta(): Boolean {
-        val entrada = txtRespuesta.text.trim().replace(',', '.')
-        val valorIngresado = entrada.toDoubleOrNull()
+        val valorIngresado = txtRespuesta.obtenerValorDecimal()
 
         if (valorIngresado == null) {
             detenerSimulacion()
@@ -635,48 +444,34 @@ open class GravityQuestApp : Application() {
 
         val esCorrecto = nivelActual.validarRespuesta(calculadora, valorIngresado)
 
-        if (esCorrecto) {
+        return if (esCorrecto) {
+            gestorProgreso.registrarProblemaCompletado(nivelActual.idNivel)
             gestorFeedback.mostrarExito("¡Correcto! Respuesta dentro del margen de error.")
             iniciarOReiniciarSimulacion()
-            return true
+            true
         } else {
             detenerSimulacion()
             objetoSimulado.reiniciar()
             renderizador.renderizar(objetoSimulado)
             gestorFeedback.mostrarErrorPrecision("¡Intenta de nuevo! Tu respuesta no es precisa.")
-            return false
+            false
         }
     }
 
-    // 5. Gestor de navegación de escenas centralizado (SRP / DIP)
+    // 7. Gestor de navegación de escenas centralizado (SRP / DIP)
     var navegador: NavegadorEscenas? = null
         private set
 
-    /**
-     * Inicializa y despliega la ventana principal de la aplicación JavaFX
-     * utilizando el gestor de navegación de escenas [NavegadorEscenas] (SRP y DIP).
-     */
     override fun start(primaryStage: Stage) {
-        val nav = NavegadorEscenas(primaryStage, repositorioProblemas, calculadora)
+        val nav = NavegadorEscenas(primaryStage, repositorioProblemas, calculadora, gestorProgreso)
         this.navegador = nav
         nav.irAMenu()
     }
 
-    /**
-     * Despliega la escena del motor básico (para compatibilidad con tests o flujos anteriores).
-     */
     fun iniciarEscenaMotorBasico(primaryStage: Stage) {
-        btnValidar.setOnAction {
-            validarRespuesta()
-        }
-
-        txtRespuesta.setOnAction {
-            validarRespuesta()
-        }
-
-        btnSimular.setOnAction {
-            iniciarOReiniciarSimulacion()
-        }
+        btnValidar.setOnAction { validarRespuesta() }
+        txtRespuesta.setOnAction { validarRespuesta() }
+        btnSimular.setOnAction { iniciarOReiniciarSimulacion() }
 
         renderizador.renderizar(objetoSimulado)
 
@@ -684,16 +479,13 @@ open class GravityQuestApp : Application() {
             alignment = Pos.CENTER
             padding = Insets(20.0)
             styleClass.add("root")
-            children.addAll(
-                vistaFormulario.root,
-                vistaSimulacion.root
-            )
+            children.addAll(vistaFormulario.root, vistaSimulacion.root)
         }
 
         val scene = Scene(contenedorPrincipal, 740.0, 460.0)
-        scene.stylesheets.add(javaClass.getResource("/assets/style.css")?.toExternalForm())
+        scene.stylesheets.add(javaClass.getResource(GameConfig.RUTA_ESTILOS)?.toExternalForm())
 
-        primaryStage.title = "GravityQuest - Motor Básico"
+        primaryStage.title = "${GameConfig.TITULO_APP} - Motor Básico"
         primaryStage.scene = scene
         primaryStage.show()
     }
@@ -709,18 +501,18 @@ open class GravityQuestApp : Application() {
  */
 class Main : GravityQuestApp()
 
+inline fun probarInvariante(descripcion: String, bloque: () -> Unit) {
+    try {
+        bloque()
+        println("✗ Fallo: Se permitió una condición inválida ($descripcion).")
+    } catch (e: IllegalArgumentException) {
+        println("✓ Invariante activo: $descripcion.")
+        println("  Excepción capturada: \"${e.message}\"")
+    }
+}
+
 /**
  * Realiza una demostración y validación en consola de los modelos de dominio (POO y Principios SOLID).
- *
- * 1. Single Responsibility Principle (SRP): Separa los modelos de datos ([Dificultad], [Problema])
- *    de la lógica del repositorio ([GeneradorProblemas]).
- * 2. Encapsulamiento y Contratos Seguros: Imprime la información inmutable ([val]) y comprueba
- *    la validación de respuestas matemáticas en tiempo de ejecución.
- * 3. Open/Closed Principle (OCP): Incorpora un nuevo tipo de ejercicio sin modificar clases existentes.
- * 4. Invariantes de Dominio: Demuestra que los bloques require/init bloquean estados inválidos.
- *
- * @param repositorio Instancia de [IRepositorioProblemas] a consultar y demostrar.
- * @return El repositorio con la información procesada.
  */
 fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProblemas()): IRepositorioProblemas {
     println("=".repeat(85))
@@ -729,7 +521,6 @@ fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProble
     println("Catálogo de problemas inicializado correctamente.")
     println("Total de problemas registrados: ${repositorio.cantidadTotal()}\n")
 
-    // 1. Consulta y visualización por cada Dificultad (SRP y Encapsulamiento)
     for (dificultad in Dificultad.entries) {
         println("─".repeat(85))
         println("📌 NIVEL: ${dificultad.nombreVisible.uppercase()} (${dificultad.name})")
@@ -746,7 +537,6 @@ fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProble
             println("   • Solución  : ${problema.respuestaFormateada()} (tolerancia: ±${problema.dificultad.margenErrorTolerable})")
             println("   • Pista     : ${problema.pista}")
 
-            // Validación POO encapsulada
             val esExacto = problema.validarRespuesta(problema.valorEsperado)
             val esDentroTolerancia = problema.validarRespuesta(problema.valorEsperado + (problema.dificultad.margenErrorTolerable * 0.8))
             val esFueraTolerancia = problema.validarRespuesta(problema.valorEsperado + 5.0)
@@ -759,7 +549,6 @@ fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProble
         println()
     }
 
-    // 2. Demostración de Principio Abierto/Cerrado (OCP)
     println("=".repeat(85))
     println("🚀 DEMOSTRACIÓN DE PRINCIPIO ABIERTO/CERRADO (OCP)")
     println("=".repeat(85))
@@ -773,41 +562,23 @@ fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProble
         unidadMedida = "s",
         pista = "Aplica t = √(2h / g_luna) con g_luna = 1.62 m/s².",
         tipo = TipoProblema.OTRO,
-        datosAdicionales = mapOf("lugar" to "Luna", "gravedad" to 1.62, "altura" to 10.0)
+        datosAdicionales = mapOf("lugar" to "Luna", "gravedad" to 1.62, "alturaMetros" to 10.0)
     )
     repositorio.agregarProblema(nuevoProblemaLunar)
     val problemaRecuperado = repositorio.obtenerPorId(99)
     println("✓ Nuevo problema registrado dinámicamente: ID=${problemaRecuperado?.id}, Tipo=${problemaRecuperado?.tipo?.nombre}")
     println("✓ Total de problemas actualizados en el repositorio: ${repositorio.cantidadTotal()}")
 
-    // 3. Demostración de Contratos Seguros e Invariantes de Dominio
     println("\n" + "=".repeat(85))
     println("🛡️ DEMOSTRACIÓN DE CONTRATOS SEGUROS E INVARIANTES DE DOMINIO")
     println("=".repeat(85))
 
-    try {
-        // Intento de instanciar un problema con datos inconsistentes (enunciado vacío)
-        Problema(
-            id = 100,
-            enunciado = "",
-            dificultad = Dificultad.FACIL,
-            valorEsperado = 10.0,
-            unidadMedida = "s",
-            pista = "Pista de prueba"
-        )
-        println("✗ Fallo: Se permitió crear un problema con enunciado vacío.")
-    } catch (e: IllegalArgumentException) {
-        println("✓ Invariante de dominio activo: Se impidió crear un problema con enunciado vacío.")
-        println("  Excepción capturada: \"${e.message}\"")
+    probarInvariante("Se impidió crear un problema con enunciado vacío") {
+        Problema(id = 100, enunciado = "", dificultad = Dificultad.FACIL, valorEsperado = 10.0, unidadMedida = "s", pista = "Pista")
     }
 
-    try {
-        // Intento de registrar problema con ID duplicado
+    probarInvariante("Se impidió duplicar un problema con ID ya existente") {
         repositorio.agregarProblema(nuevoProblemaLunar)
-        println("✗ Fallo: Se permitió duplicar un ID de problema existente.")
-    } catch (e: IllegalArgumentException) {
-        println("✓ Invariante de repositorio activo: Se impidió duplicar un problema con ID ya existente.")
-        println("  Excepción capturada: \"${e.message}\"")
     }
 
     println("=".repeat(85))
@@ -818,26 +589,7 @@ fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProble
 }
 
 /**
- * Realiza una demostración y validación por consola de las extensiones del motor físico
- * aplicando Programación Orientada a Objetos (POO) y Principios SOLID (OCP, SRP y contratos de dominio).
- *
- * Cubre:
- * 1. Lanzamiento Vertical Hacia Abajo (Milestone 2 - Issue 12):
- *    - Velocidad final: v_f = √(v₀² + 2gh) con v₀ = 5.0 m/s, h = 20.0 m.
- *    - Tiempo de caída:  t = (-v₀ + √(v₀² + 2gh)) / g.
- *    - Comparación con valores teóricos y validación con margen de tolerancia (±0.05).
- *    - Demostración de OCP: Equivalencia con caída libre cuando v₀ = 0.0 m/s.
- *    - Manejo riguroso de excepciones mediante bloques try-catch ante entradas inválidas (v₀ < 0 y h < 0).
- *
- * 2. Lanzamiento Vertical Hacia Arriba (Milestone 2 - Issue 13):
- *    - Altura máxima:     h_máx = v₀² / (2g) con v₀ = 15.0 m/s.
- *    - Tiempo de subida:   t_subida = v₀ / g.
- *    - Tiempo total vuelo: t_total = 2v₀ / g.
- *    - Comprobación de simetría cinemática (t_total == 2 * t_subida).
- *    - Manejo riguroso de excepciones mediante bloques try-catch ante entradas inválidas (v₀ <= 0).
- *
- * @param calculadora Instancia de la clase de servicio puro [CalculadoraFisica].
- * @return La calculadora evaluada.
+ * Realiza una demostración y validación por consola de las extensiones del motor físico.
  */
 fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): CalculadoraFisica {
     println("=".repeat(85))
@@ -845,21 +597,13 @@ fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): 
     println("=".repeat(85))
     println("Aceleración de gravedad terrestre estándar: g = ${calculadora.g} m/s²\n")
 
-    // ========================================================================
-    // 1. Demostración Issue 12: Lanzamiento Vertical Hacia Abajo (v₀ >= 0, a favor de g)
-    // ========================================================================
+    // Lanzamiento hacia abajo
     println("─".repeat(85))
-    println("⬇️ MILESTONE 2 (ISSUE 12): LANZAMIENTO VERTICAL HACIA ABAJO")
-    println("   Principio OCP: Extensión de CalculadoraFisica sin alterar caída libre previa.")
-    println("   Principio SRP: Servicio puro de cálculo cinemático sin dependencias de UI.")
+    println("⬇️ MILESTONE 2: LANZAMIENTO VERTICAL HACIA ABAJO")
     println("─".repeat(85))
 
-    val v0Abajo = 5.0 // m/s
-    val hAbajo = 20.0 // m
-
-    // Valores teóricos:
-    // v_f = sqrt(5.0^2 + 2 * 9.81 * 20.0) = sqrt(25.0 + 392.4) = sqrt(417.4) ≈ 20.4304 m/s
-    // t   = (-5.0 + 20.43037) / 9.81 ≈ 1.5729 s
+    val v0Abajo = 5.0
+    val hAbajo = 20.0
     val vfTeorico = 20.43
     val tTeorico = 1.57
 
@@ -869,56 +613,36 @@ fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): 
     val vfValido = calculadora.validarResultado(vfCalculado, vfTeorico, margenError = 0.05)
     val tValido = calculadora.validarResultado(tCalculado, tTeorico, margenError = 0.05)
 
-    println("Parámetros de prueba: v₀ = $v0Abajo m/s, h = $hAbajo m")
+    println("Parámetros: v₀ = $v0Abajo m/s, h = $hAbajo m")
     println(String.format(Locale.US, "• Velocidad final calculada : %.4f m/s (Teórico: %.2f m/s) -> %s",
         vfCalculado, vfTeorico, if (vfValido) "APROBADO (±0.05)" else "RECHAZADO"))
     println(String.format(Locale.US, "• Tiempo de caída calculado  : %.4f s   (Teórico: %.2f s)   -> %s",
         tCalculado, tTeorico, if (tValido) "APROBADO (±0.05)" else "RECHAZADO"))
 
-    // Comprobación de OCP: caso v0 = 0 coincide exactamente con caída libre
     val vfCaidaLibre = calculadora.calcularVelocidadFinal(hAbajo)
     val vfAbajoV0Cero = calculadora.calcularVelocidadFinalLanzamientoAbajo(0.0, hAbajo)
     val tCaidaLibre = calculadora.calcularTiempo(hAbajo)
     val tAbajoV0Cero = calculadora.calcularTiempoLanzamientoAbajo(0.0, hAbajo)
     println("\n• Verificación OCP (Consistencia con Caída Libre si v₀ = 0 m/s):")
-    println(String.format(Locale.US, "  - v_f (Caída Libre: %.4f m/s) vs v_f (Lanzamiento v₀=0: %.4f m/s) -> %s",
+    println(String.format(Locale.US, "  - v_f (Caída: %.4f) vs v_f (v₀=0: %.4f) -> %s",
         vfCaidaLibre, vfAbajoV0Cero, if (abs(vfCaidaLibre - vfAbajoV0Cero) < 1e-9) "COINCIDEN EXACTAMENTE" else "DISCREPANCIA"))
-    println(String.format(Locale.US, "  - t   (Caída Libre: %.4f s)   vs t   (Lanzamiento v₀=0: %.4f s)   -> %s",
+    println(String.format(Locale.US, "  - t   (Caída: %.4f) vs t   (v₀=0: %.4f) -> %s",
         tCaidaLibre, tAbajoV0Cero, if (abs(tCaidaLibre - tAbajoV0Cero) < 1e-9) "COINCIDEN EXACTAMENTE" else "DISCREPANCIA"))
 
-    // Validación de excepciones y contratos de dominio (try-catch)
-    println("\n• Validación de Precondiciones y Manejo de Excepciones (try-catch):")
-    try {
-        print("  - Probando velocidad inicial negativa (v₀ = -5.0 m/s): ")
+    println("\n• Validación de Precondiciones e Invariantes:")
+    probarInvariante("Velocidad inicial negativa rechazada") {
         calculadora.calcularVelocidadFinalLanzamientoAbajo(-5.0, hAbajo)
-        println("✗ ERROR: Se permitió una velocidad inicial negativa.")
-    } catch (e: IllegalArgumentException) {
-        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
     }
-
-    try {
-        print("  - Probando altura negativa (h = -20.0 m): ")
+    probarInvariante("Altura negativa rechazada") {
         calculadora.calcularTiempoLanzamientoAbajo(v0Abajo, -20.0)
-        println("✗ ERROR: Se permitió una altura negativa.")
-    } catch (e: IllegalArgumentException) {
-        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
     }
 
-    // ========================================================================
-    // 2. Demostración Issue 13: Lanzamiento Vertical Hacia Arriba (v₀ > 0, contra g)
-    // ========================================================================
+    // Lanzamiento hacia arriba
     println("\n" + "─".repeat(85))
-    println("⬆️ MILESTONE 2 (ISSUE 13): LANZAMIENTO VERTICAL HACIA ARRIBA (DESACELERACIÓN)")
-    println("   Principio OCP: Incorporación de física en desaceleración sin alterar métodos previos.")
-    println("   Invariante de Dominio: Velocidad inicial estrictamente positiva (v₀ > 0).")
+    println("⬆️ MILESTONE 2: LANZAMIENTO VERTICAL HACIA ARRIBA (DESACELERACIÓN)")
     println("─".repeat(85))
 
-    val v0Arriba = 15.0 // m/s
-
-    // Valores teóricos:
-    // h_máx   = 15.0^2 / (2 * 9.81) = 225.0 / 19.62 ≈ 11.4679 m
-    // t_sub   = 15.0 / 9.81 ≈ 1.5291 s
-    // t_total = 2 * 15.0 / 9.81 ≈ 3.0581 s
+    val v0Arriba = 15.0
     val hMaxTeorico = 11.47
     val tSubidaTeorico = 1.53
     val tTotalTeorico = 3.06
@@ -931,7 +655,7 @@ fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): 
     val tSubidaValido = calculadora.validarResultado(tSubidaCalculado, tSubidaTeorico, margenError = 0.05)
     val tTotalValido = calculadora.validarResultado(tTotalCalculado, tTotalTeorico, margenError = 0.05)
 
-    println("Parámetros de prueba: v₀ = $v0Arriba m/s")
+    println("Parámetros: v₀ = $v0Arriba m/s")
     println(String.format(Locale.US, "• Altura máxima calculada   : %.4f m (Teórico: %.2f m) -> %s",
         hMaxCalculada, hMaxTeorico, if (hMaxValida) "APROBADO (±0.05)" else "RECHAZADO"))
     println(String.format(Locale.US, "• Tiempo de subida calculado: %.4f s (Teórico: %.2f s) -> %s",
@@ -939,36 +663,18 @@ fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): 
     println(String.format(Locale.US, "• Tiempo total de vuelo     : %.4f s (Teórico: %.2f s) -> %s",
         tTotalCalculado, tTotalTeorico, if (tTotalValido) "APROBADO (±0.05)" else "RECHAZADO"))
 
-    // Comprobación de simetría cinemática
     val esSimetrico = abs(tTotalCalculado - (2.0 * tSubidaCalculado)) < 1e-9
-    println(String.format(Locale.US, "• Simetría temporal (t_total == 2 * t_subida): %s (%.4fs == 2 * %.4fs)",
-        if (esSimetrico) "VERIFICADA EXITOSAMENTE" else "FALLO EN SIMETRÍA",
-        tTotalCalculado, tSubidaCalculado))
+    println("• Simetría temporal (t_total == 2 * t_subida): " + if (esSimetrico) "VERIFICADA EXITOSAMENTE" else "FALLO")
 
-    // Validación de excepciones y contratos de dominio ante v₀ <= 0 (try-catch)
-    println("\n• Validación de Contratos Seguros e Invariantes de Dominio (v₀ <= 0):")
-    try {
-        print("  - Probando velocidad inicial nula (v₀ = 0.0 m/s en calcularAlturaMaxima): ")
+    println("\n• Validación de Contratos Seguros (v₀ <= 0):")
+    probarInvariante("Velocidad inicial nula rechazada en tiro vertical") {
         calculadora.calcularAlturaMaxima(0.0)
-        println("✗ ERROR: Se permitió v₀ = 0 en lanzamiento hacia arriba.")
-    } catch (e: IllegalArgumentException) {
-        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
     }
-
-    try {
-        print("  - Probando velocidad inicial negativa (v₀ = -10.0 m/s en calcularTiempoSubida): ")
+    probarInvariante("Velocidad inicial negativa rechazada en tiempo de subida") {
         calculadora.calcularTiempoSubida(-10.0)
-        println("✗ ERROR: Se permitió v₀ < 0 en cálculo de tiempo de subida.")
-    } catch (e: IllegalArgumentException) {
-        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
     }
-
-    try {
-        print("  - Probando velocidad inicial negativa (v₀ = -15.0 m/s en calcularTiempoTotalVuelo): ")
+    probarInvariante("Velocidad inicial negativa rechazada en tiempo total") {
         calculadora.calcularTiempoTotalVuelo(-15.0)
-        println("✗ ERROR: Se permitió v₀ < 0 en tiempo total de vuelo.")
-    } catch (e: IllegalArgumentException) {
-        println("✓ Excepción capturada exitosamente: \"${e.message}\"")
     }
 
     println("=".repeat(85))
@@ -979,14 +685,7 @@ fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): 
 }
 
 /**
- * Realiza una demostración y validación en consola de la arquitectura de navegación y pantallas (POO & SOLID).
- *
- * 1. Single Responsibility Principle (SRP): NavegadorEscenas controla el Stage, VistaMenu construye el menú,
- *    VistaJuego presenta el problema y coordina la simulación.
- * 2. Dependency Inversion Principle (DIP): Las vistas dependen de INavegadorEscenas, IRepositorioProblemas
- *    e ICalculadoraFisica, sin instanciarse de forma rígida entre sí.
- * 3. Open/Closed Principle (OCP): El navegador permite cambiar a cualquier escena mediante cambiarEscena()
- *    facilitando incorporar nuevas pantallas (Ajustes, Créditos, Game Over) sin modificar el código previo.
+ * Realiza una demostración y validación en consola de la arquitectura de navegación y pantallas.
  */
 fun demostrarNavegacion() {
     println("=".repeat(85))
@@ -995,39 +694,69 @@ fun demostrarNavegacion() {
     println("✓ SRP: Stage encapsulado en NavegadorEscenas, aislado de las vistas.")
     println("✓ DIP: Vistas desacopladas mediante interfaces INavegadorEscenas e IRepositorioProblemas.")
     println("✓ OCP: Soporte para nuevas pantallas sin modificar VistaMenu ni VistaJuego.")
-    println("✓ VistaMenu: Título neón estilizado, selector de dificultad (FACIL, MEDIO, DIFICIL) y botón Iniciar Misión.")
+    println("✓ VistaMenu: Título neón estilizado, selector de dificultad y botón Iniciar Misión.")
     println("✓ VistaJuego: Problema cargado por Dificultad, botón Volver al Menú y simulación interactiva.")
     println("=".repeat(85) + "\n")
 }
 
 /**
+ * Realiza una demostración en consola del sistema de progreso del jugador y desbloqueo secuencial (POO & SOLID).
+ */
+fun demostrarProgresoJugador(gestor: IGestorProgreso = GestorProgreso()): IGestorProgreso {
+    println("=".repeat(85))
+    println("🏆 GRAVITYQUEST - DEMOSTRACIÓN DE SISTEMA DE PROGRESO DEL JUGADOR (POO & SOLID)")
+    println("=".repeat(85))
+
+    println("1. Estado Inicial de Desbloqueo:")
+    println("   • Nivel Fácil   : ${if (gestor.esNivelDesbloqueado(Dificultad.FACIL)) "DESBLOQUEADO (Inicial)" else "BLOQUEADO"}")
+    println("   • Nivel Medio   : ${if (gestor.esNivelDesbloqueado(Dificultad.MEDIO)) "DESBLOQUEADO" else "BLOQUEADO (Requiere completar Fácil)"}")
+    println("   • Nivel Difícil : ${if (gestor.esNivelDesbloqueado(Dificultad.DIFICIL)) "DESBLOQUEADO" else "BLOQUEADO (Requiere completar Medio)"}")
+
+    println("\n2. Simulando resolución de ejercicios de Nivel Fácil...")
+    val problemasFacil = listOf(1, 2, 3, 8)
+    for (id in problemasFacil) {
+        gestor.registrarProblemaCompletado(id)
+        println("   ✓ Problema #$id completado. Progreso actual: ${gestor.cantidadProblemasCompletados()} problemas resueltos.")
+    }
+
+    println("\n3. Verificación tras completar Nivel Fácil:")
+    val medioDesbloqueado = gestor.esNivelDesbloqueado(Dificultad.MEDIO)
+    println("   • Nivel Medio desbloqueado: ${if (medioDesbloqueado) "SÍ (Desbloqueado exitosamente)" else "NO"}")
+
+    println("\n4. Simulando resolución de ejercicios de Nivel Medio...")
+    val problemasMedio = listOf(4, 5)
+    for (id in problemasMedio) {
+        gestor.registrarProblemaCompletado(id)
+        println("   ✓ Problema #$id completado. Progreso actual: ${gestor.cantidadProblemasCompletados()} problemas resueltos.")
+    }
+
+    println("\n5. Verificación tras completar Nivel Medio:")
+    val dificilDesbloqueado = gestor.esNivelDesbloqueado(Dificultad.DIFICIL)
+    println("   • Nivel Difícil desbloqueado: ${if (dificilDesbloqueado) "SÍ (Desbloqueado exitosamente)" else "NO"}")
+
+    println("=".repeat(85))
+    println("✨ DEMOSTRACIÓN DE PROGRESO DEL JUGADOR COMPLETADA CON ÉXITO")
+    println("=".repeat(85) + "\n")
+
+    return gestor
+}
+
+/**
  * Punto de entrada principal de la aplicación.
- *
- * 1. Ejecuta la demostración y validación en consola de los modelos de dominio (POO / SOLID).
- * 2. Ejecuta la demostración y validación en consola de las extensiones del motor físico (Issues 12 y 13).
- * 3. Ejecuta la demostración de la arquitectura de navegación y pantallas (Issue 14).
- * 4. Inicializa la interfaz gráfica JavaFX interactiva (a menos que se especifique modo consola).
  */
 fun main(args: Array<String>) {
-    // 1. Demostración y validación por consola de los modelos de dominio
     demostrarModelosDominio()
-
-    // 2. Demostración y validación por consola de las extensiones del motor físico (Issues 12 y 13)
     demostrarMotorFisico()
-
-    // 3. Demostración de arquitectura de navegación y pantallas (Issue 14)
     demostrarNavegacion()
+    demostrarProgresoJugador()
 
-    // 4. Si se solicitó ejecución exclusiva en consola (ej. CI o entornos headless), no iniciar JavaFX
     if (args.contains("--cli") || args.contains("--console") || args.contains("--demo-only")) {
         return
     }
 
-    // 5. Lanzamiento de la interfaz gráfica JavaFX con navegación de escenas
     try {
         Application.launch(GravityQuestApp::class.java, *args)
     } catch (e: Exception) {
         println("Aviso: Ejecución JavaFX finalizada o entorno sin display gráfico: ${e.message}")
     }
 }
-

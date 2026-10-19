@@ -12,6 +12,7 @@ import javafx.scene.layout.BorderPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
+import javafx.stage.Stage
 import gravityquest.models.Dificultad
 import gravityquest.models.GeneradorProblemas
 import gravityquest.models.IRepositorioProblemas
@@ -23,29 +24,21 @@ import gravityquest.models.Problema
  * ============================================================================
  *
  * Principio de Responsabilidad Única (SRP):
- * Se encarga exclusivamente de presentar y gestionar la pantalla del problema/ejercicio
- * físico: muestra el enunciado de acuerdo a la dificultad seleccionada, valida la respuesta
- * numérica del usuario con el modelo [Problema], orquesta el feedback visual y sincroniza
- * la simulación cinemática en el lienzo. Delega la navegación al [INavegadorEscenas].
+ * Se encarga exclusivamente de presentar y coordinar la vista del ejercicio físico:
+ * muestra el problema cargado, valida la respuesta del usuario, notifica el avance a
+ * [IGestorProgreso], invoca el modal [VentanaPista] y delega la simulación a [ControladorSimulacion].
  *
  * Principio de Inversión de Dependencias (DIP):
  * Depende de contratos abstractos ([INavegadorEscenas], [IRepositorioProblemas], [ICalculadoraFisica],
- * [RenderizadorSimulacion], [IGestorFeedback]) permitiendo desacoplamiento total y alta testabilidad.
- *
- * Principio Abierto/Cerrado (OCP):
- * Puede recibir cualquier implementación de repositorio o calculadora física para soportar
- * nuevos desafíos sin modificar la estructura visual ni de interacción.
- *
- * @param dificultad Dificultad seleccionada en el menú inicial.
- * @param navegador Gestor de navegación para retornar al menú o cambiar de pantalla.
- * @param repositorio Repositorio proveedor del catálogo de problemas físicos.
- * @param calculadora Calculadora cinemática y física para la simulación.
+ * [RenderizadorSimulacion], [IGestorFeedback], [IGestorProgreso]).
  */
 class VistaJuego(
     val dificultad: Dificultad,
     private val navegador: INavegadorEscenas,
     val repositorio: IRepositorioProblemas = GeneradorProblemas(),
-    val calculadora: ICalculadoraFisica = CalculadoraFisica()
+    val calculadora: ICalculadoraFisica = CalculadoraFisica(),
+    val gestorProgreso: IGestorProgreso = GestorProgreso(),
+    val stagePropietario: Stage? = null
 ) : BorderPane() {
 
     /** Nodo raíz de la vista de juego (referencia a sí mismo como contenedor). */
@@ -57,151 +50,136 @@ class VistaJuego(
 
     // 2. Altura en metros del ejercicio para configurar el lienzo físico
     val alturaProblema: Double
-        get() = (problemaActual.datosAdicionales["alturaMetros"] as? Number)?.toDouble() ?: 20.0
+        get() = problemaActual.alturaMetros
 
     // 3. Estado físico y renderizado gráfico desacoplados (SRP / DIP)
     val objetoSimulado: ObjetoSimulado = ObjetoSimulado(alturaMaxima = alturaProblema)
-    val canvasSimulacion: Canvas = Canvas(320.0, 320.0).apply {
+    val canvasSimulacion: Canvas = Canvas(GameConfig.ANCHO_CANVAS_DEFAULT, GameConfig.ALTO_CANVAS_DEFAULT).apply {
         styleClass.add("canvas-simulacion")
     }
     var renderizador: RenderizadorSimulacion = RenderizadorCanvas(canvasSimulacion, alturaProblema)
 
     // 4. Componentes UI de navegación superior
-    val btnVolverMenu: Button = Button("⬅ Volver al Menú").apply {
-        styleClass.addAll("button", "btn-secundario", "btn-volver")
-    }
+    val btnVolverMenu: Button = UIFactory.crearBotonSecundario("⬅ Volver al Menú", claseExtra = "btn-volver")
 
-    val lblBadgeDificultad: Label = Label().apply {
-        styleClass.add("badge-dificultad")
-    }
+    val lblBadgeDificultad: Label = UIFactory.crearEtiqueta(clasesEstilo = listOf("badge-dificultad"))
 
-    val btnOtroProblema: Button = Button("🔄 Otro Ejercicio").apply {
-        styleClass.addAll("button", "btn-secundario")
-    }
+    val btnVerPista: Button = UIFactory.crearBotonSecundario("💡 Ver Pista", claseExtra = "btn-pista")
+
+    val btnOtroProblema: Button = UIFactory.crearBotonSecundario("🔄 Otro Ejercicio")
 
     // 5. Componentes UI del panel de control del problema
-    val lblTituloMision: Label = Label().apply {
-        styleClass.addAll("label")
-        style = "-fx-font-weight: bold; -fx-text-fill: #38bdf8; -fx-font-size: 14px;"
-    }
+    val lblTituloMision: Label = UIFactory.crearEtiqueta(clasesEstilo = listOf("label", "titulo-mision"))
 
-    val lblEnunciado: Label = Label().apply {
-        styleClass.addAll("label", "enunciado")
-        isWrapText = true
-        maxWidth = 340.0
-    }
+    val lblEnunciado: Label = UIFactory.crearEtiqueta(
+        clasesEstilo = listOf("label", "enunciado"),
+        anchoMax = 340.0,
+        wrap = true
+    )
 
-    val lblPista: Label = Label().apply {
-        styleClass.add("label")
-        isWrapText = true
-        maxWidth = 340.0
-        style = "-fx-font-size: 11px; -fx-text-fill: #94a3b8; -fx-font-style: italic;"
-    }
+    val lblPista: Label = UIFactory.crearEtiqueta(
+        clasesEstilo = listOf("label", "pista-texto"),
+        anchoMax = 340.0,
+        wrap = true
+    )
 
-    val txtRespuesta: TextField = TextField().apply {
-        styleClass.add("text-field")
-        maxWidth = 240.0
-    }
+    val txtRespuesta: TextField = UIFactory.crearCampoTexto(anchoMax = 240.0)
 
-    val btnValidar: Button = Button("Validar y Simular").apply {
-        styleClass.addAll("button", "btn-primario")
-        maxWidth = 240.0
-    }
+    val btnValidar: Button = UIFactory.crearBotonPrimario("Validar y Simular", anchoMax = 240.0)
 
-    val btnSimular: Button = Button("Simular Caída").apply {
-        styleClass.addAll("button", "btn-secundario")
-        maxWidth = 200.0
-    }
+    val btnSimular: Button = UIFactory.crearBotonSecundario("Simular Caída", anchoMax = 200.0)
 
-    val lblResultado: Label = Label().apply {
-        styleClass.add("label")
-        isWrapText = true
-        maxWidth = 340.0
-        alignment = Pos.CENTER
-    }
+    val lblResultado: Label = UIFactory.crearEtiqueta(
+        clasesEstilo = listOf("label"),
+        anchoMax = 340.0,
+        wrap = true,
+        alineacion = Pos.CENTER
+    )
 
     // 6. Gestor de retroalimentación visual (animaciones y clases de resultado)
     var gestorFeedback: IGestorFeedback = GestorFeedbackVisual(lblResultado)
 
-    // 7. Control de la simulación gráfica a 60 FPS
-    var timerSimulacion: AnimationTimer? = null
-    var tiempoInicioNano: Long = 0L
-    var simulacionEnCurso: Boolean = false
-        private set
+    // 7. Controlador de simulación a 60 FPS desacoplado (SRP / DRY)
+    private val controladorSimulacion: ControladorSimulacion = ControladorSimulacion(
+        objetoSimulado = objetoSimulado,
+        calculadora = calculadora,
+        alturaMetros = alturaProblema,
+        alActualizar = { renderizador.renderizar(it) }
+    )
+
+    val timerSimulacion: AnimationTimer? get() = controladorSimulacion.timer
+    val simulacionEnCurso: Boolean get() = controladorSimulacion.enCurso
 
     init {
         // Estilos base de la pantalla
         styleClass.add("root")
         padding = Insets(16.0)
 
-        // Configuración de la barra de navegación superior (Header)
-        val barraSuperior = HBox(16.0).apply {
+        // Ensamblado de layouts
+        top = construirBarraNavegacion()
+        center = construirContenedorCentral()
+
+        // Inicialización reactiva de datos del problema y renderizado inicial
+        actualizarDatosProblemaEnUI()
+
+        // Configuración de eventos de interacción
+        configurarEventos()
+    }
+
+    /**
+     * Construye la barra de herramientas superior con botones de navegación, badge y botón de pista.
+     */
+    private fun construirBarraNavegacion(): HBox =
+        HBox(16.0).apply {
             alignment = Pos.CENTER_LEFT
             styleClass.add("barra-navegacion")
             val espaciador = javafx.scene.layout.Region()
             HBox.setHgrow(espaciador, Priority.ALWAYS)
-            children.addAll(btnVolverMenu, espaciador, lblBadgeDificultad, btnOtroProblema)
+            children.addAll(btnVolverMenu, espaciador, lblBadgeDificultad, btnVerPista, btnOtroProblema)
+            BorderPane.setMargin(this, Insets(0.0, 0.0, 16.0, 0.0))
         }
-        top = barraSuperior
-        BorderPane.setMargin(barraSuperior, Insets(0.0, 0.0, 16.0, 0.0))
 
-        // Panel de control (Izquierda)
+    /**
+     * Construye el panel central distribuyendo formulario a la izquierda y simulación a la derecha.
+     */
+    private fun construirContenedorCentral(): HBox {
         val panelControl = VBox(14.0).apply {
             alignment = Pos.CENTER
             maxWidth = 360.0
             styleClass.add("panel-control")
-            children.addAll(
-                lblTituloMision,
-                lblEnunciado,
-                lblPista,
-                txtRespuesta,
-                btnValidar,
-                lblResultado
-            )
+            children.addAll(lblTituloMision, lblEnunciado, lblPista, txtRespuesta, btnValidar, lblResultado)
         }
 
-        // Panel de simulación (Derecha)
         val panelSimulacion = VBox(14.0).apply {
             alignment = Pos.CENTER
             styleClass.add("panel-simulacion")
-            children.addAll(
-                canvasSimulacion,
-                btnSimular
-            )
+            children.addAll(canvasSimulacion, btnSimular)
         }
 
-        // Contenedor principal central (HBox)
-        val contenedorCentral = HBox(22.0).apply {
+        return HBox(22.0).apply {
             alignment = Pos.CENTER
             children.addAll(panelControl, panelSimulacion)
         }
-        center = contenedorCentral
+    }
 
-        // Inicialización de datos del problema y renderizado inicial
-        actualizarDatosProblemaEnUI()
-        configurarAnimationTimer()
-        renderizador.renderizar(objetoSimulado)
-
-        // Configuración de acciones interactivas
+    /**
+     * Conecta las acciones interactivas de los controles de la vista.
+     */
+    private fun configurarEventos() {
         btnVolverMenu.setOnAction {
             detenerSimulacion()
             navegador.irAMenu()
         }
 
-        btnValidar.setOnAction {
-            validarRespuesta()
-        }
+        btnValidar.setOnAction { validarRespuesta() }
+        txtRespuesta.setOnAction { validarRespuesta() }
+        btnSimular.setOnAction { iniciarOReiniciarSimulacion() }
+        btnOtroProblema.setOnAction { cargarNuevoProblema() }
 
-        txtRespuesta.setOnAction {
-            validarRespuesta()
-        }
-
-        btnSimular.setOnAction {
-            iniciarOReiniciarSimulacion()
-        }
-
-        btnOtroProblema.setOnAction {
-            cargarNuevoProblema()
+        // Abre el diálogo modal de pistas sin interrumpir la simulación gráfica del Canvas
+        btnVerPista.setOnAction {
+            val owner = stagePropietario ?: scene?.window
+            VentanaPista.mostrar(owner, problemaActual)
         }
     }
 
@@ -209,17 +187,10 @@ class VistaJuego(
      * Carga un problema correspondiente a la dificultad especificada desde el repositorio.
      */
     private fun cargarProblemaParaDificultad(dif: Dificultad): Problema {
-        return repositorio.obtenerPorDificultad(dif).randomOrNull()
-            ?: repositorio.obtenerPorDificultad(dif).firstOrNull()
-            ?: Problema(
-                id = 1,
-                enunciado = "Un objeto cae libremente desde una altura de 20.0 metros sin velocidad inicial. Calcula el tiempo en segundos (g = 9.81 m/s²).",
-                dificultad = dif,
-                valorEsperado = 2.02,
-                unidadMedida = "s",
-                pista = "t = √(2h / g)",
-                datosAdicionales = mapOf("alturaMetros" to 20.0)
-            )
+        val problemas = repositorio.obtenerPorDificultad(dif)
+        return problemas.randomOrNull()
+            ?: problemas.firstOrNull()
+            ?: GeneradorProblemas.crearCatalogoBase().first { it.dificultad == dif }
     }
 
     /**
@@ -253,64 +224,36 @@ class VistaJuego(
     }
 
     /**
-     * Valida la respuesta numérica ingresada por el usuario utilizando el modelo [Problema]:
-     * - Si es correcta: muestra feedback de éxito y dispara la simulación física animada.
+     * Valida la respuesta numérica ingresada por el usuario:
+     * - Si es correcta: registra la victoria en [GestorProgreso], muestra feedback de éxito y anima.
      * - Si es incorrecta o inválida: muestra feedback de error y detiene la animación.
      *
      * @return `true` si la respuesta fue admitida dentro del margen de error, `false` en caso contrario.
      */
     fun validarRespuesta(): Boolean {
-        val entrada = txtRespuesta.text.trim().replace(',', '.')
-        val valorIngresado = entrada.toDoubleOrNull()
+        val valorIngresado = txtRespuesta.obtenerValorDecimal()
 
         if (valorIngresado == null) {
-            detenerSimulacion()
-            objetoSimulado.reiniciar()
-            renderizador.renderizar(objetoSimulado)
+            detenerYReiniciarLienzo()
             gestorFeedback.mostrarErrorFormato("¡Entrada inválida! Por favor ingresa un número.")
             return false
         }
 
         val esCorrecto = problemaActual.validarRespuesta(valorIngresado)
 
-        if (esCorrecto) {
-            gestorFeedback.mostrarExito("¡Correcto! Respuesta dentro de la tolerancia (±${dificultad.margenErrorTolerable} ${problemaActual.unidadMedida}).")
+        return if (esCorrecto) {
+            // Actualización del progreso del jugador en tiempo real (SRP)
+            gestorProgreso.registrarVictoria(problemaActual)
+
+            gestorFeedback.mostrarExito(
+                "¡Correcto! Respuesta dentro de la tolerancia (±${dificultad.margenErrorTolerable} ${problemaActual.unidadMedida})."
+            )
             iniciarOReiniciarSimulacion()
-            return true
+            true
         } else {
-            detenerSimulacion()
-            objetoSimulado.reiniciar()
-            renderizador.renderizar(objetoSimulado)
+            detenerYReiniciarLienzo()
             gestorFeedback.mostrarErrorPrecision("¡Intenta de nuevo! Tu respuesta no es precisa.")
-            return false
-        }
-    }
-
-    /**
-     * Configura el bucle de animación de 60 FPS con [AnimationTimer] para renderizar la caída.
-     */
-    private fun configurarAnimationTimer() {
-        timerSimulacion = object : AnimationTimer() {
-            override fun handle(now: Long) {
-                if (tiempoInicioNano == 0L) {
-                    tiempoInicioNano = now
-                }
-
-                val deltaSegundos = (now - tiempoInicioNano) / 1_000_000_000.0
-                val tiempoTotalCaida = calculadora.calcularTiempo(alturaProblema)
-
-                if (deltaSegundos >= tiempoTotalCaida) {
-                    val vFinal = calculadora.calcularVelocidadFinal(alturaProblema)
-                    objetoSimulado.actualizar(alturaProblema, vFinal, tiempoTotalCaida, haLlegadoAlSuelo = true)
-                    renderizador.renderizar(objetoSimulado)
-                    detenerSimulacion()
-                } else {
-                    val posY = calculadora.calcularPosicionCaida(deltaSegundos)
-                    val vY = calculadora.g * deltaSegundos
-                    objetoSimulado.actualizar(posY, vY, deltaSegundos, haLlegadoAlSuelo = false)
-                    renderizador.renderizar(objetoSimulado)
-                }
-            }
+            false
         }
     }
 
@@ -318,19 +261,19 @@ class VistaJuego(
      * Inicia o reinicia la simulación del objeto en caída en el Canvas.
      */
     fun iniciarOReiniciarSimulacion() {
-        detenerSimulacion()
-        tiempoInicioNano = 0L
-        objetoSimulado.reiniciar()
-        renderizador.renderizar(objetoSimulado)
-        simulacionEnCurso = true
-        timerSimulacion?.start()
+        controladorSimulacion.iniciarOReiniciar(alturaProblema)
     }
 
     /**
      * Detiene el temporizador de la simulación gráfica.
      */
     fun detenerSimulacion() {
-        timerSimulacion?.stop()
-        simulacionEnCurso = false
+        controladorSimulacion.detener()
+    }
+
+    private fun detenerYReiniciarLienzo() {
+        detenerSimulacion()
+        objetoSimulado.reiniciar()
+        renderizador.renderizar(objetoSimulado)
     }
 }

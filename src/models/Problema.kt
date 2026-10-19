@@ -1,16 +1,10 @@
 package gravityquest.models
 
+import gravityquest.PhysicsConstants
 import kotlin.math.abs
 
 /**
  * Clasificación de los tipos de problemas físicos para escalabilidad y OCP.
- *
- * Principio Abierto/Cerrado (OCP):
- * Permite categorizar y extender los desafíos físicos soportados (caída libre, lanzamientos verticales,
- * MRU, cinemática general, etc.) sin modificar la estructura del modelo [Problema].
- *
- * @property nombre Nombre legible del tipo de problema físico.
- * @property descripcion Resumen conceptual del movimiento físico.
  */
 enum class TipoProblema(
     val nombre: String,
@@ -50,9 +44,7 @@ enum class TipoProblema(
 /**
  * Contrato de abstracción para representar un ejercicio o problema físico.
  *
- * Principio Abierto/Cerrado (OCP) e Inversión de Dependencias (DIP):
- * Define los requisitos indispensables de cualquier problema en el dominio de GravityQuest,
- * permitiendo futuras especializaciones sin romper los clientes consumidores.
+ * Principio Abierto/Cerrado (OCP) e Inversión de Dependencias (DIP).
  */
 interface IProblema {
     val id: Int
@@ -64,11 +56,7 @@ interface IProblema {
     val tipo: TipoProblema
 
     /**
-     * Valida si un valor numérico provisto coincide con el valor esperado dentro del margen de error permitido.
-     *
-     * @param valorIngresado Número ingresado por el usuario o estudiante.
-     * @param margenError Tolerancia personalizada opcional; si no se provee, se toma de [dificultad].
-     * @return `true` si la respuesta es admisible, `false` en caso contrario.
+     * Valida si un valor provisto coincide con el valor esperado dentro del margen permitido.
      */
     fun validarRespuesta(valorIngresado: Double, margenError: Double? = null): Boolean
 }
@@ -77,25 +65,10 @@ interface IProblema {
  * Modelo de datos inmutable que representa un ejercicio físico individual.
  *
  * Principio de Responsabilidad Única (SRP):
- * Encapsula de forma exclusiva la definición, datos requeridos y validación puntual
- * de una consigna física individual, delegando la gestión y filtrado al repositorio/generador.
- *
- * Principio Abierto/Cerrado (OCP):
- * Estructurado con propiedades flexibles ([tipo], [datosAdicionales]) e implementando [IProblema],
- * facilitando la incorporación de nuevas áreas cinemáticas sin alterar la estructura fundamental.
+ * Encapsula la definición, datos y validación matemática de una consigna física.
  *
  * Encapsulamiento y Contratos Seguros:
- * Todas las propiedades son inmutables ([val]) y el bloque [init] aplica invariantes estrictos
- * para prevenir estados inconsistentes (enunciados vacíos, identificadores negativos, NaN, etc.).
- *
- * @property id Identificador único y positivo del problema.
- * @property enunciado Consigna o texto descriptivo del ejercicio.
- * @property dificultad Nivel de complejidad asociado ([Dificultad.FACIL], [Dificultad.MEDIO], [Dificultad.DIFICIL]).
- * @property valorEsperado Valor numérico teórico de la respuesta correcta.
- * @property unidadMedida Símbolo de la unidad física de la respuesta (ej. "s", "m/s", "m").
- * @property pista Orientación o ayuda conceptual para guiar la resolución del usuario.
- * @property tipo Categoría física del problema (por defecto [TipoProblema.CAIDA_LIBRE]).
- * @property datosAdicionales Mapa inmutable para parámetros físicos adicionales (ej. masa, ángulo, gravedad).
+ * Propiedades inmutables ([val]), precondiciones firmes con [require] y métodos de dominio.
  */
 data class Problema(
     override val id: Int,
@@ -118,12 +91,19 @@ data class Problema(
     }
 
     /**
-     * Valida si una respuesta numérica provista por el estudiante o usuario es correcta
-     * dentro de una tolerancia o margen de error.
-     *
-     * @param valorIngresado El valor numérico a evaluar.
-     * @param margenError Tolerancia personalizada opcional; si es null, utiliza [dificultad.margenErrorTolerable].
-     * @return `true` si la diferencia absoluta no excede el margen permitido, `false` en caso contrario.
+     * Altura inicial del problema en metros para simulación (método de dominio seguro).
+     */
+    val alturaMetros: Double
+        get() = (datosAdicionales["alturaMetros"] as? Number)?.toDouble() ?: PhysicsConstants.ALTURA_DEFAULT
+
+    /**
+     * Velocidad inicial del problema en m/s (método de dominio seguro).
+     */
+    val velocidadInicial: Double
+        get() = (datosAdicionales["v0"] as? Number)?.toDouble() ?: 0.0
+
+    /**
+     * Valida si una respuesta numérica provista es correcta dentro de la tolerancia.
      */
     override fun validarRespuesta(valorIngresado: Double, margenError: Double?): Boolean {
         val tolerancia = margenError ?: dificultad.margenErrorTolerable
@@ -136,11 +116,7 @@ data class Problema(
      */
     fun respuestaFormateada(): String = "$valorEsperado $unidadMedida"
 
-    /**
-     * Representación legible del problema con toda su información encapsulada.
-     */
-    override fun toString(): String {
-        return "Problema(id=$id, dificultad=${dificultad.nombreVisible}, tipo=${tipo.nombre}, " +
-               "valorEsperado=$valorEsperado $unidadMedida, pista='$pista', enunciado='$enunciado')"
-    }
+    override fun toString(): String =
+        "Problema(id=$id, dificultad=${dificultad.nombreVisible}, tipo=${tipo.nombre}, " +
+        "valorEsperado=$valorEsperado $unidadMedida, pista='$pista', enunciado='$enunciado')"
 }
