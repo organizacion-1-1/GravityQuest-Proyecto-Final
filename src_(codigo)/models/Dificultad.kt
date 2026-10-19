@@ -1,51 +1,41 @@
 package gravityquest.models
 
+import gravityquest.PhysicsConstants
+
 /**
  * Representa los niveles de dificultad disponibles en GravityQuest.
  *
  * Principio de Responsabilidad Única (SRP):
  * Modela exclusivamente la graduación del desafío físico y sus atributos intrínsecos
- * (nombre visible, descripción pedagógica y tolerancia numérica permitida), sin acoplarse
- * a la lógica de generación, almacenamiento o componentes de interfaz gráfica.
+ * (nombre visible, descripción pedagógica y tolerancia numérica permitida).
  *
- * Encapsulamiento:
- * Expone únicamente propiedades inmutables ([val]) y asegura mediante validaciones en [init]
- * la coherencia y robustez de sus datos.
+ * Principio DRY:
+ * Reutiliza [PhysicsConstants.MARGEN_ERROR_DEFAULT] en lugar de duplicar valores mágicos.
  *
- * @property nombreVisible Nombre amigable para mostrar en interfaces y reportes (ej. "Fácil").
- * @property descripcion Explicación pedagógica de las condiciones físicas del nivel.
- * @property margenErrorTolerable Margen de error o tolerancia numérica absoluta permitida al validar respuestas.
+ * Encapsulamiento y POO:
+ * Propiedades inmutables ([val]), invariantes asegurados en [init] y métodos de dominio.
  */
 enum class Dificultad(
     val nombreVisible: String,
     val descripcion: String,
-    val margenErrorTolerable: Double
+    val margenErrorTolerable: Double = PhysicsConstants.MARGEN_ERROR_DEFAULT
 ) {
-    /**
-     * Nivel Fácil: Caída libre clásica sin velocidad inicial (v₀ = 0 m/s).
-     */
+    /** Nivel Fácil: Caída libre clásica sin velocidad inicial (v₀ = 0 m/s). */
     FACIL(
         nombreVisible = "Fácil",
-        descripcion = "Caída libre sin velocidad inicial (v₀ = 0 m/s)",
-        margenErrorTolerable = 0.05
+        descripcion = "Caída libre sin velocidad inicial (v₀ = 0 m/s)"
     ),
 
-    /**
-     * Nivel Medio: Lanzamiento vertical hacia abajo con velocidad inicial (v₀ > 0 m/s).
-     */
+    /** Nivel Medio: Lanzamiento vertical hacia abajo con velocidad inicial (v₀ > 0 m/s). */
     MEDIO(
         nombreVisible = "Medio",
-        descripcion = "Lanzamiento vertical hacia abajo con velocidad inicial (v₀ > 0 m/s)",
-        margenErrorTolerable = 0.05
+        descripcion = "Lanzamiento vertical hacia abajo con velocidad inicial (v₀ > 0 m/s)"
     ),
 
-    /**
-     * Nivel Difícil: Lanzamiento vertical hacia arriba desacelerando por gravedad (v₀ > 0 m/s).
-     */
+    /** Nivel Difícil: Lanzamiento vertical hacia arriba desacelerando por gravedad (v₀ > 0 m/s). */
     DIFICIL(
         nombreVisible = "Difícil",
-        descripcion = "Lanzamiento vertical hacia arriba desacelerando por gravedad (v₀ > 0 m/s)",
-        margenErrorTolerable = 0.05
+        descripcion = "Lanzamiento vertical hacia arriba desacelerando por gravedad (v₀ > 0 m/s)"
     );
 
     init {
@@ -55,17 +45,11 @@ enum class Dificultad(
     }
 
     companion object {
-        /**
-         * Alias para soportar la nomenclatura con tilde 'DIFÍCIL' requerida por especificaciones.
-         */
+        /** Alias para soportar la nomenclatura con tilde 'DIFÍCIL'. */
         val `DIFÍCIL`: Dificultad get() = DIFICIL
 
         /**
-         * Busca y retorna la [Dificultad] correspondiente a partir de un texto (nombre o identificador),
-         * ignorando mayúsculas, minúsculas y espacios periféricos.
-         *
-         * @param texto Cadena de búsqueda (ej. "Fácil", "facil", "MEDIO", "DIFICIL", "Difícil").
-         * @return La [Dificultad] coincidente o `null` si no existe coincidencia.
+         * Busca la [Dificultad] correspondiente a partir de un texto normalizado.
          */
         fun desdeTexto(texto: String?): Dificultad? {
             if (texto.isNullOrBlank()) return null
