@@ -8,8 +8,11 @@ class App {
         get() {
             return "Hello World!"
         }
-}
 
-fun main() {
-    println(App().greeting)
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String> = emptyArray()) {
+            println(App().greeting)
+        }
+    }
 }

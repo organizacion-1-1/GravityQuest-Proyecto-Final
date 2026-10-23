@@ -128,7 +128,7 @@ class GeneradorProblemas(
                     dificultad = Dificultad.MEDIO,
                     valorEsperado = 22.70,
                     unidadMedida = "m/s",
-                    pista = "Aplica la ecuación independiente del tiempo: v_f² = v₀² + 2gh, de donde v_f = √(5² + 2 * $g * 25).",
+                    pista = "Aplica la fórmula de velocidad final para lanzamiento hacia abajo: v_f = √(v₀² + 2gh).",
                     tipo = TipoProblema.LANZAMIENTO_VERTICAL_ABAJO,
                     datosAdicionales = mapOf("alturaMetros" to 25.0, "v0" to 5.0, "gravedad" to g)
                 ),
@@ -138,7 +138,7 @@ class GeneradorProblemas(
                     dificultad = Dificultad.MEDIO,
                     valorEsperado = 2.10,
                     unidadMedida = "s",
-                    pista = "Plantea la ecuación de posición: h = v₀·t + (1/2)g·t² y resuelve la cuadrática positiva para t.",
+                    pista = "Aplica la fórmula de tiempo de caída: t = (-v₀ + √(v₀² + 2gh)) / g.",
                     tipo = TipoProblema.LANZAMIENTO_VERTICAL_ABAJO,
                     datosAdicionales = mapOf("alturaMetros" to 30.0, "v0" to 4.0, "gravedad" to g)
                 ),
@@ -154,7 +154,7 @@ class GeneradorProblemas(
                     unidadMedida = "s",
                     pista = "En el punto más alto la velocidad instantánea se anula (v = 0). Usa t_subida = v₀ / g.",
                     tipo = TipoProblema.LANZAMIENTO_VERTICAL_ARRIBA,
-                    datosAdicionales = mapOf("v0" to 20.0, "gravedad" to g)
+                    datosAdicionales = mapOf("v0" to 20.0, "gravedad" to g, "alturaMetros" to (20.0 * 20.0 / (2.0 * g)))
                 ),
                 Problema(
                     id = 7,
@@ -162,9 +162,9 @@ class GeneradorProblemas(
                     dificultad = Dificultad.DIFICIL,
                     valorEsperado = 31.86,
                     unidadMedida = "m",
-                    pista = "En la cúspide v = 0. Despeja h de la fórmula: h_max = v₀² / (2g).",
+                    pista = "En la cúspide v = 0. Despeja h de la fórmula: h_máx = v₀² / (2g).",
                     tipo = TipoProblema.LANZAMIENTO_VERTICAL_ARRIBA,
-                    datosAdicionales = mapOf("v0" to 25.0, "gravedad" to g)
+                    datosAdicionales = mapOf("v0" to 25.0, "gravedad" to g, "alturaMetros" to (25.0 * 25.0 / (2.0 * g)))
                 ),
 
                 // ====================================================================

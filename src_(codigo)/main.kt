@@ -168,7 +168,9 @@ interface RenderizadorSimulacion {
  */
 class RenderizadorCanvas(
     val canvas: Canvas,
-    val alturaMaximaMetros: Double = PhysicsConstants.ALTURA_DEFAULT
+    var alturaMaximaMetros: Double = PhysicsConstants.ALTURA_DEFAULT,
+    var direccion: DireccionMovimiento = DireccionMovimiento.ABAJO,
+    var velocidadInicial: Double = 0.0
 ) : RenderizadorSimulacion {
 
     private val gc: GraphicsContext = canvas.graphicsContext2D
@@ -185,6 +187,12 @@ class RenderizadorCanvas(
 
     fun convertirMetroAPixelY(metros: Double): Double =
         margenSuperior + (metros * escalaPixelesPorMetro)
+
+    fun configurar(altura: Double, direccionMov: DireccionMovimiento = DireccionMovimiento.ABAJO, v0: Double = 0.0) {
+        this.alturaMaximaMetros = altura
+        this.direccion = direccionMov
+        this.velocidadInicial = v0
+    }
 
     override fun limpiar() {
         gc.clearRect(0.0, 0.0, canvas.width, canvas.height)
@@ -205,51 +213,105 @@ class RenderizadorCanvas(
         gc.lineWidth = 1.5
         gc.strokeRect(1.0, 1.0, ancho - 2.0, alto - 2.0)
 
-        // Línea de referencia inicial
-        val inicioY = margenSuperior + diametroObjeto
-        gc.stroke = Color.web("#475569")
-        gc.lineWidth = 1.0
-        gc.strokeLine(25.0, inicioY, ancho - 25.0, inicioY)
-        gc.fill = Color.web("#94a3b8")
-        gc.font = Font.font("Segoe UI", FontWeight.NORMAL, 10.0)
-        gc.fillText("0 m (Inicio)", 25.0, margenSuperior - 6.0)
+        val alturaEfectiva = if (alturaMaximaMetros > 0.0) alturaMaximaMetros else PhysicsConstants.ALTURA_DEFAULT
+        val inicioY = margenSuperior
+        val sueloY = margenSuperior + (alturaEfectiva * escalaPixelesPorMetro)
 
-        // Línea de suelo
-        val sueloY = margenSuperior + (alturaMaximaMetros * escalaPixelesPorMetro) + diametroObjeto
-        gc.stroke = Color.web("#38bdf8")
-        gc.lineWidth = 2.0
-        gc.strokeLine(20.0, sueloY, ancho - 20.0, sueloY)
-        gc.fill = Color.web("#38bdf8")
-        gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
-        gc.fillText("${alturaMaximaMetros.toInt()} m (Suelo)", 25.0, sueloY + 16.0)
+        if (direccion == DireccionMovimiento.ARRIBA) {
+            // ====================================================================
+            // Renderizado de Lanzamiento Vertical Hacia Arriba (Suelo abajo, h_máx arriba)
+            // ====================================================================
+            val sueloLineaY = sueloY + diametroObjeto
+            gc.stroke = Color.web("#38bdf8")
+            gc.lineWidth = 2.0
+            gc.strokeLine(20.0, sueloLineaY, ancho - 20.0, sueloLineaY)
+            gc.fill = Color.web("#38bdf8")
+            gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
+            gc.fillText("0 m (Suelo / Disparo)", 25.0, sueloLineaY + 16.0)
 
-        // Guía vertical de trayectoria
-        gc.stroke = Color.web("#1e293b")
-        gc.lineWidth = 1.0
-        gc.strokeLine(ancho / 2.0, inicioY, ancho / 2.0, sueloY)
+            val inicioLineaY = inicioY + diametroObjeto
+            gc.stroke = Color.web("#475569")
+            gc.lineWidth = 1.0
+            gc.strokeLine(25.0, inicioLineaY, ancho - 25.0, inicioLineaY)
+            gc.fill = Color.web("#94a3b8")
+            gc.font = Font.font("Segoe UI", FontWeight.NORMAL, 10.0)
+            gc.fillText(String.format(Locale.US, "%.1f m (h_máx)", alturaEfectiva), 25.0, inicioY - 6.0)
 
-        // Posición de la esfera en píxeles
-        val pixelY = convertirMetroAPixelY(objeto.posicionY)
-        val pixelX = (ancho / 2.0) - radioObjeto
+            gc.stroke = Color.web("#1e293b")
+            gc.lineWidth = 1.0
+            gc.strokeLine(ancho / 2.0, inicioLineaY, ancho / 2.0, sueloLineaY)
 
-        gc.fill = if (objeto.enSuelo) Color.web("#4ade80") else Color.web("#38bdf8")
-        gc.fillOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
+            val pixelY = sueloY - (objeto.posicionY * escalaPixelesPorMetro)
+            val pixelX = (ancho / 2.0) - radioObjeto
 
-        gc.stroke = Color.web("#ffffff")
-        gc.lineWidth = 1.5
-        gc.strokeOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
+            val enSueloVisual = objeto.enSuelo && objeto.tiempo > 0.0
+            gc.fill = if (enSueloVisual) Color.web("#4ade80") else Color.web("#38bdf8")
+            gc.fillOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
 
-        // Telemetría en tiempo real
-        gc.fill = Color.web("#e2e8f0")
-        gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
-        val infoTexto = String.format(
-            Locale.US,
-            "t: %.2fs | y: %.1fm | v: %.1fm/s",
-            objeto.tiempo,
-            objeto.posicionY,
-            objeto.velocidadY
-        )
-        gc.fillText(infoTexto, ancho - 180.0, 18.0)
+            gc.stroke = Color.web("#ffffff")
+            gc.lineWidth = 1.5
+            gc.strokeOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
+
+            gc.fill = Color.web("#e2e8f0")
+            gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
+            val infoTexto = String.format(
+                Locale.US,
+                "t: %.2fs | h: %.1fm | v: %.1fm/s",
+                objeto.tiempo,
+                objeto.posicionY,
+                objeto.velocidadY
+            )
+            gc.fillText(infoTexto, ancho - 180.0, 18.0)
+        } else {
+            // ====================================================================
+            // Renderizado Descendente (Caída Libre o Lanzamiento Hacia Abajo)
+            // ====================================================================
+            val inicioYLinea = margenSuperior + diametroObjeto
+            gc.stroke = Color.web("#475569")
+            gc.lineWidth = 1.0
+            gc.strokeLine(25.0, inicioYLinea, ancho - 25.0, inicioYLinea)
+            gc.fill = Color.web("#94a3b8")
+            gc.font = Font.font("Segoe UI", FontWeight.NORMAL, 10.0)
+            val etiquetaInicio = if (velocidadInicial > 0.0) {
+                String.format(Locale.US, "0 m (Inicio v₀=%.1f m/s)", velocidadInicial)
+            } else {
+                "0 m (Inicio)"
+            }
+            gc.fillText(etiquetaInicio, 25.0, margenSuperior - 6.0)
+
+            val sueloYLinea = margenSuperior + (alturaEfectiva * escalaPixelesPorMetro) + diametroObjeto
+            gc.stroke = Color.web("#38bdf8")
+            gc.lineWidth = 2.0
+            gc.strokeLine(20.0, sueloYLinea, ancho - 20.0, sueloYLinea)
+            gc.fill = Color.web("#38bdf8")
+            gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
+            gc.fillText(String.format(Locale.US, "%.1f m (Suelo)", alturaEfectiva), 25.0, sueloYLinea + 16.0)
+
+            gc.stroke = Color.web("#1e293b")
+            gc.lineWidth = 1.0
+            gc.strokeLine(ancho / 2.0, inicioYLinea, ancho / 2.0, sueloYLinea)
+
+            val pixelY = convertirMetroAPixelY(objeto.posicionY)
+            val pixelX = (ancho / 2.0) - radioObjeto
+
+            gc.fill = if (objeto.enSuelo) Color.web("#4ade80") else Color.web("#38bdf8")
+            gc.fillOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
+
+            gc.stroke = Color.web("#ffffff")
+            gc.lineWidth = 1.5
+            gc.strokeOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
+
+            gc.fill = Color.web("#e2e8f0")
+            gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
+            val infoTexto = String.format(
+                Locale.US,
+                "t: %.2fs | y: %.1fm | v: %.1fm/s",
+                objeto.tiempo,
+                objeto.posicionY,
+                objeto.velocidadY
+            )
+            gc.fillText(infoTexto, ancho - 180.0, 18.0)
+        }
     }
 }
 
@@ -432,7 +494,7 @@ open class GravityQuestApp : Application() {
     }
 
     fun validarRespuesta(): Boolean {
-        val valorIngresado = txtRespuesta.obtenerValorDecimal()
+        val valorIngresado = UIFactory.obtenerValorDecimal(txtRespuesta)
 
         if (valorIngresado == null) {
             detenerSimulacion()
@@ -497,11 +559,12 @@ open class GravityQuestApp : Application() {
 }
 
 /**
- * Subclase de compatibilidad directa con puntos de entrada y pruebas preexistentes.
+ * Objeto utilitario que encapsula las demostraciones por consola, validaciones de
+ * contratos de dominio y pruebas de integración visual/diagnóstica (SRP / POO).
  */
-class Main : GravityQuestApp()
+object DemostracionConsola {
 
-inline fun probarInvariante(descripcion: String, bloque: () -> Unit) {
+    inline fun probarInvariante(descripcion: String, bloque: () -> Unit) {
     try {
         bloque()
         println("✗ Fallo: Se permitió una condición inválida ($descripcion).")
@@ -740,23 +803,64 @@ fun demostrarProgresoJugador(gestor: IGestorProgreso = GestorProgreso()): IGesto
 
     return gestor
 }
+}
 
 /**
- * Punto de entrada principal de la aplicación.
+ * Clase principal de la aplicación GravityQuest (POO & JavaFX).
+ * Punto de entrada oficial con [main] encapsulado en su [companion object] anotado con @JvmStatic.
  */
-fun main(args: Array<String>) {
-    demostrarModelosDominio()
-    demostrarMotorFisico()
-    demostrarNavegacion()
-    demostrarProgresoJugador()
+open class MainApp : GravityQuestApp() {
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            DemostracionConsola.demostrarModelosDominio()
+            DemostracionConsola.demostrarMotorFisico()
+            DemostracionConsola.demostrarNavegacion()
+            DemostracionConsola.demostrarProgresoJugador()
 
-    if (args.contains("--cli") || args.contains("--console") || args.contains("--demo-only")) {
-        return
+            if (args.contains("--cli") || args.contains("--console") || args.contains("--demo-only")) {
+                return
+            }
+
+            try {
+                Application.launch(GravityQuestApp::class.java, *args)
+            } catch (e: Exception) {
+                println("Aviso: Ejecución JavaFX finalizada o entorno sin display gráfico: ${e.message}")
+            }
+        }
+
+        fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProblemas()): IRepositorioProblemas =
+            DemostracionConsola.demostrarModelosDominio(repositorio)
+
+        fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): CalculadoraFisica =
+            DemostracionConsola.demostrarMotorFisico(calculadora)
+
+        fun demostrarNavegacion() =
+            DemostracionConsola.demostrarNavegacion()
+
+        fun demostrarProgresoJugador(gestor: IGestorProgreso = GestorProgreso()): IGestorProgreso =
+            DemostracionConsola.demostrarProgresoJugador(gestor)
     }
+}
 
-    try {
-        Application.launch(GravityQuestApp::class.java, *args)
-    } catch (e: Exception) {
-        println("Aviso: Ejecución JavaFX finalizada o entorno sin display gráfico: ${e.message}")
+/**
+ * Subclase de compatibilidad directa con puntos de entrada y pruebas preexistentes.
+ */
+class Main : MainApp() {
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            MainApp.main(args)
+        }
+    }
+}
+
+/**
+ * Objeto de compatibilidad para puntos de entrada referenciados como MainKt.
+ */
+object MainKt {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        MainApp.main(args)
     }
 }

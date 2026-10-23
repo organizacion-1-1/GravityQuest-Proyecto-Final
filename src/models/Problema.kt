@@ -1,6 +1,9 @@
 package gravityquest.models
 
 import gravityquest.PhysicsConstants
+import gravityquest.IEstrategiaCalculo
+import gravityquest.DireccionMovimiento
+import gravityquest.CalculosAuxiliares
 import kotlin.math.abs
 
 /**
@@ -54,6 +57,7 @@ interface IProblema {
     val unidadMedida: String
     val pista: String
     val tipo: TipoProblema
+    val estrategiaCalculo: IEstrategiaCalculo
 
     /**
      * Valida si un valor provisto coincide con el valor esperado dentro del margen permitido.
@@ -67,6 +71,9 @@ interface IProblema {
  * Principio de Responsabilidad Única (SRP):
  * Encapsula la definición, datos y validación matemática de una consigna física.
  *
+ * Principio Abierto/Cerrado (OCP) y Polimorfismo:
+ * Delega los cálculos y fórmulas en la estrategia polimórfica [IEstrategiaCalculo].
+ *
  * Encapsulamiento y Contratos Seguros:
  * Propiedades inmutables ([val]), precondiciones firmes con [require] y métodos de dominio.
  */
@@ -77,8 +84,13 @@ data class Problema(
     override val valorEsperado: Double,
     override val unidadMedida: String,
     override val pista: String,
-    override val tipo: TipoProblema = TipoProblema.CAIDA_LIBRE,
-    val datosAdicionales: Map<String, Any> = emptyMap()
+    override val tipo: TipoProblema = dificultad.estrategiaCalculo.tipo,
+    val datosAdicionales: Map<String, Any> = emptyMap(),
+    override val estrategiaCalculo: IEstrategiaCalculo = if (tipo == dificultad.estrategiaCalculo.tipo) {
+        dificultad.estrategiaCalculo
+    } else {
+        CalculosAuxiliares.resolverEstrategia(tipo)
+    }
 ) : IProblema {
 
     init {
@@ -88,19 +100,54 @@ data class Problema(
         require(pista.isNotBlank()) { "La pista no puede estar vacía ni contener solo espacios" }
         require(!valorEsperado.isNaN()) { "El valor esperado no puede ser NaN (Not a Number)" }
         require(!valorEsperado.isInfinite()) { "El valor esperado no puede ser infinito: $valorEsperado" }
+        estrategiaCalculo.validarParametros(alturaMetros, velocidadInicial)
     }
 
     /**
      * Altura inicial del problema en metros para simulación (método de dominio seguro).
      */
     val alturaMetros: Double
-        get() = (datosAdicionales["alturaMetros"] as? Number)?.toDouble() ?: PhysicsConstants.ALTURA_DEFAULT
+        get() {
+            val h = (datosAdicionales["alturaMetros"] as? Number)?.toDouble()
+            if (h != null) return h
+            return if (tipo == TipoProblema.LANZAMIENTO_VERTICAL_ARRIBA && velocidadInicial > 0.0) {
+                (velocidadInicial * velocidadInicial) / (2.0 * PhysicsConstants.GRAVEDAD_TIERRA)
+            } else {
+                PhysicsConstants.ALTURA_DEFAULT
+            }
+        }
 
     /**
      * Velocidad inicial del problema en m/s (método de dominio seguro).
      */
     val velocidadInicial: Double
-        get() = (datosAdicionales["v0"] as? Number)?.toDouble() ?: 0.0
+        get() {
+            val v = (datosAdicionales["v0"] as? Number)?.toDouble()
+            if (v != null) return v
+            return when (tipo) {
+                TipoProblema.LANZAMIENTO_VERTICAL_ABAJO -> 5.0
+                TipoProblema.LANZAMIENTO_VERTICAL_ARRIBA -> 15.0
+                else -> 0.0
+            }
+        }
+
+    /**
+     * Dirección cinemática del movimiento físico delegada a la estrategia polimórfica (OCP).
+     */
+    val direccionMovimiento: DireccionMovimiento
+        get() = estrategiaCalculo.direccionMovimiento
+
+    /**
+     * Fórmulas teóricas específicas del problema provistas por la estrategia polimórfica (OCP).
+     */
+    val formulasPistas: String
+        get() = estrategiaCalculo.formulasPista
+
+    /**
+     * Altura de referencia física representativa para el renderizado del lienzo Canvas.
+     */
+    val alturaReferenciaSimulacion: Double
+        get() = alturaMetros
 
     /**
      * Valida si una respuesta numérica provista es correcta dentro de la tolerancia.

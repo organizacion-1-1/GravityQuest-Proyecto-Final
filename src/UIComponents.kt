@@ -122,6 +122,20 @@ object UIFactory {
             alignment = Pos.CENTER
             claseEstilo?.let { styleClass.add(it) }
         }
+
+    /**
+     * Parsea una cadena de texto admitiendo coma o punto como separador decimal.
+     * Encapsulado en [UIFactory] delegando en [CalculosAuxiliares] (SRP).
+     */
+    fun parsearNumeroDecimal(texto: String): Double? =
+        CalculosAuxiliares.parsearNumeroDecimal(texto)
+
+    /**
+     * Obtiene y parsea el valor numérico decimal contenido en un [TextField].
+     * Encapsulado en [UIFactory] (SRP / POO).
+     */
+    fun obtenerValorDecimal(campo: TextField): Double? =
+        parsearNumeroDecimal(campo.text)
 }
 
 /**
@@ -165,15 +179,3 @@ object FxAnimationUtils {
         }
     }
 }
-
-/**
- * Parsea una cadena de texto admitiendo coma o punto como separador decimal.
- */
-fun String.parsearNumeroDecimal(): Double? =
-    trim().replace(',', '.').toDoubleOrNull()
-
-/**
- * Obtiene y parsea el valor numérico decimal contenido en un [TextField].
- */
-fun TextField.obtenerValorDecimal(): Double? =
-    text.parsearNumeroDecimal()

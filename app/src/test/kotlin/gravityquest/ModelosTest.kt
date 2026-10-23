@@ -256,7 +256,7 @@ class ModelosTest {
     @Test
     fun testDemostrarModelosDominioEjecucionExitosa() {
         val generador = GeneradorProblemas()
-        val resultado = demostrarModelosDominio(generador)
+        val resultado = DemostracionConsola.demostrarModelosDominio(generador)
         assertNotNull(resultado)
         assertTrue(resultado.cantidadTotal() > 0)
     }
