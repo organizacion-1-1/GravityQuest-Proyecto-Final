@@ -199,4 +199,62 @@ class GestorProgresoTest {
             assertNotNull(stageModal.scene)
         }
     }
+
+    // ========================================================================
+    // 3. Pruebas para el Sistema de Puntuación y MarcadorPuntosView (Issue #17)
+    // ========================================================================
+
+    @Test
+    fun testSistemaPuntuacionReglasDeNegocio() {
+        val gestor = GestorProgreso()
+        assertEquals(0, gestor.puntajeActual)
+        assertEquals("PUNTAJE: 0000", gestor.obtenerPuntajeFormateado())
+
+        // Respuesta incorrecta con 0 puntos: no debe bajar de 0
+        gestor.registrarIntentoFallido(idProblema = 1)
+        assertEquals(0, gestor.puntajeActual, "El puntaje no debe bajar de 0")
+
+        // Acierto en problema #1 con intento previo fallido -> +50 puntos
+        val p1 = GeneradorProblemas.crearCatalogoBase().first { it.id == 1 }
+        gestor.registrarVictoria(p1)
+        assertEquals(50, gestor.puntajeActual, "Acierto con intento fallido previo otorga +50 puntos")
+        assertEquals("PUNTAJE: 0050", gestor.obtenerPuntajeFormateado())
+
+        // Acierto al primer intento limpio en problema #2 -> +100 puntos
+        val p2 = GeneradorProblemas.crearCatalogoBase().first { it.id == 2 }
+        gestor.registrarVictoria(p2)
+        assertEquals(150, gestor.puntajeActual, "Acierto al primer intento sin pistas otorga +100 puntos")
+
+        // Respuesta incorrecta -> -10 puntos
+        gestor.registrarIntentoFallido(idProblema = 3)
+        assertEquals(140, gestor.puntajeActual, "Respuesta incorrecta resta 10 puntos")
+
+        // Acierto usando pista en problema #4 -> +50 puntos
+        val p4 = GeneradorProblemas.crearCatalogoBase().first { it.id == 4 }
+        gestor.registrarPistaUsada(p4.id)
+        gestor.registrarVictoria(p4)
+        assertEquals(190, gestor.puntajeActual, "Acierto tras consultar pista otorga +50 puntos")
+    }
+
+    @Test
+    fun testMarcadorPuntosViewActualizacionReactivaObserver() {
+        ejecutarEnFx {
+            val gestor = GestorProgreso()
+            val marcador = MarcadorPuntosView(gestor)
+
+            assertTrue(marcador.styleClass.contains("marcador-puntuacion"))
+            assertTrue(marcador.lblPuntos.styleClass.contains("puntos-texto"))
+            assertTrue(marcador.lblIncremento.styleClass.contains("puntos-incremento"))
+            assertEquals("PUNTAJE: 0000", marcador.lblPuntos.text)
+
+            // Al cambiar el puntaje en el modelo, MarcadorPuntosView debe actualizarse automáticamente
+            gestor.registrarAcierto(alPrimerIntentoSinPista = true)
+            assertEquals("PUNTAJE: 0100", marcador.lblPuntos.text)
+            assertEquals("+100", marcador.lblIncremento.text)
+
+            gestor.registrarIntentoFallido()
+            assertEquals("PUNTAJE: 0090", marcador.lblPuntos.text)
+            assertEquals("-10", marcador.lblIncremento.text)
+        }
+    }
 }

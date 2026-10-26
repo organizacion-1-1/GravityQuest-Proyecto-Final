@@ -1,5 +1,6 @@
 package gravityquest
 
+import javafx.animation.FadeTransition
 import javafx.animation.ScaleTransition
 import javafx.animation.TranslateTransition
 import javafx.geometry.Pos
@@ -67,6 +68,19 @@ object UIFactory {
             anchoMax?.let { maxWidth = it }
             alineacion?.let { alignment = it }
         }
+
+    /**
+     * Instancia una etiqueta con estilo neón espacial para el marcador de puntuación (DRY).
+     */
+    fun crearEtiquetaPuntos(
+        texto: String = "PUNTAJE: 0000",
+        claseEstilo: String = "puntos-texto"
+    ): Label =
+        crearEtiqueta(
+            texto = texto,
+            clasesEstilo = listOf("label", claseEstilo),
+            alineacion = Pos.CENTER
+        )
 
     /**
      * Instancia un campo de entrada [TextField] con bordes redondeados y foco estilizado.
@@ -173,6 +187,20 @@ object FxAnimationUtils {
                 toX = desplazamiento
                 cycleCount = 6
                 isAutoReverse = true
+                setOnFinished { alFinalizar() }
+                play()
+            }
+        }
+    }
+
+    /**
+     * Aplica una transición combinada de escala y desvanecimiento sobre un indicador de puntos.
+     */
+    fun animarDesvanecimiento(nodo: Node, duracionMs: Double = 650.0, alFinalizar: () -> Unit = {}) {
+        ejecutarSeguro {
+            FadeTransition(Duration.millis(duracionMs), nodo).apply {
+                fromValue = 1.0
+                toValue = 0.0
                 setOnFinished { alFinalizar() }
                 play()
             }

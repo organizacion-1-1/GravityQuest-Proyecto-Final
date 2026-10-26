@@ -393,3 +393,38 @@
     -fx-font-size: 11px;
     -fx-line-spacing: 2px;
 }
+
+/* ==========================================================================
+   12. Marcador Dinámico de Puntuación (Milestone 3 - Issue #17)
+   ========================================================================== */
+
+/* Contenedor HBox del marcador de puntuación en el panel superior */
+.marcador-puntuacion {
+    -fx-background-color: linear-gradient(to right, #0f172a, #1e293b);
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: #38bdf8;
+    -fx-border-width: 1.5px;
+    -fx-padding: 6px 14px;
+    -fx-alignment: center;
+    -fx-spacing: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(56, 189, 248, 0.55), 10, 0.35, 0, 0);
+}
+
+/* Texto principal del puntaje ("PUNTAJE: 0000") con brillo cian neón */
+.puntos-texto {
+    -fx-text-fill: #38bdf8;
+    -fx-font-family: 'Consolas', 'Courier New', monospace;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, rgba(56, 189, 248, 0.8), 8, 0.4, 0, 0);
+}
+
+/* Indicador dinámico de incremento/variación de puntos (+100, +50, -10) */
+.puntos-incremento {
+    -fx-text-fill: #4ade80;
+    -fx-font-family: 'Consolas', 'Courier New', monospace;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, rgba(74, 222, 128, 0.85), 8, 0.45, 0, 0);
+}
