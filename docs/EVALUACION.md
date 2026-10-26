@@ -3,20 +3,20 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación II (RepoSense + análisis de calidad POO/SOLID). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-10-25.
+> Generado: 2026-10-26.
 
 ## 1. Veredicto
 
 | Aspecto | Resultado |
 |---|---|
 | Índice de calidad POO/SOLID | **1/100** |
-| Código (LOC) | 7,932 |
-| Archivos de código | 51 |
-| Clases (bien usadas) | 125 (16 OK) |
-| Código dentro de clases (%POO) | 76% |
-| Funciones fuera de clases | 28 |
-| Duplicación lógica | 67.9% |
-| Señales S/O/L/I/D | 61/2/0/3/44 |
+| Código (LOC) | 10,376 |
+| Archivos de código | 54 |
+| Clases (bien usadas) | 164 (32 OK) |
+| Código dentro de clases (%POO) | 83% |
+| Funciones fuera de clases | 15 |
+| Duplicación lógica | 69.0% |
+| Señales S/O/L/I/D | 82/2/6/6/53 |
 | Tope duro aplicado | `DUP>=50%` → índice ≤ 15 |
 
 > Este informe **describe** lo que el análisis midió con los criterios ya establecidos de la materia. No es una nota.
@@ -34,26 +34,26 @@ Criterios de `CRITERIOS-CALIDAD.md`. **Aprobar** se juega con el perfil `estanda
 
 | Criterio | Requisito | Tu resultado | Cumple |
 |---|---|---|---|
-| Código dentro de clases (%POO) | ≥ 85% | 76% | no |
-| Duplicación lógica | ≤ 10% | 67.9% | no |
-| Funciones fuera de clases | ≤ 1 | 28 | no |
-| Señales POO/SOLID críticas | ninguna | Clase demasiado grande (SRP), Baja cohesión (LCOM), Acoplamiento alto (CBO), Switch sobre tipos (OCP), Interfaz con demasiados métodos (ISP) | no |
+| Código dentro de clases (%POO) | ≥ 85% | 83% | no |
+| Duplicación lógica | ≤ 10% | 69.0% | no |
+| Funciones fuera de clases | ≤ 1 | 15 | no |
+| Señales POO/SOLID críticas | ninguna | Clase demasiado grande (SRP), Baja cohesión (LCOM), Acoplamiento alto (CBO), Switch sobre tipos (OCP), Interfaz con demasiados métodos (ISP), Override vacío / 'no implementado' (LSP) | no |
 
 **Criterios para destacar**
 
 | Criterio | Requisito | Tu resultado | Cumple |
 |---|---|---|---|
-| Código dentro de clases (%POO) | ≥ 95% | 76% | no |
-| Duplicación lógica | ≤ 5% | 67.9% | no |
-| Funciones fuera de clases | ≤ 0 | 28 | no |
-| Señales POO/SOLID críticas | ninguna | Clase demasiado grande (SRP), Baja cohesión (LCOM), Complejidad alta, Acoplamiento alto (CBO), Switch sobre tipos (OCP), Interfaz con demasiados métodos (ISP) | no |
+| Código dentro de clases (%POO) | ≥ 95% | 83% | no |
+| Duplicación lógica | ≤ 5% | 69.0% | no |
+| Funciones fuera de clases | ≤ 1 | 15 | no |
+| Señales POO/SOLID críticas | ninguna | Clase demasiado grande (SRP), Baja cohesión (LCOM), Complejidad alta, Acoplamiento alto (CBO), Switch sobre tipos (OCP), Interfaz con demasiados métodos (ISP), Override vacío / 'no implementado' (LSP) | no |
 | Índice de calidad POO/SOLID | ≥ 60 | 1/100 | no |
 
 ## 2. Autoría (RepoSense)
 
 | Autor | Commits | Código (LOC) | Tests (LOC) | Docs (LOC) | Días activos | % del código |
 |---|---:|---:|---:|---:|---:|---:|
-| colombati-creator | 15 | 8,727 | 1,209 | 2 | 10 | 100% |
+| colombati-creator | 17 | 11,616 | 1,267 | 2 | 12 | 100% |
 
 > _El LOC de autoría lo calcula RepoSense sobre el historial y puede diferir del LOC de código del análisis de calidad (que mira solo el estado de `main`)._
 
@@ -71,7 +71,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Porcentaje de bloques de LÓGICA repetidos. Quedan fuera imports/includes, anotaciones, declaraciones de campos y comentarios/Javadoc/docstrings: esos bloques son boilerplate, no lógica.
 - **Por qué importa:** Cada copia de lógica se mantiene por separado: un arreglo hay que repetirlo y los defectos se multiplican.
-- **Tu resultado:** **67.9%** de duplicación lógica
+- **Tu resultado:** **69.0%** de duplicación lógica
 - **Para investigar la causa:**
     - ¿El trabajo se repartió por pantallas o archivos y se integró copiando y pegando bloques?
     - ¿Qué zonas del sistema cambiaron juntas más de una vez (señal de lógica compartida)?
@@ -81,13 +81,13 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Qué porción del código vive dentro de clases (no de funciones sueltas).
 - **Por qué importa:** El diseño orientado a objetos es el eje de la materia: el comportamiento debería vivir como método de una clase.
-- **Tu resultado:** **75.5%** del código dentro de clases
+- **Tu resultado:** **82.7%** del código dentro de clases
 
 ### 4. Funciones fuera de clases (sueltas) — con señales
 
 - **Qué mide:** Funciones de nivel de módulo que no pertenecen a ninguna clase (en esta materia el comportamiento debe ser método de una clase).
 - **Por qué importa:** Son la forma más directa de código procedural en un proyecto que debería ser orientado a objetos.
-- **Tu resultado:** **28** función(es) fuera de clases
+- **Tu resultado:** **15** función(es) fuera de clases
 - **Para investigar la causa:**
     - ¿Esa función se dejó suelta por urgencia o por desconocer dónde ubicarla?
     - ¿Qué clase debería ser responsable de ese comportamiento?
@@ -97,7 +97,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Clases con muchas líneas, métodos o campos a la vez.
 - **Por qué importa:** Una clase que hace de todo cambia por muchos motivos y cuesta entenderla y probarla.
-- **Tu resultado:** **35** clase(s) demasiado grande(s)
+- **Tu resultado:** **44** clase(s) demasiado grande(s)
 - **Para investigar la causa:**
     - ¿La clase creció por acumulación de responsabilidades?
     - ¿Qué partes de la clase se usan siempre juntas y cuáles no?
@@ -117,7 +117,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Complejidad ciclomática: cantidad de caminos posibles dentro de un método o función (condicionales, bucles, casos).
 - **Por qué importa:** Muchos caminos = difícil de seguir y de probar; suelen esconderse casos sin cubrir.
-- **Tu resultado:** **8** método(s)/función(es) con complejidad alta
+- **Tu resultado:** **11** método(s)/función(es) con complejidad alta
 - **Para investigar la causa:**
     - ¿Se agregaron condiciones a medida que aparecían casos nuevos?
     - ¿Se probaron todos los caminos o solo el caso principal?
@@ -127,7 +127,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Tamaño de los métodos/funciones y cantidad de parámetros.
 - **Por qué importa:** Una función que hace varias cosas cuesta leerla, nombrarla y reutilizarla.
-- **Tu resultado:** **24** método(s)/función(es) largos o con muchos parámetros
+- **Tu resultado:** **42** método(s)/función(es) largos o con muchos parámetros
 - **Para investigar la causa:**
     - ¿La función creció por acumulación de pasos?
     - ¿Agrupa operaciones que podrían describirse por separado?
@@ -137,7 +137,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Cuánto depende una clase de otros tipos del proyecto.
 - **Por qué importa:** Piezas muy enlazadas hacen que un cambio se propague y que sea difícil reemplazar partes.
-- **Tu resultado:** **65** clase(s) muy acoplada(s)
+- **Tu resultado:** **89** clase(s) muy acoplada(s)
 - **Para investigar la causa:**
     - ¿La clase conoce detalles internos de muchas otras?
     - ¿Se puede cambiar una parte sin tocar las demás?
@@ -147,7 +147,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Profundidad de la cadena de herencia de una clase.
 - **Por qué importa:** Jerarquías muy profundas vuelven difícil saber de dónde viene cada comportamiento.
-- **Tu resultado:** **3** clase(s) con herencia profunda
+- **Tu resultado:** **6** clase(s) con herencia profunda
 - **Para investigar la causa:**
     - ¿La jerarquía creció para reutilizar código o para modelar una relación real 'es-un'?
     - ¿Qué comportamiento cambia entre niveles de la jerarquía?
@@ -167,23 +167,27 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Interfaces o clases abstractas con muchos métodos declarados.
 - **Por qué importa:** Obliga a implementar operaciones que no se usan y acopla a los clientes a métodos que no necesitan.
-- **Tu resultado:** **3** interfaz(es) con demasiados métodos
+- **Tu resultado:** **6** interfaz(es) con demasiados métodos
 - **Para investigar la causa:**
     - ¿Qué subconjunto de métodos usa realmente cada implementación?
     - ¿Se agruparon métodos de necesidades distintas en la misma interfaz?
     - ¿Hay implementaciones que dejan métodos sin uso?
 
-### 13. Override vacío o 'no implementado' (LSP) (lsp) — sin señales
+### 13. Override vacío o 'no implementado' (LSP) (lsp) — con señales
 
 - **Qué mide:** Métodos sobrescritos que quedan vacíos o lanzan 'no implementado'.
 - **Por qué importa:** Suele indicar que la jerarquía no representa bien el problema y rompe la sustitución entre clases.
-- **Tu resultado:** **0** override(s) vacío(s) o 'no implementado'
+- **Tu resultado:** **6** override(s) vacío(s) o 'no implementado'
+- **Para investigar la causa:**
+    - ¿Por qué ese método no tiene comportamiento en esa clase?
+    - ¿La clase hereda algo que en realidad no le corresponde?
+    - ¿Qué contrato se esperaba cumplir al heredar?
 
 ### 14. Dependencia de concretos y falta de abstracciones (DIP) (dip) — con señales
 
 - **Qué mide:** Instanciación directa de clases concretas y ausencia de interfaces o clases abstractas pese al acoplamiento.
 - **Por qué importa:** Depender de implementaciones concretas dificulta cambiar o probar una parte sin arrastrar las demás.
-- **Tu resultado:** **44** dependencia(s) de concretos sin abstracciones
+- **Tu resultado:** **53** dependencia(s) de concretos sin abstracciones
 - **Para investigar la causa:**
     - ¿La clase crea por dentro a sus colaboradores en vez de recibirlos?
     - ¿Hay puntos de variación que convendría expresar como abstracción?
@@ -193,7 +197,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Clases que solo acumulan campos y no tienen comportamiento.
 - **Por qué importa:** Separar datos de comportamiento reparte por el proyecto la lógica que debería estar cerca de esos datos.
-- **Tu resultado:** **21** clase(s) sin métodos (solo datos)
+- **Tu resultado:** **24** clase(s) sin métodos (solo datos)
 - **Para investigar la causa:**
     - ¿Dónde vive el comportamiento que opera sobre esos datos?
     - ¿La clase representa un concepto del dominio o un contenedor técnico?
@@ -203,7 +207,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Clases que exponen campos sin control de acceso.
 - **Por qué importa:** Expone el estado interno y hace que cualquier cambio dependa de quién lo modifica desde afuera.
-- **Tu resultado:** **44** clase(s) con campos públicos
+- **Tu resultado:** **56** clase(s) con campos públicos
 - **Para investigar la causa:**
     - ¿Se accede al campo desde otras clases para evitar un método?
     - ¿Qué reglas deberían respetarse al modificar ese estado?
@@ -252,16 +256,16 @@ Archivos donde el análisis encontró cada señal (sin número de línea, a prop
 
 **Baja cohesión (LCOM) (cohesion)** — 13 archivo(s):
 - `app/src/main/kotlin/gravityquest/GestorProgreso.kt`
-- `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt`
+- `app/src/main/kotlin/gravityquest/MarcadorPuntosView.kt`
 - `app/src/main/kotlin/gravityquest/VistaJuego.kt`
 - `app/src/main/kotlin/org/example/Juego/Main.kt`
 - `app/src/test/kotlin/gravityquest/NavegacionTest.kt`
 - `src/GestorProgreso.kt`
-- `src/NavegadorEscenas.kt`
+- `src/MarcadorPuntosView.kt`
 - `src/VistaJuego.kt`
 - `src/main.kt`
 - `src_(codigo)/GestorProgreso.kt`
-- `src_(codigo)/NavegadorEscenas.kt`
+- `src_(codigo)/MarcadorPuntosView.kt`
 - `src_(codigo)/VistaJuego.kt`
 - `src_(codigo)/main.kt`
 
@@ -275,19 +279,27 @@ Archivos donde el análisis encontró cada señal (sin número de línea, a prop
 - `src_(codigo)/VentanaPista.kt`
 - `src_(codigo)/main.kt`
 
-**Métodos/funciones largos o con muchos parámetros (tamano)** — 9 archivo(s):
+**Métodos/funciones largos o con muchos parámetros (tamano)** — 15 archivo(s):
+- `app/src/main/kotlin/gravityquest/UIComponents.kt`
 - `app/src/main/kotlin/gravityquest/VentanaPista.kt`
 - `app/src/main/kotlin/gravityquest/models/GeneradorProblemas.kt`
+- `app/src/main/kotlin/org/example/Juego/Formulas.kt`
 - `app/src/main/kotlin/org/example/Juego/Main.kt`
+- `src/Formulas.kt`
+- `src/UIComponents.kt`
 - `src/VentanaPista.kt`
 - `src/main.kt`
 - `src/models/GeneradorProblemas.kt`
+- `src_(codigo)/Formulas.kt`
+- `src_(codigo)/UIComponents.kt`
 - `src_(codigo)/VentanaPista.kt`
 - `src_(codigo)/main.kt`
 - `src_(codigo)/models/GeneradorProblemas.kt`
 
-**Acoplamiento alto (CBO) (acoplamiento)** — 41 archivo(s):
+**Acoplamiento alto (CBO) (acoplamiento)** — 47 archivo(s):
+- `app/src/main/kotlin/gravityquest/ControladorSimulacion.kt`
 - `app/src/main/kotlin/gravityquest/GestorProgreso.kt`
+- `app/src/main/kotlin/gravityquest/MarcadorPuntosView.kt`
 - `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt`
 - `app/src/main/kotlin/gravityquest/PhysicsConstants.kt`
 - `app/src/main/kotlin/gravityquest/UIComponents.kt`
@@ -304,8 +316,10 @@ Archivos donde el análisis encontró cada señal (sin número de línea, a prop
 - `app/src/test/kotlin/gravityquest/MainTest.kt`
 - `app/src/test/kotlin/gravityquest/ModelosTest.kt`
 - `app/src/test/kotlin/gravityquest/NavegacionTest.kt`
+- `src/ControladorSimulacion.kt`
 - `src/Formulas.kt`
 - `src/GestorProgreso.kt`
+- `src/MarcadorPuntosView.kt`
 - `src/NavegadorEscenas.kt`
 - `src/PhysicsConstants.kt`
 - `src/UIComponents.kt`
@@ -316,8 +330,10 @@ Archivos donde el análisis encontró cada señal (sin número de línea, a prop
 - `src/models/Dificultad.kt`
 - `src/models/GeneradorProblemas.kt`
 - `src/models/Problema.kt`
+- `src_(codigo)/ControladorSimulacion.kt`
 - `src_(codigo)/Formulas.kt`
 - `src_(codigo)/GestorProgreso.kt`
+- `src_(codigo)/MarcadorPuntosView.kt`
 - `src_(codigo)/NavegadorEscenas.kt`
 - `src_(codigo)/PhysicsConstants.kt`
 - `src_(codigo)/UIComponents.kt`
@@ -338,13 +354,22 @@ Archivos donde el análisis encontró cada señal (sin número de línea, a prop
 - `app/src/test/kotlin/gravityquest/MainTest.kt`
 - `app/src/test/kotlin/gravityquest/NavegacionTest.kt`
 
-**Interfaz con demasiados métodos (ISP) (isp)** — 3 archivo(s):
+**Interfaz con demasiados métodos (ISP) (isp)** — 6 archivo(s):
+- `app/src/main/kotlin/gravityquest/GestorProgreso.kt`
+- `app/src/main/kotlin/org/example/Juego/Formulas.kt`
+- `src/Formulas.kt`
+- `src/GestorProgreso.kt`
+- `src_(codigo)/Formulas.kt`
+- `src_(codigo)/GestorProgreso.kt`
+
+**Override vacío o 'no implementado' (LSP) (lsp)** — 3 archivo(s):
 - `app/src/main/kotlin/org/example/Juego/Formulas.kt`
 - `src/Formulas.kt`
 - `src_(codigo)/Formulas.kt`
 
-**Dependencia de concretos y falta de abstracciones (DIP) (dip)** — 38 archivo(s):
+**Dependencia de concretos y falta de abstracciones (DIP) (dip)** — 41 archivo(s):
 - `app/src/main/kotlin/gravityquest/GestorProgreso.kt`
+- `app/src/main/kotlin/gravityquest/MarcadorPuntosView.kt`
 - `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt`
 - `app/src/main/kotlin/gravityquest/UIComponents.kt`
 - `app/src/main/kotlin/gravityquest/VentanaPista.kt`
@@ -362,6 +387,7 @@ Archivos donde el análisis encontró cada señal (sin número de línea, a prop
 - `app/src/test/kotlin/gravityquest/NavegacionTest.kt`
 - `src/Formulas.kt`
 - `src/GestorProgreso.kt`
+- `src/MarcadorPuntosView.kt`
 - `src/NavegadorEscenas.kt`
 - `src/UIComponents.kt`
 - `src/VentanaPista.kt`
@@ -373,6 +399,7 @@ Archivos donde el análisis encontró cada señal (sin número de línea, a prop
 - `src/models/Problema.kt`
 - `src_(codigo)/Formulas.kt`
 - `src_(codigo)/GestorProgreso.kt`
+- `src_(codigo)/MarcadorPuntosView.kt`
 - `src_(codigo)/NavegadorEscenas.kt`
 - `src_(codigo)/UIComponents.kt`
 - `src_(codigo)/VentanaPista.kt`
@@ -397,37 +424,49 @@ Archivos donde el análisis encontró cada señal (sin número de línea, a prop
 - `src_(codigo)/main.kt`
 - `src_(codigo)/models/Problema.kt`
 
-**Campos públicos (encapsulación) (encapsulacion)** — 19 archivo(s):
+**Campos públicos (encapsulación) (encapsulacion)** — 31 archivo(s):
+- `app/src/main/kotlin/gravityquest/ControladorSimulacion.kt`
+- `app/src/main/kotlin/gravityquest/GestorProgreso.kt`
+- `app/src/main/kotlin/gravityquest/MarcadorPuntosView.kt`
 - `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt`
 - `app/src/main/kotlin/gravityquest/PhysicsConstants.kt`
 - `app/src/main/kotlin/gravityquest/VistaJuego.kt`
 - `app/src/main/kotlin/gravityquest/VistaMenu.kt`
+- `app/src/main/kotlin/gravityquest/models/Dificultad.kt`
 - `app/src/main/kotlin/gravityquest/models/Problema.kt`
 - `app/src/main/kotlin/org/example/Juego/Main.kt`
 - `app/src/test/kotlin/gravityquest/NavegacionTest.kt`
+- `src/ControladorSimulacion.kt`
+- `src/GestorProgreso.kt`
+- `src/MarcadorPuntosView.kt`
 - `src/NavegadorEscenas.kt`
 - `src/PhysicsConstants.kt`
 - `src/VistaJuego.kt`
 - `src/VistaMenu.kt`
 - `src/main.kt`
+- `src/models/Dificultad.kt`
 - `src/models/Problema.kt`
+- `src_(codigo)/ControladorSimulacion.kt`
+- `src_(codigo)/GestorProgreso.kt`
+- `src_(codigo)/MarcadorPuntosView.kt`
 - `src_(codigo)/NavegadorEscenas.kt`
 - `src_(codigo)/PhysicsConstants.kt`
 - `src_(codigo)/VistaJuego.kt`
 - `src_(codigo)/VistaMenu.kt`
 - `src_(codigo)/main.kt`
+- `src_(codigo)/models/Dificultad.kt`
 - `src_(codigo)/models/Problema.kt`
 
 ## 5. Evolución por commit
 
-Métricas calculadas sobre el estado de `main` en **cada commit** (15 commits con trabajo), del primero al último. La calidad usa el perfil `exigente`; el aporte de código lo mide RepoSense. El índice puede **bajar** al crecer el proyecto: se acumulan señales.
+Métricas calculadas sobre el estado de `main` en **cada commit** (16 commits con trabajo), del primero al último. La calidad usa el perfil `exigente`; el aporte de código lo mide RepoSense. El índice puede **bajar** al crecer el proyecto: se acumulan señales.
 
 ```mermaid
 xychart-beta
     title "Índice POO/SOLID a lo largo de los commits"
-    x-axis ["052883a", "f27feb0", "52dd827", "9a37451", "6f47bc8", "9f0b68b", "42dbe3e", "6cb23a6", "f662fcc", "967a698", "8501235", "62f0ff0", "aaddf8e", "652075e", "1e2658f"]
+    x-axis ["052883a", "f27feb0", "52dd827", "9a37451", "6f47bc8", "9f0b68b", "42dbe3e", "6cb23a6", "f662fcc", "967a698", "8501235", "62f0ff0", "aaddf8e", "652075e", "1e2658f", "a3a2de3"]
     y-axis "Índice" 0 --> 100
-    line [0, 0, 38, 38, 36, 36, 7, 7, 6, 4, 4, 2, 2, 1, 1]
+    line [0, 0, 38, 38, 36, 36, 7, 7, 6, 4, 4, 2, 2, 1, 1, 1]
 ```
 
 | # | Fecha | Commit | Autor | LOC | Índice | %POO | Duplic. | Sueltas |
@@ -447,6 +486,7 @@ xychart-beta
 | 13 | 2026-10-09 | `aaddf8e` | ciro | 4,142 | 2 | 73% | 65.1% | 5 |
 | 14 | 2026-10-16 | `652075e` | ciro | 6,182 | 1 | 75% | 59.9% | 7 |
 | 15 | 2026-10-19 | `1e2658f` | ciro | 7,932 | 1 | 76% | 67.9% | 28 |
+| 16 | 2026-10-26 | `a3a2de3` | ciro | 10,376 | 1 | 83% | 69.0% | 15 |
 
 ---
 _Informe generado por la cátedra. Los criterios y umbrales de medición corresponden al perfil `exigente` de `calidad.py`; el semáforo de aprobación, a `CRITERIOS-CALIDAD.md` (ver `README.md`). Ante dudas, revisá el archivo señalado._
