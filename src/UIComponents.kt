@@ -21,8 +21,8 @@ import javafx.util.Duration
  *
  * Principio DRY & Patrón Factory:
  * Centraliza la creación e instanciación de controles JavaFX estilizados (botones,
- * etiquetas, campos de texto y selectores) en una sola línea de código, garantizando
- * uniformidad visual y reduciendo drásticamente la duplicación entre vistas.
+ * etiquetas, campos de texto, íconos de vida y selectores) en una sola línea de código,
+ * garantizando uniformidad visual y reduciendo drásticamente la duplicación entre vistas.
  */
 object UIFactory {
 
@@ -79,6 +79,16 @@ object UIFactory {
         crearEtiqueta(
             texto = texto,
             clasesEstilo = listOf("label", claseEstilo),
+            alineacion = Pos.CENTER
+        )
+
+    /**
+     * Instancia un ícono visual de vida (corazón neón) con la clase CSS `.icono-vida` (DRY - Issue #18).
+     */
+    fun crearIconoVida(simbolo: String = "❤"): Label =
+        crearEtiqueta(
+            texto = simbolo,
+            clasesEstilo = listOf("label", "icono-vida"),
             alineacion = Pos.CENTER
         )
 
@@ -202,6 +212,31 @@ object FxAnimationUtils {
                 fromValue = 1.0
                 toValue = 0.0
                 setOnFinished { alFinalizar() }
+                play()
+            }
+        }
+    }
+
+    /**
+     * Anima la pérdida de un ícono de vida mediante un efecto de parpadeo y desvanecimiento
+     * suave con [FadeTransition] (Issue #18).
+     */
+    fun animarPerdidaVida(
+        nodo: Node,
+        opacidadFinal: Double = 0.28,
+        duracionMs: Double = 220.0,
+        alFinalizar: () -> Unit = {}
+    ) {
+        ejecutarSeguro {
+            FadeTransition(Duration.millis(duracionMs), nodo).apply {
+                fromValue = 1.0
+                toValue = opacidadFinal
+                cycleCount = 3
+                isAutoReverse = true
+                setOnFinished {
+                    nodo.opacity = opacidadFinal
+                    alFinalizar()
+                }
                 play()
             }
         }

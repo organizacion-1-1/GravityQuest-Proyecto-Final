@@ -428,3 +428,49 @@
     -fx-font-weight: bold;
     -fx-effect: dropshadow(gaussian, rgba(74, 222, 128, 0.85), 8, 0.45, 0, 0);
 }
+
+/* ==========================================================================
+   13. Sistema de Vidas y Progresión en Cadena (Milestone 3 - Issue #18)
+   ========================================================================== */
+
+/* Contenedor HBox de los 3 íconos de vidas en la barra superior */
+.panel-vidas {
+    -fx-background-color: linear-gradient(to right, #0f172a, #1e293b);
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: #f43f5e;
+    -fx-border-width: 1.5px;
+    -fx-padding: 5px 12px;
+    -fx-alignment: center;
+    -fx-spacing: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(244, 63, 94, 0.45), 10, 0.35, 0, 0);
+}
+
+/* Ícono individual de vida activa (corazón neón magenta/coral) */
+.icono-vida {
+    -fx-text-fill: #fb7185;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, rgba(244, 63, 94, 0.85), 10, 0.45, 0, 0);
+}
+
+/* Estado visual cuando se pierde una vida (desaturado y atenuado) */
+.icono-vida-perdida {
+    -fx-text-fill: #475569;
+    -fx-opacity: 0.28;
+    -fx-effect: none;
+}
+
+/* Mensaje destacado de Game Over / Nivel Fallido */
+.resultado-gameover {
+    -fx-text-fill: #fb7185;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-effect: dropshadow(gaussian, rgba(244, 63, 94, 0.9), 16, 0.55, 0, 0);
+}
+
+/* Modal de transición al completar un nivel y desbloquear el siguiente */
+.modal-transicion {
+    -fx-border-color: #4ade80;
+    -fx-effect: dropshadow(three-pass-box, rgba(74, 222, 128, 0.45), 22, 0.35, 0, 0);
+}

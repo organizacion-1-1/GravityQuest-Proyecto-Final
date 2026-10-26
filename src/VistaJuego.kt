@@ -1,9 +1,15 @@
 package gravityquest
 
+import gravityquest.models.Dificultad
+import gravityquest.models.GeneradorProblemas
+import gravityquest.models.IRepositorioProblemas
+import gravityquest.models.Problema
 import javafx.animation.AnimationTimer
+import javafx.application.Platform
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Parent
+import javafx.scene.Scene
 import javafx.scene.canvas.Canvas
 import javafx.scene.control.Button
 import javafx.scene.control.Label
@@ -11,28 +17,127 @@ import javafx.scene.control.TextField
 import javafx.scene.layout.BorderPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
+import javafx.stage.Modality
 import javafx.stage.Stage
-import gravityquest.models.Dificultad
-import gravityquest.models.GeneradorProblemas
-import gravityquest.models.IRepositorioProblemas
-import gravityquest.models.Problema
+import javafx.stage.Window
 
 /**
  * ============================================================================
- * GravityQuest - Pantalla de Juego (VistaJuego)
+ * GravityQuest - Modal de Transición de Nivel y Progresión en Cadena (SRP)
  * ============================================================================
  *
- * Principio de Responsabilidad Única (SRP):
- * Se encarga exclusivamente de presentar y coordinar la vista del ejercicio físico:
- * ensambla el marcador de puntos ([MarcadorPuntosView]) en su layout superior, muestra el
- * problema cargado, valida la respuesta del usuario, notifica los eventos a [IGestorProgreso]
- * (sin calcular ni almacenar el puntaje por sí misma), invoca el modal [VentanaPista] y
- * delega la simulación a [ControladorSimulacion].
+ * Presenta una pantalla/modal intermedia al superar un nivel (ej. Fácil → Medio
+ * o Medio → Difícil) permitiendo avanzar directamente al siguiente nivel recién
+ * desbloqueado o regresar al menú principal.
+ */
+object VentanaTransicionNivel {
+
+    /**
+     * Crea y despliega el modal de transición tras completar un nivel exitosamente.
+     */
+    fun mostrar(
+        propietario: Window?,
+        dificultadSuperada: Dificultad,
+        siguienteNivel: Dificultad?,
+        puntajeActual: Int,
+        alAvanzarNivel: (Dificultad) -> Unit,
+        alVolverMenu: () -> Unit
+    ): Stage {
+        val modalStage = Stage().apply {
+            title = "¡Nivel ${dificultadSuperada.nombreVisible} Completado!"
+            initModality(Modality.APPLICATION_MODAL)
+            propietario?.let { initOwner(it) }
+        }
+
+        val lblTitulo = Label("🎉 ¡Nivel ${dificultadSuperada.nombreVisible} Superado!").apply {
+            styleClass.addAll("titulo", "modal-pista-titulo")
+        }
+
+        val textoProgreso = if (siguienteNivel != null) {
+            "🔓 ¡Has desbloqueado el Nivel ${siguienteNivel.nombreVisible}!\n" +
+                "Puntaje acumulado: ${GestorProgreso.formatearPuntaje(puntajeActual)}"
+        } else {
+            "🏆 ¡Has completado todos los niveles de la cadena (Fácil → Medio → Difícil)!\n" +
+                "Puntaje final: ${GestorProgreso.formatearPuntaje(puntajeActual)}"
+        }
+
+        val lblMensaje = Label(textoProgreso).apply {
+            styleClass.addAll("label", "enunciado")
+            isWrapText = true
+            maxWidth = 380.0
+            alignment = Pos.CENTER
+        }
+
+        val panelBotones = HBox(12.0).apply {
+            alignment = Pos.CENTER
+        }
+
+        if (siguienteNivel != null) {
+            val btnAvanzar = UIFactory.crearBotonPrimario("🚀 Avanzar a ${siguienteNivel.nombreVisible}").apply {
+                setOnAction {
+                    modalStage.close()
+                    alAvanzarNivel(siguienteNivel)
+                }
+            }
+            panelBotones.children.add(btnAvanzar)
+        }
+
+        val btnMenu = UIFactory.crearBotonSecundario("⬅ Volver al Menú").apply {
+            setOnAction {
+                modalStage.close()
+                alVolverMenu()
+            }
+        }
+        panelBotones.children.add(btnMenu)
+
+        val contenedor = VBox(18.0).apply {
+            alignment = Pos.CENTER
+            padding = Insets(24.0)
+            styleClass.addAll("modal-pista", "modal-transicion")
+            children.addAll(lblTitulo, lblMensaje, panelBotones)
+        }
+
+        val scene = Scene(contenedor, 450.0, 260.0).apply {
+            val css = VistaJuego::class.java.getResource(GameConfig.RUTA_ESTILOS)?.toExternalForm()
+            css?.let { stylesheets.add(it) }
+        }
+
+        modalStage.scene = scene
+        modalStage.isResizable = false
+
+        if (Platform.isFxApplicationThread()) {
+            try {
+                modalStage.show()
+            } catch (_: Exception) {
+                // Tolerancia a entornos headless de pruebas automatizadas
+            }
+        }
+
+        return modalStage
+    }
+}
+
+/**
+ * ============================================================================
+ * GravityQuest - Pantalla de Juego y Controlador de Interacción (VistaJuego)
+ * ============================================================================
  *
- * Principio de Inversión de Dependencias (DIP) y Polimorfismo (OCP):
- * Depende de contratos abstractos ([INavegadorEscenas], [IRepositorioProblemas], [ICalculadoraFisica],
- * [RenderizadorSimulacion], [IGestorFeedback], [IGestorProgreso], [IEstrategiaCalculo]).
+ * 1. Single Responsibility Principle (SRP):
+ *    - Coordina la interfaz del ejercicio físico: ensambla el panel de vidas
+ *      ([PanelVidasView]) y el marcador de puntos ([MarcadorPuntosView]) en la
+ *      barra superior, aloja el nodo [Canvas] delegando el pintado cuadro a cuadro
+ *      a [RenderizadorSimulacion] ([SimulacionCanvasView]) y delega las decisiones
+ *      de negocio (vidas, Game Over, puntos y desbloqueo en cadena) a [IGestorProgreso].
+ *
+ * 2. Open/Closed Principle (OCP) y Polimorfismo:
+ *    - Configura automáticamente el escenario gráfico polimórfico según la [Dificultad]
+ *      y resuelve la progresión secuencial en cadena (`FÁCIL` → `MEDIO` → `DIFÍCIL`).
+ *
+ * 3. Dependency Inversion Principle (DIP):
+ *    - Depende de abstracciones ([INavegadorEscenas], [IRepositorioProblemas],
+ *      [ICalculadoraFisica], [RenderizadorSimulacion], [IGestorFeedback], [IGestorProgreso]).
  */
 class VistaJuego(
     val dificultad: Dificultad,
@@ -55,20 +160,23 @@ class VistaJuego(
     val alturaProblema: Double
         get() = problemaActual.alturaReferenciaSimulacion
 
-    // 3. Estado físico y renderizado gráfico desacoplados (SRP / DIP)
+    // 3. Estado físico y renderizado gráfico desacoplados en SimulacionCanvasView (SRP / OCP / DIP)
     val objetoSimulado: ObjetoSimulado = ObjetoSimulado(alturaMaxima = alturaProblema)
     val canvasSimulacion: Canvas = Canvas(GameConfig.ANCHO_CANVAS_DEFAULT, GameConfig.ALTO_CANVAS_DEFAULT).apply {
         styleClass.add("canvas-simulacion")
     }
-    var renderizador: RenderizadorSimulacion = RenderizadorCanvas(
+    var renderizador: RenderizadorSimulacion = SimulacionCanvasView(
         canvas = canvasSimulacion,
+        dificultad = dificultad,
         alturaMaximaMetros = alturaProblema,
         direccion = problemaActual.direccionMovimiento,
         velocidadInicial = problemaActual.velocidadInicial
     )
 
-    // 4. Componentes UI de navegación superior y marcador dinámico de puntos (Issue #17)
+    // 4. Componentes UI de navegación superior, sistema de 3 vidas y marcador de puntos (Issues #17 & #18)
     val btnVolverMenu: Button = UIFactory.crearBotonSecundario("⬅ Volver al Menú", claseExtra = "btn-volver")
+
+    val panelVidas: PanelVidasView = PanelVidasView(gestorProgreso)
 
     val marcadorPuntos: MarcadorPuntosView = MarcadorPuntosView(gestorProgreso)
 
@@ -78,7 +186,7 @@ class VistaJuego(
 
     val btnOtroProblema: Button = UIFactory.crearBotonSecundario("🔄 Otro Ejercicio")
 
-    // 5. Componentes UI del panel de control del problema
+    // 5. Componentes UI del panel de control del problema y transición de nivel
     val lblTituloMision: Label = UIFactory.crearEtiqueta(clasesEstilo = listOf("label", "titulo-mision"))
 
     val lblEnunciado: Label = UIFactory.crearEtiqueta(
@@ -97,6 +205,14 @@ class VistaJuego(
 
     val btnValidar: Button = UIFactory.crearBotonPrimario("Validar y Simular", anchoMax = 240.0)
 
+    val btnAvanzarNivel: Button = UIFactory.crearBotonPrimario(
+        texto = obtenerTextoBotonSiguienteNivel(),
+        anchoMax = 240.0
+    ).apply {
+        isVisible = false
+        isManaged = false
+    }
+
     val btnSimular: Button = UIFactory.crearBotonSecundario("Simular Movimiento", anchoMax = 200.0)
 
     val lblResultado: Label = UIFactory.crearEtiqueta(
@@ -109,7 +225,14 @@ class VistaJuego(
     // 6. Gestor de retroalimentación visual (animaciones y clases de resultado)
     var gestorFeedback: IGestorFeedback = GestorFeedbackVisual(lblResultado)
 
-    // 7. Controlador de simulación a 60 FPS desacoplado (SRP / DRY)
+    // 7. Seguimiento de reinicios por Game Over y modal de transición (Issue #18)
+    var reiniciosPorGameOver: Int = 0
+        private set
+
+    var ultimoModalTransicion: Stage? = null
+        private set
+
+    // 8. Controlador de simulación a 60 FPS desacoplado (SRP / DRY)
     private val controladorSimulacion: ControladorSimulacion = ControladorSimulacion(
         objetoSimulado = objetoSimulado,
         calculadora = calculadora,
@@ -128,6 +251,10 @@ class VistaJuego(
         styleClass.add("root")
         padding = Insets(16.0)
 
+        // Cada intento de nivel inicia con 3 vidas restablecidas (Issue #18)
+        gestorProgreso.cambiarNivelActivo(dificultad)
+        gestorProgreso.reiniciarVidas()
+
         // Ensamblado de layouts
         top = construirBarraNavegacion()
         center = construirContenedorCentral()
@@ -140,18 +267,20 @@ class VistaJuego(
     }
 
     /**
-     * Construye la barra de herramientas superior ensamblando la navegación, el marcador dinámico
-     * de puntos ([MarcadorPuntosView]), el badge de dificultad y las acciones de ayuda.
+     * Construye la barra de herramientas superior ensamblando la navegación, el panel de 3 vidas
+     * ([PanelVidasView]), el marcador dinámico de puntos ([MarcadorPuntosView]), el badge de
+     * dificultad y las acciones de ayuda.
      */
     private fun construirBarraNavegacion(): HBox =
-        HBox(16.0).apply {
+        HBox(14.0).apply {
             alignment = Pos.CENTER_LEFT
             styleClass.add("barra-navegacion")
-            val espaciador = javafx.scene.layout.Region()
+            val espaciador = Region()
             HBox.setHgrow(espaciador, Priority.ALWAYS)
             children.addAll(
                 btnVolverMenu,
                 espaciador,
+                panelVidas,
                 marcadorPuntos,
                 lblBadgeDificultad,
                 btnVerPista,
@@ -168,7 +297,15 @@ class VistaJuego(
             alignment = Pos.CENTER
             maxWidth = 360.0
             styleClass.add("panel-control")
-            children.addAll(lblTituloMision, lblEnunciado, lblPista, txtRespuesta, btnValidar, lblResultado)
+            children.addAll(
+                lblTituloMision,
+                lblEnunciado,
+                lblPista,
+                txtRespuesta,
+                btnValidar,
+                lblResultado,
+                btnAvanzarNivel
+            )
         }
 
         val panelSimulacion = VBox(14.0).apply {
@@ -196,12 +333,22 @@ class VistaJuego(
         txtRespuesta.setOnAction { validarRespuesta() }
         btnSimular.setOnAction { iniciarOReiniciarSimulacion() }
         btnOtroProblema.setOnAction { cargarNuevoProblema() }
+        btnAvanzarNivel.setOnAction { avanzarSiguienteNivel() }
 
         // Abre el diálogo modal de pistas y notifica al modelo de progreso (Issue #16 & #17)
         btnVerPista.setOnAction {
             gestorProgreso.registrarPistaUsada(problemaActual.id)
             val owner = stagePropietario ?: scene?.window
             VentanaPista.mostrar(owner, problemaActual)
+        }
+    }
+
+    private fun obtenerTextoBotonSiguienteNivel(): String {
+        val siguiente = dificultad.siguienteNivel
+        return if (siguiente != null) {
+            "🚀 Avanzar a Nivel ${siguiente.nombreVisible}"
+        } else {
+            "🏆 Volver al Menú Principal"
         }
     }
 
@@ -228,6 +375,10 @@ class VistaJuego(
         txtRespuesta.clear()
         gestorFeedback.limpiar()
 
+        btnAvanzarNivel.text = obtenerTextoBotonSiguienteNivel()
+        btnAvanzarNivel.isVisible = false
+        btnAvanzarNivel.isManaged = false
+
         btnSimular.text = if (problemaActual.direccionMovimiento == DireccionMovimiento.ARRIBA) {
             "Simular Disparo"
         } else {
@@ -237,8 +388,9 @@ class VistaJuego(
         val alturaEfectiva = problemaActual.alturaReferenciaSimulacion
 
         objetoSimulado.reiniciar()
-        renderizador = RenderizadorCanvas(
+        renderizador = SimulacionCanvasView(
             canvas = canvasSimulacion,
+            dificultad = difActual,
             alturaMaximaMetros = alturaEfectiva,
             direccion = problemaActual.direccionMovimiento,
             velocidadInicial = problemaActual.velocidadInicial
@@ -257,16 +409,81 @@ class VistaJuego(
         if (otro != null) {
             problemaActual = otro
             gestorProgreso.reiniciarEstadoIntentoProblema(problemaActual.id)
+            gestorProgreso.reiniciarVidas()
             actualizarDatosProblemaEnUI()
         }
     }
 
     /**
+     * Reinicia automáticamente el intento del nivel actual restableciendo las 3 vidas,
+     * limpiando la simulación y el estado del intento tras un Game Over (Issue #18).
+     */
+    fun reiniciarNivelActual(preservarMensajeGameOver: Boolean = false) {
+        detenerSimulacion()
+        gestorProgreso.reiniciarEstadoIntentoProblema(problemaActual.id)
+        gestorProgreso.reiniciarVidas()
+        txtRespuesta.clear()
+        objetoSimulado.reiniciar()
+        renderizador.reiniciarEfectos()
+        renderizador.renderizar(objetoSimulado)
+
+        if (!preservarMensajeGameOver) {
+            gestorFeedback.limpiar()
+        }
+    }
+
+    /**
+     * Avanza directamente al siguiente nivel desbloqueado en la cadena (Fácil → Medio → Difícil)
+     * o regresa al menú si el jugador completó el nivel Difícil.
+     *
+     * @return `true` si navegó hacia un siguiente nivel, `false` si regresó al menú principal.
+     */
+    fun avanzarSiguienteNivel(): Boolean {
+        detenerSimulacion()
+        val siguiente = gestorProgreso.obtenerSiguienteNivel(dificultad)
+        return if (siguiente != null && gestorProgreso.esNivelDesbloqueado(siguiente)) {
+            navegador.irAJuego(siguiente)
+            true
+        } else {
+            navegador.irAMenu()
+            false
+        }
+    }
+
+    /**
+     * Despliega el modal intermedio de transición cuando el jugador supera el nivel actual.
+     */
+    fun mostrarModalNivelCompletado(): Stage {
+        val owner = stagePropietario ?: scene?.window
+        val siguiente = gestorProgreso.obtenerSiguienteNivel(dificultad)
+        val modal = VentanaTransicionNivel.mostrar(
+            propietario = owner,
+            dificultadSuperada = dificultad,
+            siguienteNivel = siguiente,
+            puntajeActual = gestorProgreso.puntajeActual,
+            alAvanzarNivel = { nivelDestino ->
+                detenerSimulacion()
+                navegador.irAJuego(nivelDestino)
+            },
+            alVolverMenu = {
+                detenerSimulacion()
+                navegador.irAMenu()
+            }
+        )
+        ultimoModalTransicion = modal
+        return modal
+    }
+
+    /**
      * Valida la respuesta numérica ingresada por el usuario:
-     * - Si es correcta: delega el registro de victoria y cálculo de puntos (+100 o +50) a [IGestorProgreso],
-     *   muestra feedback de éxito e inicia la simulación.
-     * - Si es incorrecta: delega la penalización (-10 puntos sin bajar de 0) a [IGestorProgreso],
-     *   muestra feedback de error y detiene la animación.
+     * - Si es correcta:
+     *   1. Registra la victoria en [IGestorProgreso] (desbloqueando automáticamente el siguiente
+     *      nivel en la secuencia Fácil → Medio → Difícil).
+     *   2. Muestra feedback de éxito, habilita la transición de nivel e inicia la simulación.
+     * - Si es incorrecta:
+     *   1. Penaliza el puntaje (-10 puntos sin bajar de 0) y descuenta 1 vida en [IGestorProgreso].
+     *   2. Si las vidas llegan a 0: despliega el mensaje de **"Game Over / Nivel Fallido"** y
+     *      ejecuta el **reinicio automático del nivel actual** restableciendo las 3 vidas.
      *
      * @return `true` si la respuesta fue admitida dentro del margen de error, `false` en caso contrario.
      */
@@ -282,20 +499,50 @@ class VistaJuego(
         val esCorrecto = problemaActual.validarRespuesta(valorIngresado)
 
         return if (esCorrecto) {
-            // Delega el cálculo y acumulación de puntos al modelo de dominio (SRP)
+            // 1. Registra logro, puntaje y desbloquea en cadena el siguiente nivel (SRP / OCP)
             gestorProgreso.registrarVictoria(problemaActual)
 
+            val siguiente = gestorProgreso.obtenerSiguienteNivel(dificultad)
+            val SufijoDesbloqueo = if (siguiente != null) {
+                " ¡Nivel ${siguiente.nombreVisible} desbloqueado!"
+            } else {
+                " ¡Misión final completada!"
+            }
+
             gestorFeedback.mostrarExito(
-                "¡Correcto! Respuesta dentro de la tolerancia (±${dificultad.margenErrorTolerable} ${problemaActual.unidadMedida})."
+                "¡Correcto! Respuesta dentro de la tolerancia (±${dificultad.margenErrorTolerable} ${problemaActual.unidadMedida}).$SufijoDesbloqueo"
             )
+
+            // Habilita acción directa de transición y despliega modal si hay ventana activa
+            btnAvanzarNivel.text = obtenerTextoBotonSiguienteNivel()
+            btnAvanzarNivel.isVisible = true
+            btnAvanzarNivel.isManaged = true
+
+            val owner = stagePropietario ?: scene?.window
+            if (owner != null && owner.isShowing) {
+                mostrarModalNivelCompletado()
+            }
+
             iniciarOReiniciarSimulacion()
             true
         } else {
-            // Delega la penalización por respuesta incorrecta al modelo de dominio (SRP)
+            // 1. Penalización de puntaje y descuento de 1 vida (Issue #18)
             gestorProgreso.registrarIntentoFallido(problemaActual.id)
+            val vidasRestantes = gestorProgreso.perderVida()
 
-            detenerYReiniciarLienzo()
-            gestorFeedback.mostrarErrorPrecision("¡Intenta de nuevo! Tu respuesta no es precisa.")
+            if (vidasRestantes <= 0 || gestorProgreso.esGameOver()) {
+                // 2. Game Over (0 vidas): Reinicio automático del nivel actual restableciendo 3 vidas
+                reiniciosPorGameOver += 1
+                reiniciarNivelActual(preservarMensajeGameOver = true)
+                gestorFeedback.mostrarGameOver(
+                    "💀 ¡Game Over / Nivel Fallido! Te quedaste sin vidas. Nivel reiniciado con 3 vidas."
+                )
+            } else {
+                detenerYReiniciarLienzo()
+                gestorFeedback.mostrarErrorPrecision(
+                    "¡Intenta de nuevo! Tu respuesta no es precisa. (Vidas restantes: $vidasRestantes)"
+                )
+            }
             false
         }
     }
@@ -305,6 +552,7 @@ class VistaJuego(
      */
     fun iniciarOReiniciarSimulacion() {
         val alturaEfectiva = problemaActual.alturaReferenciaSimulacion
+        renderizador.reiniciarEfectos()
         controladorSimulacion.iniciarOReiniciar(
             nuevaAltura = alturaEfectiva,
             nuevaVelocidadInicial = problemaActual.velocidadInicial,
@@ -323,6 +571,7 @@ class VistaJuego(
     private fun detenerYReiniciarLienzo() {
         detenerSimulacion()
         objetoSimulado.reiniciar()
+        renderizador.reiniciarEfectos()
         renderizador.renderizar(objetoSimulado)
     }
 }

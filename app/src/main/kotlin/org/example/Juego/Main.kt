@@ -156,172 +156,15 @@ class NivelLanzamientoArriba(
 }
 
 /**
- * Contrato de abstracción para el renderizado visual de la simulación.
- */
-interface RenderizadorSimulacion {
-    fun renderizar(objeto: ObjetoSimulado)
-    fun limpiar()
-}
-
-/**
- * Implementación de [RenderizadorSimulacion] sobre un [Canvas] de JavaFX.
- */
-class RenderizadorCanvas(
-    val canvas: Canvas,
-    var alturaMaximaMetros: Double = PhysicsConstants.ALTURA_DEFAULT,
-    var direccion: DireccionMovimiento = DireccionMovimiento.ABAJO,
-    var velocidadInicial: Double = 0.0
-) : RenderizadorSimulacion {
-
-    private val gc: GraphicsContext = canvas.graphicsContext2D
-    val radioObjeto: Double = 12.0
-    val diametroObjeto: Double = radioObjeto * 2.0
-    val margenSuperior: Double = 35.0
-    val margenInferior: Double = 35.0
-
-    val escalaPixelesPorMetro: Double
-        get() {
-            val alturaUtil = canvas.height - margenSuperior - margenInferior - diametroObjeto
-            return if (alturaMaximaMetros > 0.0) alturaUtil / alturaMaximaMetros else 1.0
-        }
-
-    fun convertirMetroAPixelY(metros: Double): Double =
-        margenSuperior + (metros * escalaPixelesPorMetro)
-
-    fun configurar(altura: Double, direccionMov: DireccionMovimiento = DireccionMovimiento.ABAJO, v0: Double = 0.0) {
-        this.alturaMaximaMetros = altura
-        this.direccion = direccionMov
-        this.velocidadInicial = v0
-    }
-
-    override fun limpiar() {
-        gc.clearRect(0.0, 0.0, canvas.width, canvas.height)
-    }
-
-    override fun renderizar(objeto: ObjetoSimulado) {
-        limpiar()
-
-        val ancho = canvas.width
-        val alto = canvas.height
-
-        // Fondo espacial oscuro
-        gc.fill = Color.web("#0f172a")
-        gc.fillRect(0.0, 0.0, ancho, alto)
-
-        // Borde estilizado
-        gc.stroke = Color.web("#334155")
-        gc.lineWidth = 1.5
-        gc.strokeRect(1.0, 1.0, ancho - 2.0, alto - 2.0)
-
-        val alturaEfectiva = if (alturaMaximaMetros > 0.0) alturaMaximaMetros else PhysicsConstants.ALTURA_DEFAULT
-        val inicioY = margenSuperior
-        val sueloY = margenSuperior + (alturaEfectiva * escalaPixelesPorMetro)
-
-        if (direccion == DireccionMovimiento.ARRIBA) {
-            // ====================================================================
-            // Renderizado de Lanzamiento Vertical Hacia Arriba (Suelo abajo, h_máx arriba)
-            // ====================================================================
-            val sueloLineaY = sueloY + diametroObjeto
-            gc.stroke = Color.web("#38bdf8")
-            gc.lineWidth = 2.0
-            gc.strokeLine(20.0, sueloLineaY, ancho - 20.0, sueloLineaY)
-            gc.fill = Color.web("#38bdf8")
-            gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
-            gc.fillText("0 m (Suelo / Disparo)", 25.0, sueloLineaY + 16.0)
-
-            val inicioLineaY = inicioY + diametroObjeto
-            gc.stroke = Color.web("#475569")
-            gc.lineWidth = 1.0
-            gc.strokeLine(25.0, inicioLineaY, ancho - 25.0, inicioLineaY)
-            gc.fill = Color.web("#94a3b8")
-            gc.font = Font.font("Segoe UI", FontWeight.NORMAL, 10.0)
-            gc.fillText(String.format(Locale.US, "%.1f m (h_máx)", alturaEfectiva), 25.0, inicioY - 6.0)
-
-            gc.stroke = Color.web("#1e293b")
-            gc.lineWidth = 1.0
-            gc.strokeLine(ancho / 2.0, inicioLineaY, ancho / 2.0, sueloLineaY)
-
-            val pixelY = sueloY - (objeto.posicionY * escalaPixelesPorMetro)
-            val pixelX = (ancho / 2.0) - radioObjeto
-
-            val enSueloVisual = objeto.enSuelo && objeto.tiempo > 0.0
-            gc.fill = if (enSueloVisual) Color.web("#4ade80") else Color.web("#38bdf8")
-            gc.fillOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
-
-            gc.stroke = Color.web("#ffffff")
-            gc.lineWidth = 1.5
-            gc.strokeOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
-
-            gc.fill = Color.web("#e2e8f0")
-            gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
-            val infoTexto = String.format(
-                Locale.US,
-                "t: %.2fs | h: %.1fm | v: %.1fm/s",
-                objeto.tiempo,
-                objeto.posicionY,
-                objeto.velocidadY
-            )
-            gc.fillText(infoTexto, ancho - 180.0, 18.0)
-        } else {
-            // ====================================================================
-            // Renderizado Descendente (Caída Libre o Lanzamiento Hacia Abajo)
-            // ====================================================================
-            val inicioYLinea = margenSuperior + diametroObjeto
-            gc.stroke = Color.web("#475569")
-            gc.lineWidth = 1.0
-            gc.strokeLine(25.0, inicioYLinea, ancho - 25.0, inicioYLinea)
-            gc.fill = Color.web("#94a3b8")
-            gc.font = Font.font("Segoe UI", FontWeight.NORMAL, 10.0)
-            val etiquetaInicio = if (velocidadInicial > 0.0) {
-                String.format(Locale.US, "0 m (Inicio v₀=%.1f m/s)", velocidadInicial)
-            } else {
-                "0 m (Inicio)"
-            }
-            gc.fillText(etiquetaInicio, 25.0, margenSuperior - 6.0)
-
-            val sueloYLinea = margenSuperior + (alturaEfectiva * escalaPixelesPorMetro) + diametroObjeto
-            gc.stroke = Color.web("#38bdf8")
-            gc.lineWidth = 2.0
-            gc.strokeLine(20.0, sueloYLinea, ancho - 20.0, sueloYLinea)
-            gc.fill = Color.web("#38bdf8")
-            gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
-            gc.fillText(String.format(Locale.US, "%.1f m (Suelo)", alturaEfectiva), 25.0, sueloYLinea + 16.0)
-
-            gc.stroke = Color.web("#1e293b")
-            gc.lineWidth = 1.0
-            gc.strokeLine(ancho / 2.0, inicioYLinea, ancho / 2.0, sueloYLinea)
-
-            val pixelY = convertirMetroAPixelY(objeto.posicionY)
-            val pixelX = (ancho / 2.0) - radioObjeto
-
-            gc.fill = if (objeto.enSuelo) Color.web("#4ade80") else Color.web("#38bdf8")
-            gc.fillOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
-
-            gc.stroke = Color.web("#ffffff")
-            gc.lineWidth = 1.5
-            gc.strokeOval(pixelX, pixelY, diametroObjeto, diametroObjeto)
-
-            gc.fill = Color.web("#e2e8f0")
-            gc.font = Font.font("Segoe UI", FontWeight.BOLD, 10.0)
-            val infoTexto = String.format(
-                Locale.US,
-                "t: %.2fs | y: %.1fm | v: %.1fm/s",
-                objeto.tiempo,
-                objeto.posicionY,
-                objeto.velocidadY
-            )
-            gc.fillText(infoTexto, ancho - 180.0, 18.0)
-        }
-    }
-}
-
-/**
  * Contrato de abstracción para la gestión de retroalimentación de la interfaz de usuario.
  */
 interface IGestorFeedback {
     fun mostrarExito(mensaje: String = "¡Correcto! Respuesta dentro del margen de error.")
     fun mostrarErrorPrecision(mensaje: String = "¡Intenta de nuevo! Tu respuesta no es precisa.")
     fun mostrarErrorFormato(mensaje: String = "¡Entrada inválida! Por favor ingresa un número.")
+    fun mostrarGameOver(mensaje: String = "💀 ¡Game Over / Nivel Fallido! Reiniciando nivel con 3 vidas...") {
+        mostrarErrorPrecision(mensaje)
+    }
     fun limpiar()
 }
 
@@ -345,7 +188,15 @@ class GestorFeedbackVisual(
         mostrarFallo(mensaje)
     }
 
+    override fun mostrarGameOver(mensaje: String) {
+        mostrarFallo(mensaje)
+        if (!labelResultado.styleClass.contains("resultado-gameover")) {
+            labelResultado.styleClass.add("resultado-gameover")
+        }
+    }
+
     private fun mostrarFallo(mensaje: String) {
+        labelResultado.styleClass.remove("resultado-gameover")
         actualizarEstilo(esExito = false, mensaje = mensaje)
         FxAnimationUtils.animarVibracion(labelResultado) { restablecerTransformaciones() }
     }
@@ -363,7 +214,7 @@ class GestorFeedbackVisual(
 
     override fun limpiar() {
         labelResultado.text = ""
-        labelResultado.styleClass.removeAll("resultado-exito", "resultado-error")
+        labelResultado.styleClass.removeAll("resultado-exito", "resultado-error", "resultado-gameover")
         restablecerTransformaciones()
     }
 
