@@ -1,13 +1,21 @@
 package gravityquest.models
 
 import gravityquest.PhysicsConstants
+import gravityquest.IEstrategiaCalculo
+import gravityquest.EstrategiaCaidaLibre
+import gravityquest.EstrategiaLanzamientoAbajo
+import gravityquest.EstrategiaLanzamientoArriba
 
 /**
  * Representa los niveles de dificultad disponibles en GravityQuest.
  *
  * Principio de Responsabilidad Única (SRP):
  * Modela exclusivamente la graduación del desafío físico y sus atributos intrínsecos
- * (nombre visible, descripción pedagógica y tolerancia numérica permitida).
+ * (nombre visible, descripción pedagógica, tolerancia numérica y estrategia de cálculo).
+ *
+ * Principio Abierto/Cerrado (OCP) y Polimorfismo:
+ * Cada nivel provee su estrategia de cálculo polimórfica ([estrategiaCalculo])
+ * eliminando condicionales `when` rígidos o dispersos por el sistema.
  *
  * Principio DRY:
  * Reutiliza [PhysicsConstants.MARGEN_ERROR_DEFAULT] en lugar de duplicar valores mágicos.
@@ -24,19 +32,28 @@ enum class Dificultad(
     FACIL(
         nombreVisible = "Fácil",
         descripcion = "Caída libre sin velocidad inicial (v₀ = 0 m/s)"
-    ),
+    ) {
+        override val estrategiaCalculo: IEstrategiaCalculo get() = EstrategiaCaidaLibre
+    },
 
     /** Nivel Medio: Lanzamiento vertical hacia abajo con velocidad inicial (v₀ > 0 m/s). */
     MEDIO(
         nombreVisible = "Medio",
         descripcion = "Lanzamiento vertical hacia abajo con velocidad inicial (v₀ > 0 m/s)"
-    ),
+    ) {
+        override val estrategiaCalculo: IEstrategiaCalculo get() = EstrategiaLanzamientoAbajo
+    },
 
     /** Nivel Difícil: Lanzamiento vertical hacia arriba desacelerando por gravedad (v₀ > 0 m/s). */
     DIFICIL(
         nombreVisible = "Difícil",
         descripcion = "Lanzamiento vertical hacia arriba desacelerando por gravedad (v₀ > 0 m/s)"
-    );
+    ) {
+        override val estrategiaCalculo: IEstrategiaCalculo get() = EstrategiaLanzamientoArriba
+    };
+
+    /** Estrategia cinemática polimórfica asignada al nivel (OCP). */
+    abstract val estrategiaCalculo: IEstrategiaCalculo
 
     init {
         require(nombreVisible.isNotBlank()) { "El nombre visible no puede estar vacío ni contener solo espacios" }

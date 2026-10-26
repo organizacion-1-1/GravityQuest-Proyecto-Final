@@ -106,7 +106,7 @@ class VentanaPista private constructor(
             val lblFormulasTitulo = Label("Fórmulas Cinemáticas Sugeridas:").apply {
                 style = "-fx-font-weight: bold; -fx-text-fill: #4ade80; -fx-font-size: 12px;"
             }
-            val formulasTexto = obtenerFormulasParaTipo(problema.tipo)
+            val formulasTexto = problema.estrategiaCalculo.formulasPista
             val lblFormulasTexto = Label(formulasTexto).apply {
                 styleClass.addAll("label", "modal-pista-formula")
                 isWrapText = true
@@ -137,53 +137,9 @@ class VentanaPista private constructor(
         }
 
         /**
-         * Retorna las ecuaciones físicas recomendadas de acuerdo a la tipología del ejercicio.
+         * Retorna las ecuaciones físicas recomendadas delegando en la estrategia polimórfica (OCP).
          */
-        fun obtenerFormulasParaTipo(tipo: TipoProblema): String {
-            return when (tipo) {
-                TipoProblema.CAIDA_LIBRE ->
-                    """
-                    • Tiempo de caída:  t = √(2 · h / g)
-                    • Velocidad final:  v_f = √(2 · g · h)
-                    • Posición vertical: y = 1/2 · g · t²
-                    (Aceleración g = 9.81 m/s², v₀ = 0 m/s)
-                    """.trimIndent()
-
-                TipoProblema.LANZAMIENTO_VERTICAL_ABAJO ->
-                    """
-                    • Velocidad final:  v_f = √(v₀² + 2 · g · h)
-                    • Tiempo de caída:  t = (-v₀ + √(v₀² + 2 · g · h)) / g
-                    • Posición vertical: y = v₀ · t + 1/2 · g · t²
-                    (Movimiento acelerado a favor de la gravedad)
-                    """.trimIndent()
-
-                TipoProblema.LANZAMIENTO_VERTICAL_ARRIBA ->
-                    """
-                    • Altura máxima:     h_máx = v₀² / (2 · g)
-                    • Tiempo de subida:   t_sub = v₀ / g
-                    • Tiempo total vuelo: t_total = 2 · v₀ / g
-                    (En la cúspide la velocidad se anula transitoriamente: v = 0)
-                    """.trimIndent()
-
-                TipoProblema.MRU ->
-                    """
-                    • Distancia recorrida: d = v · t
-                    • Velocidad constante: v = d / t
-                    (Aceleración nula: a = 0 m/s²)
-                    """.trimIndent()
-
-                TipoProblema.MRUV ->
-                    """
-                    • Velocidad final:  v_f = v₀ + a · t
-                    • Distancia:        d = v₀ · t + 1/2 · a · t²
-                    • Torricelli:       v_f² = v₀² + 2 · a · d
-                    """.trimIndent()
-
-                TipoProblema.OTRO ->
-                    """
-                    • Ecuaciones horarias cinemáticas generales aplicables según gravedad local.
-                    """.trimIndent()
-            }
-        }
+        fun obtenerFormulasParaTipo(tipo: TipoProblema): String =
+            CalculosAuxiliares.resolverEstrategia(tipo).formulasPista
     }
 }

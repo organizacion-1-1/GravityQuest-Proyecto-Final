@@ -1,5 +1,6 @@
 package gravityquest
 
+import javafx.animation.FadeTransition
 import javafx.animation.ScaleTransition
 import javafx.animation.TranslateTransition
 import javafx.geometry.Pos
@@ -69,6 +70,19 @@ object UIFactory {
         }
 
     /**
+     * Instancia una etiqueta con estilo neón espacial para el marcador de puntuación (DRY).
+     */
+    fun crearEtiquetaPuntos(
+        texto: String = "PUNTAJE: 0000",
+        claseEstilo: String = "puntos-texto"
+    ): Label =
+        crearEtiqueta(
+            texto = texto,
+            clasesEstilo = listOf("label", claseEstilo),
+            alineacion = Pos.CENTER
+        )
+
+    /**
      * Instancia un campo de entrada [TextField] con bordes redondeados y foco estilizado.
      */
     fun crearCampoTexto(prompt: String = "", anchoMax: Double = 220.0): TextField =
@@ -122,6 +136,20 @@ object UIFactory {
             alignment = Pos.CENTER
             claseEstilo?.let { styleClass.add(it) }
         }
+
+    /**
+     * Parsea una cadena de texto admitiendo coma o punto como separador decimal.
+     * Encapsulado en [UIFactory] delegando en [CalculosAuxiliares] (SRP).
+     */
+    fun parsearNumeroDecimal(texto: String): Double? =
+        CalculosAuxiliares.parsearNumeroDecimal(texto)
+
+    /**
+     * Obtiene y parsea el valor numérico decimal contenido en un [TextField].
+     * Encapsulado en [UIFactory] (SRP / POO).
+     */
+    fun obtenerValorDecimal(campo: TextField): Double? =
+        parsearNumeroDecimal(campo.text)
 }
 
 /**
@@ -164,16 +192,18 @@ object FxAnimationUtils {
             }
         }
     }
+
+    /**
+     * Aplica una transición combinada de escala y desvanecimiento sobre un indicador de puntos.
+     */
+    fun animarDesvanecimiento(nodo: Node, duracionMs: Double = 650.0, alFinalizar: () -> Unit = {}) {
+        ejecutarSeguro {
+            FadeTransition(Duration.millis(duracionMs), nodo).apply {
+                fromValue = 1.0
+                toValue = 0.0
+                setOnFinished { alFinalizar() }
+                play()
+            }
+        }
+    }
 }
-
-/**
- * Parsea una cadena de texto admitiendo coma o punto como separador decimal.
- */
-fun String.parsearNumeroDecimal(): Double? =
-    trim().replace(',', '.').toDoubleOrNull()
-
-/**
- * Obtiene y parsea el valor numérico decimal contenido en un [TextField].
- */
-fun TextField.obtenerValorDecimal(): Double? =
-    text.parsearNumeroDecimal()

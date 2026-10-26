@@ -6,6 +6,7 @@ import javafx.stage.Stage
 import gravityquest.models.Dificultad
 import gravityquest.models.GeneradorProblemas
 import gravityquest.models.IRepositorioProblemas
+import gravityquest.models.Problema
 
 /**
  * ============================================================================
@@ -32,6 +33,15 @@ interface INavegadorEscenas {
      * @param dificultad Dificultad del juego seleccionada por el usuario.
      */
     fun irAJuego(dificultad: Dificultad)
+
+    /**
+     * Navega a la pantalla de juego cargando directamente un problema físico concreto.
+     *
+     * @param problema Instancia del problema a cargar.
+     */
+    fun irAJuego(problema: Problema) {
+        irAJuego(problema.dificultad)
+    }
 
     /**
      * Cambia la escena activa del Stage por una nueva raíz visual.
@@ -79,8 +89,16 @@ class NavegadorEscenas(
     }
 
     override fun irAJuego(dificultad: Dificultad) {
-        val vistaJuego = VistaJuego(dificultad, this, repositorio, calculadora, gestorProgreso, stage)
+        val problema = repositorio.obtenerPorDificultad(dificultad).firstOrNull()
+            ?: repositorio.obtenerProblemaAleatorio(dificultad)
+            ?: GeneradorProblemas.crearCatalogoBase().first { it.dificultad == dificultad }
+        val vistaJuego = VistaJuego(dificultad, this, repositorio, calculadora, gestorProgreso, stage, problemaInicial = problema)
         cambiarEscena(vistaJuego.root, "${GameConfig.TITULO_APP} - Misión: ${dificultad.nombreVisible}")
+    }
+
+    override fun irAJuego(problema: Problema) {
+        val vistaJuego = VistaJuego(problema.dificultad, this, repositorio, calculadora, gestorProgreso, stage, problemaInicial = problema)
+        cambiarEscena(vistaJuego.root, "${GameConfig.TITULO_APP} - Misión: ${problema.dificultad.nombreVisible}")
     }
 
     override fun cambiarEscena(nodo: Parent, titulo: String) {

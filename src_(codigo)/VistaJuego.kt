@@ -25,12 +25,14 @@ import gravityquest.models.Problema
  *
  * Principio de Responsabilidad Única (SRP):
  * Se encarga exclusivamente de presentar y coordinar la vista del ejercicio físico:
- * muestra el problema cargado, valida la respuesta del usuario, notifica el avance a
- * [IGestorProgreso], invoca el modal [VentanaPista] y delega la simulación a [ControladorSimulacion].
+ * ensambla el marcador de puntos ([MarcadorPuntosView]) en su layout superior, muestra el
+ * problema cargado, valida la respuesta del usuario, notifica los eventos a [IGestorProgreso]
+ * (sin calcular ni almacenar el puntaje por sí misma), invoca el modal [VentanaPista] y
+ * delega la simulación a [ControladorSimulacion].
  *
- * Principio de Inversión de Dependencias (DIP):
+ * Principio de Inversión de Dependencias (DIP) y Polimorfismo (OCP):
  * Depende de contratos abstractos ([INavegadorEscenas], [IRepositorioProblemas], [ICalculadoraFisica],
- * [RenderizadorSimulacion], [IGestorFeedback], [IGestorProgreso]).
+ * [RenderizadorSimulacion], [IGestorFeedback], [IGestorProgreso], [IEstrategiaCalculo]).
  */
 class VistaJuego(
     val dificultad: Dificultad,
@@ -38,29 +40,37 @@ class VistaJuego(
     val repositorio: IRepositorioProblemas = GeneradorProblemas(),
     val calculadora: ICalculadoraFisica = CalculadoraFisica(),
     val gestorProgreso: IGestorProgreso = GestorProgreso(),
-    val stagePropietario: Stage? = null
+    val stagePropietario: Stage? = null,
+    problemaInicial: Problema? = null
 ) : BorderPane() {
 
     /** Nodo raíz de la vista de juego (referencia a sí mismo como contenedor). */
     val root: Parent get() = this
 
-    // 1. Problema físico actualmente activo cargado desde el repositorio
-    var problemaActual: Problema = cargarProblemaParaDificultad(dificultad)
+    // 1. Problema físico actualmente activo cargado desde el repositorio o recibido externamente
+    var problemaActual: Problema = problemaInicial ?: cargarProblemaParaDificultad(dificultad)
         private set
 
     // 2. Altura en metros del ejercicio para configurar el lienzo físico
     val alturaProblema: Double
-        get() = problemaActual.alturaMetros
+        get() = problemaActual.alturaReferenciaSimulacion
 
     // 3. Estado físico y renderizado gráfico desacoplados (SRP / DIP)
     val objetoSimulado: ObjetoSimulado = ObjetoSimulado(alturaMaxima = alturaProblema)
     val canvasSimulacion: Canvas = Canvas(GameConfig.ANCHO_CANVAS_DEFAULT, GameConfig.ALTO_CANVAS_DEFAULT).apply {
         styleClass.add("canvas-simulacion")
     }
-    var renderizador: RenderizadorSimulacion = RenderizadorCanvas(canvasSimulacion, alturaProblema)
+    var renderizador: RenderizadorSimulacion = RenderizadorCanvas(
+        canvas = canvasSimulacion,
+        alturaMaximaMetros = alturaProblema,
+        direccion = problemaActual.direccionMovimiento,
+        velocidadInicial = problemaActual.velocidadInicial
+    )
 
-    // 4. Componentes UI de navegación superior
+    // 4. Componentes UI de navegación superior y marcador dinámico de puntos (Issue #17)
     val btnVolverMenu: Button = UIFactory.crearBotonSecundario("⬅ Volver al Menú", claseExtra = "btn-volver")
+
+    val marcadorPuntos: MarcadorPuntosView = MarcadorPuntosView(gestorProgreso)
 
     val lblBadgeDificultad: Label = UIFactory.crearEtiqueta(clasesEstilo = listOf("badge-dificultad"))
 
@@ -87,7 +97,7 @@ class VistaJuego(
 
     val btnValidar: Button = UIFactory.crearBotonPrimario("Validar y Simular", anchoMax = 240.0)
 
-    val btnSimular: Button = UIFactory.crearBotonSecundario("Simular Caída", anchoMax = 200.0)
+    val btnSimular: Button = UIFactory.crearBotonSecundario("Simular Movimiento", anchoMax = 200.0)
 
     val lblResultado: Label = UIFactory.crearEtiqueta(
         clasesEstilo = listOf("label"),
@@ -104,6 +114,9 @@ class VistaJuego(
         objetoSimulado = objetoSimulado,
         calculadora = calculadora,
         alturaMetros = alturaProblema,
+        velocidadInicial = problemaActual.velocidadInicial,
+        direccion = problemaActual.direccionMovimiento,
+        estrategia = problemaActual.estrategiaCalculo,
         alActualizar = { renderizador.renderizar(it) }
     )
 
@@ -127,7 +140,8 @@ class VistaJuego(
     }
 
     /**
-     * Construye la barra de herramientas superior con botones de navegación, badge y botón de pista.
+     * Construye la barra de herramientas superior ensamblando la navegación, el marcador dinámico
+     * de puntos ([MarcadorPuntosView]), el badge de dificultad y las acciones de ayuda.
      */
     private fun construirBarraNavegacion(): HBox =
         HBox(16.0).apply {
@@ -135,7 +149,14 @@ class VistaJuego(
             styleClass.add("barra-navegacion")
             val espaciador = javafx.scene.layout.Region()
             HBox.setHgrow(espaciador, Priority.ALWAYS)
-            children.addAll(btnVolverMenu, espaciador, lblBadgeDificultad, btnVerPista, btnOtroProblema)
+            children.addAll(
+                btnVolverMenu,
+                espaciador,
+                marcadorPuntos,
+                lblBadgeDificultad,
+                btnVerPista,
+                btnOtroProblema
+            )
             BorderPane.setMargin(this, Insets(0.0, 0.0, 16.0, 0.0))
         }
 
@@ -176,8 +197,9 @@ class VistaJuego(
         btnSimular.setOnAction { iniciarOReiniciarSimulacion() }
         btnOtroProblema.setOnAction { cargarNuevoProblema() }
 
-        // Abre el diálogo modal de pistas sin interrumpir la simulación gráfica del Canvas
+        // Abre el diálogo modal de pistas y notifica al modelo de progreso (Issue #16 & #17)
         btnVerPista.setOnAction {
+            gestorProgreso.registrarPistaUsada(problemaActual.id)
             val owner = stagePropietario ?: scene?.window
             VentanaPista.mostrar(owner, problemaActual)
         }
@@ -197,16 +219,31 @@ class VistaJuego(
      * Actualiza la interfaz con la información del problema actualmente seleccionado.
      */
     private fun actualizarDatosProblemaEnUI() {
-        lblBadgeDificultad.text = "Dificultad: ${dificultad.nombreVisible} | ${problemaActual.tipo.nombre}"
-        lblTituloMision.text = "MISIÓN #${problemaActual.id} ── ${dificultad.nombreVisible.uppercase()}"
+        val difActual = problemaActual.dificultad
+        lblBadgeDificultad.text = "Dificultad: ${difActual.nombreVisible} | ${problemaActual.tipo.nombre}"
+        lblTituloMision.text = "MISIÓN #${problemaActual.id} ── ${difActual.nombreVisible.uppercase()}"
         lblEnunciado.text = problemaActual.enunciado
         lblPista.text = "💡 Pista: ${problemaActual.pista}"
         txtRespuesta.promptText = "Respuesta en ${problemaActual.unidadMedida} (ej. ${problemaActual.valorEsperado})"
         txtRespuesta.clear()
         gestorFeedback.limpiar()
 
+        btnSimular.text = if (problemaActual.direccionMovimiento == DireccionMovimiento.ARRIBA) {
+            "Simular Disparo"
+        } else {
+            "Simular Caída"
+        }
+
+        val alturaEfectiva = problemaActual.alturaReferenciaSimulacion
+
         objetoSimulado.reiniciar()
-        renderizador = RenderizadorCanvas(canvasSimulacion, alturaProblema)
+        renderizador = RenderizadorCanvas(
+            canvas = canvasSimulacion,
+            alturaMaximaMetros = alturaEfectiva,
+            direccion = problemaActual.direccionMovimiento,
+            velocidadInicial = problemaActual.velocidadInicial
+        )
+        controladorSimulacion.configurarParaProblema(problemaActual)
         renderizador.renderizar(objetoSimulado)
     }
 
@@ -219,19 +256,22 @@ class VistaJuego(
         val otro = candidatos.filter { it.id != problemaActual.id }.randomOrNull() ?: candidatos.firstOrNull()
         if (otro != null) {
             problemaActual = otro
+            gestorProgreso.reiniciarEstadoIntentoProblema(problemaActual.id)
             actualizarDatosProblemaEnUI()
         }
     }
 
     /**
      * Valida la respuesta numérica ingresada por el usuario:
-     * - Si es correcta: registra la victoria en [GestorProgreso], muestra feedback de éxito y anima.
-     * - Si es incorrecta o inválida: muestra feedback de error y detiene la animación.
+     * - Si es correcta: delega el registro de victoria y cálculo de puntos (+100 o +50) a [IGestorProgreso],
+     *   muestra feedback de éxito e inicia la simulación.
+     * - Si es incorrecta: delega la penalización (-10 puntos sin bajar de 0) a [IGestorProgreso],
+     *   muestra feedback de error y detiene la animación.
      *
      * @return `true` si la respuesta fue admitida dentro del margen de error, `false` en caso contrario.
      */
     fun validarRespuesta(): Boolean {
-        val valorIngresado = txtRespuesta.obtenerValorDecimal()
+        val valorIngresado = UIFactory.obtenerValorDecimal(txtRespuesta)
 
         if (valorIngresado == null) {
             detenerYReiniciarLienzo()
@@ -242,7 +282,7 @@ class VistaJuego(
         val esCorrecto = problemaActual.validarRespuesta(valorIngresado)
 
         return if (esCorrecto) {
-            // Actualización del progreso del jugador en tiempo real (SRP)
+            // Delega el cálculo y acumulación de puntos al modelo de dominio (SRP)
             gestorProgreso.registrarVictoria(problemaActual)
 
             gestorFeedback.mostrarExito(
@@ -251,6 +291,9 @@ class VistaJuego(
             iniciarOReiniciarSimulacion()
             true
         } else {
+            // Delega la penalización por respuesta incorrecta al modelo de dominio (SRP)
+            gestorProgreso.registrarIntentoFallido(problemaActual.id)
+
             detenerYReiniciarLienzo()
             gestorFeedback.mostrarErrorPrecision("¡Intenta de nuevo! Tu respuesta no es precisa.")
             false
@@ -258,10 +301,16 @@ class VistaJuego(
     }
 
     /**
-     * Inicia o reinicia la simulación del objeto en caída en el Canvas.
+     * Inicia o reinicia la simulación del objeto en movimiento en el Canvas según sus condiciones iniciales.
      */
     fun iniciarOReiniciarSimulacion() {
-        controladorSimulacion.iniciarOReiniciar(alturaProblema)
+        val alturaEfectiva = problemaActual.alturaReferenciaSimulacion
+        controladorSimulacion.iniciarOReiniciar(
+            nuevaAltura = alturaEfectiva,
+            nuevaVelocidadInicial = problemaActual.velocidadInicial,
+            nuevaDireccion = problemaActual.direccionMovimiento,
+            nuevaEstrategia = problemaActual.estrategiaCalculo
+        )
     }
 
     /**

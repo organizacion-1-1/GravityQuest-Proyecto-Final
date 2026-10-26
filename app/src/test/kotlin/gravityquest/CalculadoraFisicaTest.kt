@@ -215,7 +215,7 @@ class CalculadoraFisicaTest {
 
     @Test
     fun testDemostrarMotorFisicoEjecucionExitosa() {
-        val resultado = demostrarMotorFisico(calc)
+        val resultado = DemostracionConsola.demostrarMotorFisico(calc)
         assertEquals(9.81, resultado.g, 0.0001)
     }
 }
