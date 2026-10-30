@@ -148,6 +148,73 @@ object UIFactory {
         }
 
     /**
+     * Instancia un título especializado para las pantallas finales ("Game Over" o "¡Nivel Completado!")
+     * aplicando la clase CSS específica (`.titulo-gameover` o `.titulo-victoria`) (Issue #20).
+     */
+    fun crearTituloFinal(texto: String, claseEstilo: String): Label =
+        Label(texto).apply {
+            styleClass.addAll("titulo", claseEstilo)
+            alignment = Pos.CENTER
+            isWrapText = true
+        }
+
+    /**
+     * Instancia un botón de acción para las pantallas finales con la clase `.boton-accion-final` (Issue #20).
+     */
+    fun crearBotonAccionFinal(
+        texto: String,
+        esPrimario: Boolean = true,
+        claseExtra: String? = null,
+        anchoMax: Double? = 240.0
+    ): Button =
+        (if (esPrimario) crearBotonPrimario(texto, anchoMax) else crearBotonSecundario(texto, claseExtra, anchoMax)).apply {
+            if (!styleClass.contains("boton-accion-final")) {
+                styleClass.add("boton-accion-final")
+            }
+            claseExtra?.let {
+                if (!styleClass.contains(it)) {
+                    styleClass.add(it)
+                }
+            }
+        }
+
+    /**
+     * Instancia el botón principal "Reintentar Nivel" para la pantalla de Game Over (DRY - Issue #20).
+     */
+    fun crearBotonReintentar(texto: String = "🔄 Reintentar Nivel", anchoMax: Double? = 240.0): Button =
+        crearBotonAccionFinal(texto = texto, esPrimario = true, claseExtra = "btn-reintentar", anchoMax = anchoMax)
+
+    /**
+     * Instancia el botón principal "Siguiente Nivel" para la pantalla de Victoria (DRY - Issue #20).
+     */
+    fun crearBotonSiguienteNivel(texto: String = "🚀 Siguiente Nivel", anchoMax: Double? = 240.0): Button =
+        crearBotonAccionFinal(texto = texto, esPrimario = true, claseExtra = "btn-siguiente-nivel", anchoMax = anchoMax)
+
+    /**
+     * Instancia el botón secundario "Menú Principal" para las pantallas finales (DRY - Issue #20).
+     */
+    fun crearBotonMenuPrincipal(texto: String = "🏠 Menú Principal", anchoMax: Double? = 240.0): Button =
+        crearBotonAccionFinal(texto = texto, esPrimario = false, claseExtra = "btn-menu-principal", anchoMax = anchoMax)
+
+    /**
+     * Instancia una tarjeta modular de estadística ([TarjetaEstadisticaView]) a partir de un [DatoEstadistica] (DRY / OCP).
+     */
+    fun crearTarjetaEstadistica(dato: DatoEstadistica): TarjetaEstadisticaView =
+        TarjetaEstadisticaView(dato)
+
+    /**
+     * Instancia una tarjeta modular de estadística ([TarjetaEstadisticaView]) con sus atributos descriptivos (DRY / OCP).
+     */
+    fun crearTarjetaEstadistica(
+        titulo: String,
+        valor: String,
+        icono: String = "📊",
+        detalle: String = "",
+        claseEstiloExtra: String? = null
+    ): TarjetaEstadisticaView =
+        TarjetaEstadisticaView(DatoEstadistica(titulo, valor, icono, detalle, claseEstiloExtra))
+
+    /**
      * Parsea una cadena de texto admitiendo coma o punto como separador decimal.
      * Encapsulado en [UIFactory] delegando en [CalculosAuxiliares] (SRP).
      */
@@ -190,6 +257,34 @@ object FxAnimationUtils {
         }
     }
 
+    /**
+     * Ejecuta una animación de celebración triunfal (escala rítmica y aparición) para la pantalla
+     * de "¡Nivel Completado!" (Issue #20).
+     */
+    fun animarCelebracion(
+        nodo: Node,
+        escalaMaxima: Double = 1.18,
+        duracionMs: Double = 260.0,
+        alFinalizar: () -> Unit = {}
+    ) {
+        ejecutarSeguro {
+            ScaleTransition(Duration.millis(duracionMs), nodo).apply {
+                fromX = 0.92
+                fromY = 0.92
+                toX = escalaMaxima
+                toY = escalaMaxima
+                cycleCount = 4
+                isAutoReverse = true
+                setOnFinished {
+                    nodo.scaleX = 1.0
+                    nodo.scaleY = 1.0
+                    alFinalizar()
+                }
+                play()
+            }
+        }
+    }
+
     fun animarVibracion(nodo: Node, desplazamiento: Double = 8.0, duracionMs: Double = 50.0, alFinalizar: () -> Unit = {}) {
         ejecutarSeguro {
             TranslateTransition(Duration.millis(duracionMs), nodo).apply {
@@ -218,8 +313,8 @@ object FxAnimationUtils {
     }
 
     /**
-     * Anima la pérdida de un ícono de vida mediante un efecto de parpadeo y desvanecimiento
-     * suave con [FadeTransition] (Issue #18).
+     * Anima la pérdida de un ícono de corazón combinando encogimiento/palpitar ([ScaleTransition])
+     * y parpadeo/desvanecimiento ([FadeTransition]) (Issue #18).
      */
     fun animarPerdidaVida(
         nodo: Node,
@@ -228,6 +323,19 @@ object FxAnimationUtils {
         alFinalizar: () -> Unit = {}
     ) {
         ejecutarSeguro {
+            ScaleTransition(Duration.millis(duracionMs), nodo).apply {
+                fromX = 1.18
+                fromY = 1.18
+                toX = 0.85
+                toY = 0.85
+                cycleCount = 2
+                isAutoReverse = true
+                setOnFinished {
+                    nodo.scaleX = 0.90
+                    nodo.scaleY = 0.90
+                }
+                play()
+            }
             FadeTransition(Duration.millis(duracionMs), nodo).apply {
                 fromValue = 1.0
                 toValue = opacidadFinal
@@ -235,6 +343,38 @@ object FxAnimationUtils {
                 isAutoReverse = true
                 setOnFinished {
                     nodo.opacity = opacidadFinal
+                    alFinalizar()
+                }
+                play()
+            }
+        }
+    }
+
+    /**
+     * Anima suavemente la restauración de un corazón lleno al reiniciar las 3 vidas (Issue #18).
+     */
+    fun animarRecuperacionVida(
+        nodo: Node,
+        duracionMs: Double = 200.0,
+        alFinalizar: () -> Unit = {}
+    ) {
+        ejecutarSeguro {
+            FadeTransition(Duration.millis(duracionMs), nodo).apply {
+                fromValue = 0.35
+                toValue = 1.0
+                setOnFinished { nodo.opacity = 1.0 }
+                play()
+            }
+            ScaleTransition(Duration.millis(duracionMs), nodo).apply {
+                fromX = 0.85
+                fromY = 0.85
+                toX = 1.08
+                toY = 1.08
+                cycleCount = 2
+                isAutoReverse = true
+                setOnFinished {
+                    nodo.scaleX = 1.0
+                    nodo.scaleY = 1.0
                     alFinalizar()
                 }
                 play()

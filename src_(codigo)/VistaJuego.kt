@@ -225,12 +225,17 @@ class VistaJuego(
     // 6. Gestor de retroalimentación visual (animaciones y clases de resultado)
     var gestorFeedback: IGestorFeedback = GestorFeedbackVisual(lblResultado)
 
-    // 7. Seguimiento de reinicios por Game Over y modal de transición (Issue #18)
+    // 7. Seguimiento de reinicios por Game Over, tiempo de partida y estadísticas finales (Issues #18 & #20)
     var reiniciosPorGameOver: Int = 0
         private set
 
     var ultimoModalTransicion: Stage? = null
         private set
+
+    var ultimasEstadisticasPartida: EstadisticasPartida? = null
+        private set
+
+    private var marcaTiempoInicioMs: Long = System.currentTimeMillis()
 
     // 8. Controlador de simulación a 60 FPS desacoplado (SRP / DRY)
     private val controladorSimulacion: ControladorSimulacion = ControladorSimulacion(
@@ -371,7 +376,7 @@ class VistaJuego(
         lblTituloMision.text = "MISIÓN #${problemaActual.id} ── ${difActual.nombreVisible.uppercase()}"
         lblEnunciado.text = problemaActual.enunciado
         lblPista.text = "💡 Pista: ${problemaActual.pista}"
-        txtRespuesta.promptText = "Respuesta en ${problemaActual.unidadMedida} (ej. ${problemaActual.valorEsperado})"
+        txtRespuesta.promptText = "Respuesta en ${problemaActual.unidadMedida}"
         txtRespuesta.clear()
         gestorFeedback.limpiar()
 
@@ -388,6 +393,7 @@ class VistaJuego(
         val alturaEfectiva = problemaActual.alturaReferenciaSimulacion
 
         objetoSimulado.reiniciar()
+        marcaTiempoInicioMs = System.currentTimeMillis()
         renderizador = SimulacionCanvasView(
             canvas = canvasSimulacion,
             dificultad = difActual,
@@ -397,6 +403,14 @@ class VistaJuego(
         )
         controladorSimulacion.configurarParaProblema(problemaActual)
         renderizador.renderizar(objetoSimulado)
+    }
+
+    /**
+     * Calcula el tiempo transcurrido en segundos desde el inicio del intento actual (Issue #20).
+     */
+    fun calcularTiempoTranscurridoSegundos(): Double {
+        val deltaMs = (System.currentTimeMillis() - marcaTiempoInicioMs).coerceAtLeast(0L)
+        return deltaMs / 1000.0
     }
 
     /**
@@ -422,6 +436,7 @@ class VistaJuego(
         detenerSimulacion()
         gestorProgreso.reiniciarEstadoIntentoProblema(problemaActual.id)
         gestorProgreso.reiniciarVidas()
+        marcaTiempoInicioMs = System.currentTimeMillis()
         txtRespuesta.clear()
         objetoSimulado.reiniciar()
         renderizador.reiniciarEfectos()
@@ -477,13 +492,15 @@ class VistaJuego(
     /**
      * Valida la respuesta numérica ingresada por el usuario:
      * - Si es correcta:
-     *   1. Registra la victoria en [IGestorProgreso] (desbloqueando automáticamente el siguiente
-     *      nivel en la secuencia Fácil → Medio → Difícil).
-     *   2. Muestra feedback de éxito, habilita la transición de nivel e inicia la simulación.
+     *   1. Registra la victoria y el tiempo en [IGestorProgreso] (desbloqueando automáticamente
+     *      el siguiente nivel en la secuencia Fácil → Medio → Difícil).
+     *   2. Muestra feedback de éxito, inicia la simulación y notifica el fin del nivel a
+     *      [INavegadorEscenas.irANivelCompletado] delegando la construcción de la vista final (SRP / DIP).
      * - Si es incorrecta:
      *   1. Penaliza el puntaje (-10 puntos sin bajar de 0) y descuenta 1 vida en [IGestorProgreso].
-     *   2. Si las vidas llegan a 0: despliega el mensaje de **"Game Over / Nivel Fallido"** y
-     *      ejecuta el **reinicio automático del nivel actual** restableciendo las 3 vidas.
+     *   2. Si las vidas llegan a 0: registra las estadísticas del intento fallido, reinicia el
+     *      estado de las 3 vidas y notifica a [INavegadorEscenas.irAGameOver] para desplegar
+     *      la pantalla dedicada de Game Over (SRP / DIP).
      *
      * @return `true` si la respuesta fue admitida dentro del margen de error, `false` en caso contrario.
      */
@@ -499,31 +516,32 @@ class VistaJuego(
         val esCorrecto = problemaActual.validarRespuesta(valorIngresado)
 
         return if (esCorrecto) {
-            // 1. Registra logro, puntaje y desbloquea en cadena el siguiente nivel (SRP / OCP)
+            // 1. Registra tiempo, logro, puntaje y desbloquea en cadena el siguiente nivel (SRP / OCP)
+            val tiempoUsado = calcularTiempoTranscurridoSegundos()
+            gestorProgreso.registrarTiempoNivel(tiempoUsado)
             gestorProgreso.registrarVictoria(problemaActual)
 
             val siguiente = gestorProgreso.obtenerSiguienteNivel(dificultad)
-            val SufijoDesbloqueo = if (siguiente != null) {
+            val estadisticasVictoria = gestorProgreso.obtenerEstadisticasPartida(dificultad, tiempoUsado)
+            ultimasEstadisticasPartida = estadisticasVictoria
+
+            val sufijoDesbloqueo = if (siguiente != null) {
                 " ¡Nivel ${siguiente.nombreVisible} desbloqueado!"
             } else {
                 " ¡Misión final completada!"
             }
 
             gestorFeedback.mostrarExito(
-                "¡Correcto! Respuesta dentro de la tolerancia (±${dificultad.margenErrorTolerable} ${problemaActual.unidadMedida}).$SufijoDesbloqueo"
+                "¡Correcto! Respuesta dentro de la tolerancia (±${dificultad.margenErrorTolerable} ${problemaActual.unidadMedida}).$sufijoDesbloqueo"
             )
 
-            // Habilita acción directa de transición y despliega modal si hay ventana activa
+            // Habilita acción directa de transición y notifica el fin del nivel a través de INavegadorEscenas (Issue #20)
             btnAvanzarNivel.text = obtenerTextoBotonSiguienteNivel()
             btnAvanzarNivel.isVisible = true
             btnAvanzarNivel.isManaged = true
 
-            val owner = stagePropietario ?: scene?.window
-            if (owner != null && owner.isShowing) {
-                mostrarModalNivelCompletado()
-            }
-
             iniciarOReiniciarSimulacion()
+            navegador.irANivelCompletado(dificultad, estadisticasVictoria, siguiente)
             true
         } else {
             // 1. Penalización de puntaje y descuento de 1 vida (Issue #18)
@@ -531,12 +549,20 @@ class VistaJuego(
             val vidasRestantes = gestorProgreso.perderVida()
 
             if (vidasRestantes <= 0 || gestorProgreso.esGameOver()) {
-                // 2. Game Over (0 vidas): Reinicio automático del nivel actual restableciendo 3 vidas
+                // 2. Game Over (0 vidas): Captura estadísticas, reinicia el progreso bloqueando Medio/Difícil,
+                // restablece las 3 vidas y notifica a INavegadorEscenas (Issues #15, #18 & #20)
+                val tiempoUsado = calcularTiempoTranscurridoSegundos()
+                gestorProgreso.registrarTiempoNivel(tiempoUsado)
+                val estadisticasDerrota = gestorProgreso.generarEstadisticasGameOver(dificultad, tiempoUsado)
+                ultimasEstadisticasPartida = estadisticasDerrota
+
+                gestorProgreso.registrarGameOver()
                 reiniciosPorGameOver += 1
                 reiniciarNivelActual(preservarMensajeGameOver = true)
                 gestorFeedback.mostrarGameOver(
-                    "💀 ¡Game Over / Nivel Fallido! Te quedaste sin vidas. Nivel reiniciado con 3 vidas."
+                    "💀 ¡Game Over / Nivel Fallido! Te quedaste sin vidas. Progreso reiniciado con 3 vidas."
                 )
+                navegador.irAGameOver(dificultad, estadisticasDerrota)
             } else {
                 detenerYReiniciarLienzo()
                 gestorFeedback.mostrarErrorPrecision(

@@ -133,6 +133,12 @@ interface IGestorProgreso {
     fun registrarVictoria(problema: Problema, usoPista: Boolean, intentosPrevios: Int = 0) {
         registrarVictoria(problema)
     }
+    fun registrarVictoria(dificultad: Dificultad) {
+        desbloquearSiguienteNivel(dificultad)
+    }
+    fun registrarGameOver() {
+        reiniciarProgreso()
+    }
     fun registrarProblemaCompletado(idProblema: Int)
     fun cantidadProblemasCompletados(): Int
     fun problemasCompletadosIds(): Set<Int>
@@ -169,11 +175,50 @@ interface IGestorProgreso {
     }
     fun agregarListenerVidas(listener: IVidasListener) {}
     fun removerListenerVidas(listener: IVidasListener) {}
+
+    // Operaciones de estadísticas de partida y pantallas finales (Milestone 3 - Issue #20)
+    val rachaActual: Int
+        get() = 0
+
+    val rachaMaxima: Int
+        get() = 0
+
+    val tiempoUltimoNivelSegundos: Double
+        get() = 0.0
+
+    val ultimosPuntosSumados: Int
+        get() = 0
+
+    fun registrarTiempoNivel(segundos: Double) {}
+
+    fun obtenerEstadisticasPartida(
+        dificultad: Dificultad = nivelActivo,
+        tiempoUsadoSegundos: Double = tiempoUltimoNivelSegundos
+    ): EstadisticasPartida = EstadisticasPartida(
+        puntosTotales = puntajeActual,
+        rachaMaxima = rachaMaxima,
+        ejerciciosResueltos = cantidadProblemasCompletados(),
+        tiempoUsadoSegundos = max(0.0, tiempoUsadoSegundos),
+        vidasRestantes = vidasActuales,
+        puntosSumadosNivel = ultimosPuntosSumados,
+        bonoPorRacha = rachaActual * GestorProgreso.BONO_POR_RACHA,
+        bonificacionVidas = vidasActuales * GestorProgreso.BONO_POR_VIDA_CONSERVADA,
+        rachaActual = rachaActual,
+        dificultad = dificultad
+    )
+
+    fun generarEstadisticasGameOver(
+        dificultad: Dificultad = nivelActivo,
+        tiempoUsadoSegundos: Double = tiempoUltimoNivelSegundos
+    ): EstadisticasPartida = obtenerEstadisticasPartida(dificultad, tiempoUsadoSegundos).copy(
+        vidasRestantes = 0,
+        bonificacionVidas = 0
+    )
 }
 
 /**
  * Gestor en memoria del progreso del jugador, desbloqueo en cadena de niveles,
- * sistema de vidas (3 vidas por intento) y sistema de puntuación en GravityQuest.
+ * sistema de vidas (3 vidas por intento), estadísticas de partida y sistema de puntuación en GravityQuest.
  */
 class GestorProgreso(
     val repositorio: IRepositorioProblemas = GeneradorProblemas(),
@@ -197,6 +242,12 @@ class GestorProgreso(
         /** Cantidad inicial de vidas por intento de nivel (Issue #18). */
         const val VIDAS_INICIALES: Int = GestorVidas.MAX_VIDAS_DEFAULT
 
+        /** Bono calculado por cada acierto consecutivo en la racha activa (Issue #20). */
+        const val BONO_POR_RACHA: Int = 25
+
+        /** Bonificación calculada por cada vida conservada al completar el nivel (Issue #20). */
+        const val BONO_POR_VIDA_CONSERVADA: Int = 50
+
         /** Formatea un valor numérico de puntaje al estándar estilizado de la interfaz. */
         fun formatearPuntaje(puntos: Int): String =
             String.format(Locale.US, "PUNTAJE: %04d", max(PUNTAJE_MINIMO, puntos))
@@ -215,10 +266,30 @@ class GestorProgreso(
     override val vidasProperty: IntegerProperty
         get() = gestorVidas.vidasProperty
 
-    // Encapsulamiento Fuerte: Estado privado protegido de progreso y desbloqueo
+    // Encapsulamiento Fuerte: Estado privado de rachas y estadísticas de partida (Issue #20)
+    private var _rachaActual: Int = 0
+    private var _rachaMaxima: Int = 0
+    private var _tiempoUltimoNivelSegundos: Double = 0.0
+    private var _ultimosPuntosSumados: Int = 0
+
+    override val rachaActual: Int
+        get() = _rachaActual
+
+    override val rachaMaxima: Int
+        get() = _rachaMaxima
+
+    override val tiempoUltimoNivelSegundos: Double
+        get() = _tiempoUltimoNivelSegundos
+
+    override val ultimosPuntosSumados: Int
+        get() = _ultimosPuntosSumados
+
+    // Encapsulamiento Fuerte: Estado privado protegido de progreso y desbloqueo (Issues #15 & #18)
+    private val _usaReglasPersonalizadas: Boolean = reglasPersonalizadas != null
+    private var nivelesDesbloqueados: MutableSet<Dificultad> =
+        if (_usaReglasPersonalizadas) mutableSetOf() else mutableSetOf(Dificultad.FACIL)
     private val _problemasCompletados: MutableSet<Int> = mutableSetOf()
     private val _dificultadesDesbloqueadasManualmente: MutableSet<Dificultad> = mutableSetOf()
-    private val _usaReglasPersonalizadas: Boolean = reglasPersonalizadas != null
 
     // Encapsulamiento Fuerte: Estado privado del sistema de puntuación y seguimiento por problema
     private val _puntajeProperty: ReadOnlyIntegerWrapper = ReadOnlyIntegerWrapper(PUNTAJE_MINIMO)
@@ -304,7 +375,7 @@ class GestorProgreso(
      * Consulta si un nivel de dificultad específico está desbloqueado para el jugador.
      */
     override fun esNivelDesbloqueado(dificultad: Dificultad): Boolean {
-        if (_dificultadesDesbloqueadasManualmente.contains(dificultad)) {
+        if (nivelesDesbloqueados.contains(dificultad) || _dificultadesDesbloqueadasManualmente.contains(dificultad)) {
             return true
         }
         val regla = reglas.firstOrNull { it.dificultad == dificultad } ?: return false
@@ -316,6 +387,36 @@ class GestorProgreso(
      */
     override fun esProblemaCompletado(idProblema: Int): Boolean =
         _problemasCompletados.contains(idProblema)
+
+    /**
+     * Registra la superación de un nivel de dificultad, desbloqueando el siguiente
+     * eslabón en la secuencia Fácil → Medio → Difícil (Issues #15 & #18).
+     */
+    override fun registrarVictoria(dificultad: Dificultad) {
+        nivelesDesbloqueados.add(dificultad)
+        val siguiente = dificultad.siguienteNivel
+        if (siguiente != null) {
+            nivelesDesbloqueados.add(siguiente)
+            _dificultadesDesbloqueadasManualmente.add(siguiente)
+        }
+    }
+
+    /**
+     * Registra el estado de Game Over cuando el jugador pierde sus 3 vidas:
+     * - Reinicia por completo el progreso de desbloqueo (`MEDIO` y `DIFÍCIL` vuelven a quedar bloqueados).
+     * - Restablece el nivel activo a [Dificultad.FACIL].
+     * - Restaura las 3 vidas iniciales para el nuevo intento (Issue #18).
+     */
+    override fun registrarGameOver() {
+        nivelesDesbloqueados = mutableSetOf(Dificultad.FACIL)
+        _problemasCompletados.clear()
+        _dificultadesDesbloqueadasManualmente.clear()
+        _intentosFallidosPorProblema.clear()
+        _pistasUsadasPorProblema.clear()
+        _rachaActual = 0
+        _nivelActivo = Dificultad.FACIL
+        reiniciarVidas()
+    }
 
     /**
      * Registra la resolución exitosa de un ejercicio físico evaluando automáticamente
@@ -342,7 +443,7 @@ class GestorProgreso(
 
         // Progresión en cadena (Issue #18): Resolver Fácil desbloquea Medio, resolver Medio desbloquea Difícil
         if (!_usaReglasPersonalizadas) {
-            desbloquearSiguienteNivel(problema.dificultad)
+            registrarVictoria(problema.dificultad)
         }
     }
 
@@ -360,13 +461,18 @@ class GestorProgreso(
         } else {
             PUNTOS_CON_PISTA_O_INTENTOS
         }
+        _ultimosPuntosSumados = puntosGanados
+        _rachaActual += 1
+        if (_rachaActual > _rachaMaxima) {
+            _rachaMaxima = _rachaActual
+        }
         aplicarCambioPuntaje(puntosGanados)
         return puntajeActual
     }
 
     /**
-     * Penaliza una respuesta incorrecta restando 10 puntos (sin bajar nunca de 0)
-     * y contabiliza el intento fallido para el problema indicado.
+     * Penaliza una respuesta incorrecta restando 10 puntos (sin bajar nunca de 0),
+     * reinicia la racha actual y contabiliza el intento fallido para el problema indicado.
      *
      * @param idProblema Identificador opcional del problema en el que ocurrió el fallo.
      * @return El nuevo puntaje acumulado tras la penalización.
@@ -375,8 +481,18 @@ class GestorProgreso(
         if (idProblema != null && idProblema > 0) {
             _intentosFallidosPorProblema[idProblema] = obtenerIntentosFallidos(idProblema) + 1
         }
+        _rachaActual = 0
         aplicarCambioPuntaje(-PENALIZACION_RESPUESTA_INCORRECTA)
         return puntajeActual
+    }
+
+    /**
+     * Registra la duración en segundos empleada en el nivel o intento actual (Issue #20).
+     */
+    override fun registrarTiempoNivel(segundos: Double) {
+        if (!segundos.isNaN() && !segundos.isInfinite()) {
+            _tiempoUltimoNivelSegundos = max(0.0, segundos)
+        }
     }
 
     /**
@@ -454,10 +570,15 @@ class GestorProgreso(
     }
 
     override fun reiniciarProgreso() {
+        nivelesDesbloqueados = mutableSetOf(Dificultad.FACIL)
         _problemasCompletados.clear()
         _dificultadesDesbloqueadasManualmente.clear()
         _intentosFallidosPorProblema.clear()
         _pistasUsadasPorProblema.clear()
+        _rachaActual = 0
+        _rachaMaxima = 0
+        _tiempoUltimoNivelSegundos = 0.0
+        _ultimosPuntosSumados = 0
         reiniciarVidas()
         _nivelActivo = Dificultad.FACIL
         val puntajePrevio = _puntajeProperty.get()
@@ -468,6 +589,7 @@ class GestorProgreso(
     }
 
     override fun desbloquearNivelManualmente(dificultad: Dificultad) {
+        nivelesDesbloqueados.add(dificultad)
         _dificultadesDesbloqueadasManualmente.add(dificultad)
     }
 }

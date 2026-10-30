@@ -386,4 +386,153 @@ class GestorProgresoTest {
             assertFalse(vistaMenu.botonesDificultad[Dificultad.DIFICIL]!!.isDisable, "Botón Difícil debe quedar habilitado")
         }
     }
+
+    // ========================================================================
+    // 5. Pruebas para EstadisticasPartida, VistaGameOver y VistaNivelCompletado (Issue #20)
+    // ========================================================================
+
+    @Test
+    fun testEstadisticasPartidaInmutabilidadEInvariantes() {
+        val stats = EstadisticasPartida(
+            puntosTotales = 250,
+            rachaMaxima = 3,
+            ejerciciosResueltos = 2,
+            tiempoUsadoSegundos = 14.5,
+            vidasRestantes = 2,
+            puntosSumadosNivel = 100,
+            bonoPorRacha = 75,
+            bonificacionVidas = 100,
+            rachaActual = 3,
+            dificultad = Dificultad.MEDIO
+        )
+
+        assertEquals(250, stats.puntosTotales)
+        assertEquals(3, stats.rachaMaxima)
+        assertEquals(2, stats.ejerciciosResueltos)
+        assertEquals(14.5, stats.tiempoUsadoSegundos)
+        assertEquals(2, stats.vidasRestantes)
+        assertEquals(275, stats.totalRecompensasNivel())
+        assertEquals("14.5 s", stats.tiempoFormateado())
+        assertEquals("0250 PTS", stats.puntajeTotalFormateado())
+
+        assertThrows<IllegalArgumentException> {
+            EstadisticasPartida(puntosTotales = -10)
+        }
+        assertThrows<IllegalArgumentException> {
+            EstadisticasPartida(rachaMaxima = -1)
+        }
+        assertThrows<IllegalArgumentException> {
+            EstadisticasPartida(tiempoUsadoSegundos = -2.0)
+        }
+    }
+
+    @Test
+    fun testVistaGameOverYVistaNivelCompletadoComponentesYAcciones() {
+        ejecutarEnFx {
+            val navegador = NavegacionTest.NavegadorEspia()
+            val gestor = GestorProgreso()
+
+            // 1. Verificar VistaGameOver cuando se pierden las 3 vidas en VistaJuego
+            val vistaJuego = VistaJuego(Dificultad.FACIL, navegador, gestorProgreso = gestor)
+            vistaJuego.txtRespuesta.text = "999.0"
+            vistaJuego.validarRespuesta()
+            vistaJuego.txtRespuesta.text = "888.0"
+            vistaJuego.validarRespuesta()
+            vistaJuego.txtRespuesta.text = "777.0"
+            vistaJuego.validarRespuesta()
+
+            assertTrue(navegador.escenaActual is VistaGameOver, "Al perder las 3 vidas debe desplegar VistaGameOver")
+            val vistaGameOver = navegador.escenaActual as VistaGameOver
+            assertEquals("GAME OVER - MISION FALLIDA", vistaGameOver.lblTitulo.text)
+            assertTrue(vistaGameOver.lblTitulo.styleClass.contains("titulo-gameover"))
+            assertTrue(vistaGameOver.styleClass.contains("pantalla-final"))
+            assertTrue(vistaGameOver.tarjetasEstadisticas.all { it.styleClass.contains("tarjeta-estadistica") })
+            assertTrue(vistaGameOver.btnReintentar.styleClass.contains("boton-accion-final"))
+            assertTrue(vistaGameOver.btnMenuPrincipal.styleClass.contains("boton-accion-final"))
+
+            // Botón Reintentar Nivel reinicia 3 vidas y vuelve al nivel actual
+            vistaGameOver.btnReintentar.fire()
+            assertEquals(Dificultad.FACIL, navegador.dificultadJuegoInvocada)
+            assertEquals(3, gestor.vidasActuales)
+
+            // 2. Verificar VistaNivelCompletado al resolver el ejercicio con éxito
+            val vistaJuegoExito = VistaJuego(Dificultad.FACIL, navegador, gestorProgreso = gestor)
+            vistaJuegoExito.txtRespuesta.text = vistaJuegoExito.problemaActual.valorEsperado.toString()
+            assertTrue(vistaJuegoExito.validarRespuesta())
+
+            assertTrue(navegador.escenaActual is VistaNivelCompletado, "Al resolver el nivel debe desplegar VistaNivelCompletado")
+            val vistaVictoria = navegador.escenaActual as VistaNivelCompletado
+            assertEquals("¡NIVEL COMPLETADO!", vistaVictoria.lblTitulo.text)
+            assertTrue(vistaVictoria.lblTitulo.styleClass.contains("titulo-victoria"))
+            assertTrue(vistaVictoria.styleClass.contains("pantalla-final"))
+            assertTrue(vistaVictoria.tarjetasEstadisticas.all { it.styleClass.contains("tarjeta-estadistica") })
+            assertTrue(vistaVictoria.btnSiguienteNivel.styleClass.contains("boton-accion-final"))
+            assertTrue(vistaVictoria.btnMenuPrincipal.styleClass.contains("boton-accion-final"))
+
+            // Botón Siguiente Nivel avanza a Dificultad.MEDIO
+            vistaVictoria.btnSiguienteNivel.fire()
+            assertEquals(Dificultad.MEDIO, navegador.dificultadJuegoInvocada)
+
+            // Botón Menú Principal regresa al menú
+            vistaVictoria.btnMenuPrincipal.fire()
+            assertTrue(navegador.menuInvocado)
+        }
+    }
+
+    @Test
+    fun testGameOverReiniciaProgresoYBloqueaMedioYDificil() {
+        ejecutarEnFx {
+            val navegador = NavegacionTest.NavegadorEspia()
+            val gestor = GestorProgreso()
+            val menu = VistaMenu(navegador, gestor)
+
+            // 1. Desbloquear Medio y Difícil
+            gestor.registrarVictoria(Dificultad.FACIL)
+            gestor.registrarVictoria(Dificultad.MEDIO)
+            assertTrue(gestor.esNivelDesbloqueado(Dificultad.MEDIO))
+            assertTrue(gestor.esNivelDesbloqueado(Dificultad.DIFICIL))
+
+            // 2. Perder las 3 vidas en el nivel Difícil
+            val juegoDificil = VistaJuego(Dificultad.DIFICIL, navegador, gestorProgreso = gestor)
+            juegoDificil.txtRespuesta.text = "999.0"
+            juegoDificil.validarRespuesta()
+            juegoDificil.txtRespuesta.text = "888.0"
+            juegoDificil.validarRespuesta()
+            juegoDificil.txtRespuesta.text = "777.0"
+            juegoDificil.validarRespuesta()
+
+            // 3. El progreso debe haberse reiniciado: Medio y Difícil bloqueados, 3 vidas restablecidas
+            assertTrue(gestor.esNivelDesbloqueado(Dificultad.FACIL))
+            assertFalse(gestor.esNivelDesbloqueado(Dificultad.MEDIO), "Medio debe quedar bloqueado tras Game Over")
+            assertFalse(gestor.esNivelDesbloqueado(Dificultad.DIFICIL), "Difícil debe quedar bloqueado tras Game Over")
+            assertEquals(3, gestor.vidasActuales)
+
+            menu.refrescarEstadoProgreso()
+            assertTrue(menu.botonesDificultad[Dificultad.MEDIO]!!.isDisable)
+            assertTrue(menu.botonesDificultad[Dificultad.DIFICIL]!!.isDisable)
+            assertEquals(Dificultad.FACIL, menu.dificultadSeleccionada)
+        }
+    }
+
+    @Test
+    fun testPanelVidasViewCorazonesSvgYMeteoritoRenderizable() {
+        ejecutarEnFx {
+            val gestor = GestorProgreso()
+            val panelVidas = PanelVidasView(gestor)
+
+            assertEquals(3, panelVidas.corazonesSvg.size)
+            assertTrue(panelVidas.corazonesSvg.all { it.styleClass.contains("corazon-lleno") })
+
+            gestor.perderVida()
+            assertTrue(panelVidas.corazonesSvg[0].styleClass.contains("corazon-lleno"))
+            assertTrue(panelVidas.corazonesSvg[1].styleClass.contains("corazon-lleno"))
+            assertTrue(panelVidas.corazonesSvg[2].styleClass.contains("corazon-vacio"))
+
+            // Verificar cálculos de rotación y estela del meteorito en GraficosUtils
+            assertEquals(-1.0, GraficosUtils.calcularDireccionEstelaFuego(12.0, DireccionMovimiento.ABAJO))
+            assertEquals(1.0, GraficosUtils.calcularDireccionEstelaFuego(12.0, DireccionMovimiento.ARRIBA))
+            assertEquals(-1.0, GraficosUtils.calcularDireccionEstelaFuego(-8.0, DireccionMovimiento.ARRIBA))
+            assertTrue(GraficosUtils.calcularAnguloRotacionMeteorito(1.5, 10.0) > 0.0)
+        }
+    }
 }
