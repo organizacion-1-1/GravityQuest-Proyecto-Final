@@ -276,10 +276,21 @@ object CalculosAuxiliares {
     }
 
     /**
-     * Parsea una cadena de texto admitiendo coma o punto como separador decimal.
+     * Parsea de forma segura una cadena de texto admitiendo coma o punto como separador decimal.
+     * Previene fallos por entradas vacías, caracteres no numéricos o desbordamientos manejando
+     * explícitamente [NumberFormatException] (Issue #21).
      */
-    fun parsearNumeroDecimal(texto: String): Double? =
-        texto.trim().replace(',', '.').toDoubleOrNull()
+    fun parsearNumeroDecimal(texto: String?): Double? {
+        if (texto == null) return null
+        val limpio = texto.trim().replace(',', '.')
+        if (limpio.isEmpty()) return null
+        return try {
+            val valor = limpio.toDouble()
+            if (valor.isNaN() || valor.isInfinite()) null else valor
+        } catch (_: NumberFormatException) {
+            null
+        }
+    }
 }
 
 /**
