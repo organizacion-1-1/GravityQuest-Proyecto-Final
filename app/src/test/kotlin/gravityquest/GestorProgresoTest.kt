@@ -257,4 +257,133 @@ class GestorProgresoTest {
             assertEquals("-10", marcador.lblIncremento.text)
         }
     }
+
+    // ========================================================================
+    // 4. Pruebas para el Sistema de Vidas, PanelVidasView y Progresión en Cadena (Issue #18)
+    // ========================================================================
+
+    @Test
+    fun testGestorVidasReglasDeNegocioYEncapsulamiento() {
+        val gestorVidas = GestorVidas()
+        assertEquals(3, gestorVidas.vidasActuales, "Debe iniciar con 3 vidas")
+        assertTrue(gestorVidas.tieneVidas())
+        assertFalse(gestorVidas.esGameOver())
+
+        assertEquals(2, gestorVidas.perderVida())
+        assertEquals(1, gestorVidas.perderVida())
+        assertFalse(gestorVidas.esGameOver())
+
+        assertEquals(0, gestorVidas.perderVida())
+        assertTrue(gestorVidas.esGameOver(), "Al llegar a 0 vidas debe reportar Game Over")
+        assertFalse(gestorVidas.tieneVidas())
+
+        // No debe bajar de 0 vidas
+        assertEquals(0, gestorVidas.perderVida())
+
+        // Reinicio de vidas
+        gestorVidas.reiniciarVidas()
+        assertEquals(3, gestorVidas.vidasActuales, "reiniciarVidas() debe restaurar las 3 vidas")
+        assertFalse(gestorVidas.esGameOver())
+    }
+
+    @Test
+    fun testPanelVidasViewReaccionAutomaticaIntegerProperty() {
+        ejecutarEnFx {
+            val gestor = GestorProgreso()
+            val panelVidas = PanelVidasView(gestor)
+
+            assertTrue(panelVidas.styleClass.contains("panel-vidas"))
+            assertEquals(3, panelVidas.iconosVidas.size, "PanelVidasView debe mostrar 3 íconos de vida")
+            assertTrue(panelVidas.iconosVidas.all { it.styleClass.contains("icono-vida") })
+            assertTrue(panelVidas.iconosVidas.none { it.styleClass.contains("icono-vida-perdida") })
+
+            // Perder 1 vida -> el último ícono pasa a .icono-vida-perdida
+            gestor.perderVida()
+            assertEquals(2, panelVidas.vidasMostradas)
+            assertFalse(panelVidas.iconosVidas[0].styleClass.contains("icono-vida-perdida"))
+            assertFalse(panelVidas.iconosVidas[1].styleClass.contains("icono-vida-perdida"))
+            assertTrue(panelVidas.iconosVidas[2].styleClass.contains("icono-vida-perdida"))
+
+            // Perder las 2 vidas restantes
+            gestor.perderVida()
+            gestor.perderVida()
+            assertEquals(0, panelVidas.vidasMostradas)
+            assertTrue(panelVidas.iconosVidas.all { it.styleClass.contains("icono-vida-perdida") })
+
+            // Reiniciar vidas -> los 3 íconos recuperan su estado activo
+            gestor.reiniciarVidas()
+            assertEquals(3, panelVidas.vidasMostradas)
+            assertTrue(panelVidas.iconosVidas.none { it.styleClass.contains("icono-vida-perdida") })
+        }
+    }
+
+    @Test
+    fun testVistaJuegoGameOverYReinicioAutomaticoDeNivel() {
+        ejecutarEnFx {
+            val navegador = NavegacionTest.NavegadorEspia()
+            val gestor = GestorProgreso()
+            val vista = VistaJuego(Dificultad.FACIL, navegador, gestorProgreso = gestor)
+
+            assertEquals(3, gestor.vidasActuales)
+
+            // Fallo 1 -> quedan 2 vidas
+            vista.txtRespuesta.text = "999.0"
+            assertFalse(vista.validarRespuesta())
+            assertEquals(2, gestor.vidasActuales)
+
+            // Fallo 2 -> queda 1 vida
+            vista.txtRespuesta.text = "888.0"
+            assertFalse(vista.validarRespuesta())
+            assertEquals(1, gestor.vidasActuales)
+
+            // Fallo 3 -> llega a 0 vidas: despliega Game Over y reinicia automáticamente a 3 vidas
+            vista.txtRespuesta.text = "777.0"
+            assertFalse(vista.validarRespuesta())
+            assertEquals(1, vista.reiniciosPorGameOver, "Debe haber ejecutado el reinicio automático del nivel")
+            assertEquals(3, gestor.vidasActuales, "Las 3 vidas deben haberse restablecido tras el reinicio")
+            assertTrue(
+                vista.lblResultado.text.contains("Game Over") || vista.lblResultado.text.contains("Nivel Fallido"),
+                "Debe desplegar el mensaje de Game Over / Nivel Fallido"
+            )
+        }
+    }
+
+    @Test
+    fun testProgresionEnCadenaFacilAMedioYMedioADificilEnMenuYJuego() {
+        ejecutarEnFx {
+            val navegador = NavegacionTest.NavegadorEspia()
+            val gestor = GestorProgreso()
+            val vistaMenu = VistaMenu(navegador, gestor)
+
+            // Al inicio: Medio y Difícil deshabilitados en el menú
+            assertFalse(vistaMenu.botonesDificultad[Dificultad.FACIL]!!.isDisable)
+            assertTrue(vistaMenu.botonesDificultad[Dificultad.MEDIO]!!.isDisable)
+            assertTrue(vistaMenu.botonesDificultad[Dificultad.DIFICIL]!!.isDisable)
+
+            // Resolver ejercicio de Nivel Fácil en VistaJuego
+            val juegoFacil = VistaJuego(Dificultad.FACIL, navegador, gestorProgreso = gestor)
+            juegoFacil.txtRespuesta.text = juegoFacil.problemaActual.valorEsperado.toString()
+            assertTrue(juegoFacil.validarRespuesta())
+
+            // Debe desbloquear inmediatamente el nivel Medio y habilitarlo en el menú
+            assertTrue(gestor.esNivelDesbloqueado(Dificultad.MEDIO), "Resolver Fácil debe desbloquear Medio inmediatamente")
+            vistaMenu.refrescarEstadoProgreso()
+            assertFalse(vistaMenu.botonesDificultad[Dificultad.MEDIO]!!.isDisable, "Botón Medio debe quedar habilitado")
+            assertTrue(vistaMenu.botonesDificultad[Dificultad.DIFICIL]!!.isDisable, "Botón Difícil sigue deshabilitado")
+
+            // Avanzar directamente al nivel Medio desde VistaJuego
+            assertTrue(juegoFacil.avanzarSiguienteNivel())
+            assertEquals(Dificultad.MEDIO, navegador.dificultadJuegoInvocada)
+
+            // Resolver ejercicio de Nivel Medio
+            val juegoMedio = VistaJuego(Dificultad.MEDIO, navegador, gestorProgreso = gestor)
+            juegoMedio.txtRespuesta.text = juegoMedio.problemaActual.valorEsperado.toString()
+            assertTrue(juegoMedio.validarRespuesta())
+
+            // Debe desbloquear inmediatamente el nivel Difícil
+            assertTrue(gestor.esNivelDesbloqueado(Dificultad.DIFICIL), "Resolver Medio debe desbloquear Difícil inmediatamente")
+            vistaMenu.refrescarEstadoProgreso()
+            assertFalse(vistaMenu.botonesDificultad[Dificultad.DIFICIL]!!.isDisable, "Botón Difícil debe quedar habilitado")
+        }
+    }
 }

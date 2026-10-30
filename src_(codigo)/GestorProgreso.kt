@@ -4,37 +4,36 @@ import gravityquest.models.Dificultad
 import gravityquest.models.GeneradorProblemas
 import gravityquest.models.IRepositorioProblemas
 import gravityquest.models.Problema
+import javafx.beans.property.IntegerProperty
 import javafx.beans.property.ReadOnlyIntegerProperty
 import javafx.beans.property.ReadOnlyIntegerWrapper
+import javafx.beans.property.SimpleIntegerProperty
 import java.util.Locale
 import kotlin.math.max
 
 /**
  * ============================================================================
- * GravityQuest - Sistema de Progreso y Puntuación del Jugador (POO & SOLID)
+ * GravityQuest - Sistema de Progreso, Vidas y Puntuación (POO & SOLID)
  * ============================================================================
  *
  * Arquitectura y Principios SOLID:
  * 1. Single Responsibility Principle (SRP):
- *    - [GestorProgreso] tiene la única responsabilidad de gestionar el progreso del jugador,
- *      calcular/acumular la puntuación según las reglas del dominio y aplicar las reglas de
- *      desbloqueo de niveles y problemas.
- *    - Las vistas ([VistaMenu], [VistaJuego], [MarcadorPuntosView]) quedan liberadas de la
- *      lógica de cálculo; únicamente consultan o reciben notificaciones reactivas.
+ *    - [GestorProgreso] gestiona el progreso del jugador, el desbloqueo en cadena
+ *      de niveles (Fácil → Medio → Difícil), el cálculo de puntuación y coordina
+ *      con [GestorVidas] el estado de las 3 vidas por intento.
+ *    - Las vistas ([VistaMenu], [VistaJuego], [MarcadorPuntosView], [PanelVidasView])
+ *      quedan liberadas de la lógica de negocio; solo consultan o reciben notificaciones.
  *
- * 2. Open/Closed Principle (OCP):
- *    - El sistema de desbloqueo está basado en la abstracción [IReglaDesbloqueo].
- *    - Incorporar nuevas reglas, logros o dificultades futuras solo requiere crear una
- *      nueva clase que implemente [IReglaDesbloqueo] sin modificar [GestorProgreso].
+ * 2. Open/Closed Principle (OCP) y Encapsulamiento:
+ *    - El sistema de desbloqueo está basado en la abstracción [IReglaDesbloqueo] y
+ *      en la cadena polimórfica de [Dificultad.siguienteNivel].
+ *    - Encapsula el estado de las vidas (`private var vidas: Int = 3`) y el nivel activo,
+ *      exponiendo únicamente métodos mutadores seguros ([perderVida], [reiniciarVidas]).
  *
  * 3. Dependency Inversion Principle (DIP) & Patrón Observer:
- *    - Define el contrato funcional [IPuntajeListener] y expone [ReadOnlyIntegerProperty]
- *      para que los componentes visuales ([MarcadorPuntosView]) se actualicen de forma
- *      reactiva y desacoplada cuando cambia el puntaje.
- *
- * 4. Encapsulamiento Fuerte:
- *    - Las colecciones internas y el estado del puntaje son estrictamente privados.
- *    - Solo se expone información mediante métodos de consulta inmutables y mutaciones controladas.
+ *    - Expone [IntegerProperty] ([vidasProperty]) y [ReadOnlyIntegerProperty] ([puntajeProperty]),
+ *      además de los contratos [IPuntajeListener] e [IVidasListener], para que [PanelVidasView]
+ *      y [MarcadorPuntosView] reaccionen automáticamente sin acoplamiento directo.
  */
 
 /**
@@ -78,7 +77,7 @@ class ReglaDesbloqueoInicial(
 
 /**
  * Regla de desbloqueo secuencial (OCP):
- * Desbloquea una [dificultad] cuando se han completado los ejercicios de la [dificultadPrevia].
+ * Desbloquea una [dificultad] cuando se han completado los ejercicios requeridos de la [dificultadPrevia].
  *
  * @property dificultad Dificultad objetivo a desbloquear.
  * @property dificultadPrevia Dificultad que actúa como prerrequisito.
@@ -102,15 +101,31 @@ class ReglaDesbloqueoSecuencial(
 }
 
 /**
- * Contrato de abstracción para el gestor de estado del progreso y puntuación del jugador (DIP).
+ * Contrato de abstracción para el gestor de estado del progreso, vidas y puntuación del jugador (DIP).
  */
 interface IGestorProgreso {
     /** Puntaje actual acumulado por el jugador (nunca menor que 0). */
     val puntajeActual: Int
         get() = 0
 
-    /** Propiedad observable de solo lectura para enlace reactivo en JavaFX. */
+    /** Propiedad observable de solo lectura para enlace reactivo del puntaje en JavaFX. */
     val puntajeProperty: ReadOnlyIntegerProperty
+
+    /** Modelo delegado o integrado de gestión de vidas (SRP / DIP). */
+    val gestorVidas: IGestorVidas
+        get() = GestorVidas()
+
+    /** Cantidad de vidas restantes en el intento actual (inicia en 3). */
+    val vidasActuales: Int
+        get() = gestorVidas.vidasActuales
+
+    /** Propiedad observable de JavaFX (`IntegerProperty`) para reaccionar a la pérdida/reinicio de vidas. */
+    val vidasProperty: IntegerProperty
+        get() = SimpleIntegerProperty(GestorVidas.MAX_VIDAS_DEFAULT)
+
+    /** Nivel de dificultad actualmente activo en la sesión de juego. */
+    val nivelActivo: Dificultad
+        get() = Dificultad.FACIL
 
     fun esNivelDesbloqueado(dificultad: Dificultad): Boolean
     fun esProblemaCompletado(idProblema: Int): Boolean
@@ -137,18 +152,33 @@ interface IGestorProgreso {
     fun obtenerPuntajeFormateado(): String = String.format(Locale.US, "PUNTAJE: %04d", puntajeActual)
     fun agregarListenerPuntaje(listener: IPuntajeListener) {}
     fun removerListenerPuntaje(listener: IPuntajeListener) {}
+
+    // Operaciones del sistema de vidas y progresión en cadena (Milestone 3 - Issue #18)
+    fun perderVida(): Int = vidasActuales
+    fun reiniciarVidas() {}
+    fun esGameOver(): Boolean = vidasActuales <= 0
+    fun tieneVidas(): Boolean = vidasActuales > 0
+    fun cambiarNivelActivo(dificultad: Dificultad) {}
+    fun obtenerSiguienteNivel(dificultadActual: Dificultad = nivelActivo): Dificultad? = dificultadActual.siguienteNivel
+    fun desbloquearSiguienteNivel(dificultadActual: Dificultad = nivelActivo): Dificultad? {
+        val siguiente = dificultadActual.siguienteNivel
+        if (siguiente != null) {
+            desbloquearNivelManualmente(siguiente)
+        }
+        return siguiente
+    }
+    fun agregarListenerVidas(listener: IVidasListener) {}
+    fun removerListenerVidas(listener: IVidasListener) {}
 }
 
 /**
- * Gestor en memoria del progreso del jugador, desbloqueo de niveles y sistema de puntuación en GravityQuest.
- *
- * Principio de Responsabilidad Única (SRP) y Encapsulamiento Fuerte:
- * Concentra exclusivamente las reglas de negocio de puntaje (+100 al primer intento, +50 con pistas o
- * intentos previos, -10 por respuesta incorrecta sin bajar de 0) y notifica a los observadores registrados.
+ * Gestor en memoria del progreso del jugador, desbloqueo en cadena de niveles,
+ * sistema de vidas (3 vidas por intento) y sistema de puntuación en GravityQuest.
  */
 class GestorProgreso(
     val repositorio: IRepositorioProblemas = GeneradorProblemas(),
-    reglasPersonalizadas: List<IReglaDesbloqueo>? = null
+    reglasPersonalizadas: List<IReglaDesbloqueo>? = null,
+    override val gestorVidas: IGestorVidas = GestorVidas()
 ) : IGestorProgreso {
 
     companion object {
@@ -164,14 +194,31 @@ class GestorProgreso(
         /** Límite inferior del puntaje (nunca puede ser negativo). */
         const val PUNTAJE_MINIMO: Int = 0
 
+        /** Cantidad inicial de vidas por intento de nivel (Issue #18). */
+        const val VIDAS_INICIALES: Int = GestorVidas.MAX_VIDAS_DEFAULT
+
         /** Formatea un valor numérico de puntaje al estándar estilizado de la interfaz. */
         fun formatearPuntaje(puntos: Int): String =
             String.format(Locale.US, "PUNTAJE: %04d", max(PUNTAJE_MINIMO, puntos))
     }
 
-    // Encapsulamiento Fuerte: Estado privado protegido de progreso
+    // Encapsulamiento Fuerte: Estado privado protegido de vidas y nivel activo (Issue #18)
+    private var vidas: Int = gestorVidas.vidasActuales
+    private var _nivelActivo: Dificultad = Dificultad.FACIL
+
+    override val nivelActivo: Dificultad
+        get() = _nivelActivo
+
+    override val vidasActuales: Int
+        get() = vidas
+
+    override val vidasProperty: IntegerProperty
+        get() = gestorVidas.vidasProperty
+
+    // Encapsulamiento Fuerte: Estado privado protegido de progreso y desbloqueo
     private val _problemasCompletados: MutableSet<Int> = mutableSetOf()
     private val _dificultadesDesbloqueadasManualmente: MutableSet<Dificultad> = mutableSetOf()
+    private val _usaReglasPersonalizadas: Boolean = reglasPersonalizadas != null
 
     // Encapsulamiento Fuerte: Estado privado del sistema de puntuación y seguimiento por problema
     private val _puntajeProperty: ReadOnlyIntegerWrapper = ReadOnlyIntegerWrapper(PUNTAJE_MINIMO)
@@ -192,6 +239,67 @@ class GestorProgreso(
         ReglaDesbloqueoSecuencial(Dificultad.DIFICIL, Dificultad.MEDIO)
     )
 
+    init {
+        // Sincroniza el campo privado `vidas` si `gestorVidas` cambia directamente
+        gestorVidas.vidasProperty.addListener { _, _, nuevoValor ->
+            vidas = nuevoValor.toInt()
+        }
+    }
+
+    /**
+     * Descuenta 1 vida al jugador de forma segura (`private var vidas` nunca menor a 0).
+     *
+     * @return Cantidad de vidas restantes tras la pérdida.
+     */
+    override fun perderVida(): Int {
+        vidas = gestorVidas.perderVida()
+        return vidas
+    }
+
+    /**
+     * Restablece las vidas a su valor inicial de 3 vidas para un nuevo intento.
+     */
+    override fun reiniciarVidas() {
+        gestorVidas.reiniciarVidas()
+        vidas = gestorVidas.vidasActuales
+    }
+
+    /**
+     * Indica si las vidas llegaron a 0 (Game Over / Nivel Fallido).
+     */
+    override fun esGameOver(): Boolean = vidas <= GestorVidas.MIN_VIDAS
+
+    override fun tieneVidas(): Boolean = vidas > GestorVidas.MIN_VIDAS
+
+    override fun cambiarNivelActivo(dificultad: Dificultad) {
+        this._nivelActivo = dificultad
+    }
+
+    override fun obtenerSiguienteNivel(dificultadActual: Dificultad): Dificultad? =
+        dificultadActual.siguienteNivel
+
+    /**
+     * Desbloquea inmediatamente el siguiente nivel en la cadena secuencial (FÁCIL → MEDIO → DIFÍCIL).
+     *
+     * @param dificultadActual Nivel que acaba de ser superado.
+     * @return El siguiente nivel desbloqueado ([Dificultad.MEDIO] o [Dificultad.DIFICIL]), o `null` si ya era [Dificultad.DIFICIL].
+     */
+    override fun desbloquearSiguienteNivel(dificultadActual: Dificultad): Dificultad? {
+        val siguiente = dificultadActual.siguienteNivel
+        if (siguiente != null) {
+            desbloquearNivelManualmente(siguiente)
+        }
+        return siguiente
+    }
+
+    override fun agregarListenerVidas(listener: IVidasListener) {
+        gestorVidas.agregarListenerVidas(listener)
+    }
+
+    override fun removerListenerVidas(listener: IVidasListener) {
+        gestorVidas.removerListenerVidas(listener)
+    }
+
     /**
      * Consulta si un nivel de dificultad específico está desbloqueado para el jugador.
      */
@@ -211,7 +319,8 @@ class GestorProgreso(
 
     /**
      * Registra la resolución exitosa de un ejercicio físico evaluando automáticamente
-     * si fue resuelto al primer intento (+100 pts) o con pistas/intentos previos (+50 pts).
+     * si fue resuelto al primer intento (+100 pts) o con pistas/intentos previos (+50 pts),
+     * y desbloquea en cadena el siguiente nivel de dificultad (Fácil → Medio → Difícil).
      */
     override fun registrarVictoria(problema: Problema) {
         val tuvoIntentosPrevios = obtenerIntentosFallidos(problema.id) > 0
@@ -230,6 +339,11 @@ class GestorProgreso(
         registrarAcierto(alPrimerIntentoSinPista = esPrimerIntentoLimpio)
         registrarProblemaCompletado(problema.id)
         reiniciarEstadoIntentoProblema(problema.id)
+
+        // Progresión en cadena (Issue #18): Resolver Fácil desbloquea Medio, resolver Medio desbloquea Difícil
+        if (!_usaReglasPersonalizadas) {
+            desbloquearSiguienteNivel(problema.dificultad)
+        }
     }
 
     /**
@@ -344,6 +458,8 @@ class GestorProgreso(
         _dificultadesDesbloqueadasManualmente.clear()
         _intentosFallidosPorProblema.clear()
         _pistasUsadasPorProblema.clear()
+        reiniciarVidas()
+        _nivelActivo = Dificultad.FACIL
         val puntajePrevio = _puntajeProperty.get()
         _puntajeProperty.set(PUNTAJE_MINIMO)
         if (puntajePrevio != PUNTAJE_MINIMO) {

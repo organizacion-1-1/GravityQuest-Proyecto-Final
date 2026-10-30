@@ -11,11 +11,13 @@ import gravityquest.EstrategiaLanzamientoArriba
  *
  * Principio de Responsabilidad Única (SRP):
  * Modela exclusivamente la graduación del desafío físico y sus atributos intrínsecos
- * (nombre visible, descripción pedagógica, tolerancia numérica y estrategia de cálculo).
+ * (nombre visible, descripción pedagógica, tolerancia numérica, estrategia de cálculo
+ * y progresión secuencial hacia el siguiente nivel).
  *
  * Principio Abierto/Cerrado (OCP) y Polimorfismo:
- * Cada nivel provee su estrategia de cálculo polimórfica ([estrategiaCalculo])
- * eliminando condicionales `when` rígidos o dispersos por el sistema.
+ * Cada nivel provee su estrategia de cálculo polimórfica ([estrategiaCalculo]) y su
+ * eslabón siguiente en la cadena de desbloqueo ([siguienteNivel]), eliminando
+ * condicionales `when` rígidos o dispersos por el sistema.
  *
  * Principio DRY:
  * Reutiliza [PhysicsConstants.MARGEN_ERROR_DEFAULT] en lugar de duplicar valores mágicos.
@@ -28,32 +30,41 @@ enum class Dificultad(
     val descripcion: String,
     val margenErrorTolerable: Double = PhysicsConstants.MARGEN_ERROR_DEFAULT
 ) {
-    /** Nivel Fácil: Caída libre clásica sin velocidad inicial (v₀ = 0 m/s). */
+    /** Nivel Fácil: Caída libre clásica sin velocidad inicial (v₀ = 0 m/s). Desbloquea MEDIO. */
     FACIL(
         nombreVisible = "Fácil",
         descripcion = "Caída libre sin velocidad inicial (v₀ = 0 m/s)"
     ) {
         override val estrategiaCalculo: IEstrategiaCalculo get() = EstrategiaCaidaLibre
+        override val siguienteNivel: Dificultad? get() = MEDIO
     },
 
-    /** Nivel Medio: Lanzamiento vertical hacia abajo con velocidad inicial (v₀ > 0 m/s). */
+    /** Nivel Medio: Lanzamiento vertical hacia abajo con velocidad inicial (v₀ > 0 m/s). Desbloquea DIFÍCIL. */
     MEDIO(
         nombreVisible = "Medio",
         descripcion = "Lanzamiento vertical hacia abajo con velocidad inicial (v₀ > 0 m/s)"
     ) {
         override val estrategiaCalculo: IEstrategiaCalculo get() = EstrategiaLanzamientoAbajo
+        override val siguienteNivel: Dificultad? get() = DIFICIL
     },
 
-    /** Nivel Difícil: Lanzamiento vertical hacia arriba desacelerando por gravedad (v₀ > 0 m/s). */
+    /** Nivel Difícil: Lanzamiento vertical hacia arriba desacelerando por gravedad (v₀ > 0 m/s). Nivel final. */
     DIFICIL(
         nombreVisible = "Difícil",
         descripcion = "Lanzamiento vertical hacia arriba desacelerando por gravedad (v₀ > 0 m/s)"
     ) {
         override val estrategiaCalculo: IEstrategiaCalculo get() = EstrategiaLanzamientoArriba
+        override val siguienteNivel: Dificultad? get() = null
     };
 
     /** Estrategia cinemática polimórfica asignada al nivel (OCP). */
     abstract val estrategiaCalculo: IEstrategiaCalculo
+
+    /** Siguiente nivel en la cadena de progresión secuencial (Fácil → Medio → Difícil). */
+    abstract val siguienteNivel: Dificultad?
+
+    /** Retorna el siguiente nivel de la secuencia o `null` si es el nivel final. */
+    fun obtenerSiguiente(): Dificultad? = siguienteNivel
 
     init {
         require(nombreVisible.isNotBlank()) { "El nombre visible no puede estar vacío ni contener solo espacios" }
