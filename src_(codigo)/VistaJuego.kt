@@ -6,6 +6,7 @@ import gravityquest.models.IRepositorioProblemas
 import gravityquest.models.Problema
 import javafx.animation.AnimationTimer
 import javafx.application.Platform
+import javafx.beans.value.ChangeListener
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Parent
@@ -122,22 +123,28 @@ object VentanaTransicionNivel {
 /**
  * ============================================================================
  * GravityQuest - Pantalla de Juego y Controlador de Interacción (VistaJuego)
+ * (Issue #21 - Milestone 4: Optimización, SOLID, POO y DRY)
  * ============================================================================
  *
  * 1. Single Responsibility Principle (SRP):
  *    - Coordina la interfaz del ejercicio físico: ensambla el panel de vidas
  *      ([PanelVidasView]) y el marcador de puntos ([MarcadorPuntosView]) en la
  *      barra superior, aloja el nodo [Canvas] delegando el pintado cuadro a cuadro
- *      a [RenderizadorSimulacion] ([SimulacionCanvasView]) y delega las decisiones
- *      de negocio (vidas, Game Over, puntos y desbloqueo en cadena) a [IGestorProgreso].
+ *      a [RenderizadorSimulacion] ([SimulacionCanvasView]) y delega el bucle de
+ *      animación temporal por completo a [MotorSimulacionCanvas] ([IMotorSimulacion]).
+ *    - La vista solo controla el inicio/pausa/detención (`play`/`pause`/`stop`) del
+ *      motor, sin calcular deltas de tiempo ni actualizar físicas en el hilo UI.
  *
- * 2. Open/Closed Principle (OCP) y Polimorfismo:
- *    - Configura automáticamente el escenario gráfico polimórfico según la [Dificultad]
- *      y resuelve la progresión secuencial en cadena (`FÁCIL` → `MEDIO` → `DIFÍCIL`).
+ * 2. Gestión Fina de Recursos y Memoria ([IRecursoLiberable]):
+ *    - Implementa [IRecursoLiberable] para garantizar que al cambiar de escena con
+ *      [INavegadorEscenas], el [AnimationTimer] activo se detenga explícitamente (`stop()`)
+ *      y los listeners reactivos ([PanelVidasView], [MarcadorPuntosView], [txtRespuesta])
+ *      se desvinculen evitando fugas de memoria (*memory leaks*) y consumo fantasma de CPU.
  *
- * 3. Dependency Inversion Principle (DIP):
- *    - Depende de abstracciones ([INavegadorEscenas], [IRepositorioProblemas],
- *      [ICalculadoraFisica], [RenderizadorSimulacion], [IGestorFeedback], [IGestorProgreso]).
+ * 3. Tratamiento Seguro de Excepciones en Formularios:
+ *    - Previene fallos cuando el usuario presiona "Validar" con el campo vacío o con
+ *      caracteres inválidos, aplicando un feedback visual suave (borde rojo `.input-error`
+ *      en [txtRespuesta]) sin interrumpir la ejecución.
  */
 class VistaJuego(
     val dificultad: Dificultad,
@@ -147,7 +154,7 @@ class VistaJuego(
     val gestorProgreso: IGestorProgreso = GestorProgreso(),
     val stagePropietario: Stage? = null,
     problemaInicial: Problema? = null
-) : BorderPane() {
+) : BorderPane(), IRecursoLiberable {
 
     /** Nodo raíz de la vista de juego (referencia a sí mismo como contenedor). */
     val root: Parent get() = this
@@ -160,7 +167,7 @@ class VistaJuego(
     val alturaProblema: Double
         get() = problemaActual.alturaReferenciaSimulacion
 
-    // 3. Estado físico y renderizado gráfico desacoplados en SimulacionCanvasView (SRP / OCP / DIP)
+    // 3. Estado físico reutilizable y renderizado gráfico desacoplados (SRP / OCP / DIP)
     val objetoSimulado: ObjetoSimulado = ObjetoSimulado(alturaMaxima = alturaProblema)
     val canvasSimulacion: Canvas = Canvas(GameConfig.ANCHO_CANVAS_DEFAULT, GameConfig.ALTO_CANVAS_DEFAULT).apply {
         styleClass.add("canvas-simulacion")
@@ -222,10 +229,10 @@ class VistaJuego(
         alineacion = Pos.CENTER
     )
 
-    // 6. Gestor de retroalimentación visual (animaciones y clases de resultado)
-    var gestorFeedback: IGestorFeedback = GestorFeedbackVisual(lblResultado)
+    // 6. Gestor de retroalimentación visual vinculado al TextField para resaltar errores de formato (Issue #21)
+    var gestorFeedback: IGestorFeedback = GestorFeedbackVisual(lblResultado, txtRespuesta)
 
-    // 7. Seguimiento de reinicios por Game Over, tiempo de partida y estadísticas finales (Issues #18 & #20)
+    // 7. Seguimiento de reinicios por Game Over, tiempo de partida y liberación de recursos (Issues #18, #20 & #21)
     var reiniciosPorGameOver: Int = 0
         private set
 
@@ -235,26 +242,38 @@ class VistaJuego(
     var ultimasEstadisticasPartida: EstadisticasPartida? = null
         private set
 
+    var recursosLiberados: Boolean = false
+        private set
+
     private var marcaTiempoInicioMs: Long = System.currentTimeMillis()
 
-    // 8. Controlador de simulación a 60 FPS desacoplado (SRP / DRY)
-    private val controladorSimulacion: ControladorSimulacion = ControladorSimulacion(
+    // 8. Motor de simulación desacoplado basado en Delta Time real (SRP / DIP / DRY - Issue #21)
+    val motorSimulacion: MotorSimulacionCanvas = MotorSimulacionCanvas(
         objetoSimulado = objetoSimulado,
         calculadora = calculadora,
-        alturaMetros = alturaProblema,
-        velocidadInicial = problemaActual.velocidadInicial,
-        direccion = problemaActual.direccionMovimiento,
-        estrategia = problemaActual.estrategiaCalculo,
+        alturaMetrosInicial = alturaProblema,
+        velocidadInicialParam = problemaActual.velocidadInicial,
+        direccionInicial = problemaActual.direccionMovimiento,
+        estrategiaInicial = problemaActual.estrategiaCalculo,
         alActualizar = { renderizador.renderizar(it) }
     )
 
-    val timerSimulacion: AnimationTimer? get() = controladorSimulacion.timer
-    val simulacionEnCurso: Boolean get() = controladorSimulacion.enCurso
+    val timerSimulacion: AnimationTimer? get() = motorSimulacion.timer
+    val simulacionEnCurso: Boolean get() = motorSimulacion.enCurso
+    val simulacionPausada: Boolean get() = motorSimulacion.pausado
+
+    /** Listener reutilizable que limpia el borde de error del TextField cuando el usuario edita el texto. */
+    private val listenerTextoRespuesta = ChangeListener<String> { _, _, _ ->
+        UIFactory.limpiarEstadoCampo(txtRespuesta)
+    }
 
     init {
         // Estilos base de la pantalla
         styleClass.add("root")
         padding = Insets(16.0)
+
+        // Registra la vista como recurso activo en el navegador para limpieza automática al cambiar escena
+        navegador.registrarRecursoActivo(this)
 
         // Cada intento de nivel inicia con 3 vidas restablecidas (Issue #18)
         gestorProgreso.cambiarNivelActivo(dificultad)
@@ -329,8 +348,10 @@ class VistaJuego(
      * Conecta las acciones interactivas de los controles de la vista.
      */
     private fun configurarEventos() {
+        txtRespuesta.textProperty().addListener(listenerTextoRespuesta)
+
         btnVolverMenu.setOnAction {
-            detenerSimulacion()
+            liberarRecursos()
             navegador.irAMenu()
         }
 
@@ -368,7 +389,9 @@ class VistaJuego(
     }
 
     /**
-     * Actualiza la interfaz con la información del problema actualmente seleccionado.
+     * Actualiza la interfaz con la información del problema actualmente seleccionado,
+     * reutilizando las instancias de [ObjetoSimulado] y [RenderizadorCanvas] para evitar
+     * sobrecarga de memoria (Issue #21).
      */
     private fun actualizarDatosProblemaEnUI() {
         val difActual = problemaActual.dificultad
@@ -392,16 +415,29 @@ class VistaJuego(
 
         val alturaEfectiva = problemaActual.alturaReferenciaSimulacion
 
+        objetoSimulado.configurarAlturaMaxima(alturaEfectiva)
         objetoSimulado.reiniciar()
         marcaTiempoInicioMs = System.currentTimeMillis()
-        renderizador = SimulacionCanvasView(
-            canvas = canvasSimulacion,
-            dificultad = difActual,
-            alturaMaximaMetros = alturaEfectiva,
-            direccion = problemaActual.direccionMovimiento,
-            velocidadInicial = problemaActual.velocidadInicial
-        )
-        controladorSimulacion.configurarParaProblema(problemaActual)
+
+        val renderizadorExistente = renderizador
+        if (renderizadorExistente is RenderizadorCanvas) {
+            renderizadorExistente.configurar(
+                altura = alturaEfectiva,
+                direccionMov = problemaActual.direccionMovimiento,
+                v0 = problemaActual.velocidadInicial,
+                nuevoEscenario = TipoEscenario.desdeDificultad(difActual)
+            )
+        } else {
+            renderizador = SimulacionCanvasView(
+                canvas = canvasSimulacion,
+                dificultad = difActual,
+                alturaMaximaMetros = alturaEfectiva,
+                direccion = problemaActual.direccionMovimiento,
+                velocidadInicial = problemaActual.velocidadInicial
+            )
+        }
+
+        motorSimulacion.configurarParaProblema(problemaActual)
         renderizador.renderizar(objetoSimulado)
     }
 
@@ -454,7 +490,7 @@ class VistaJuego(
      * @return `true` si navegó hacia un siguiente nivel, `false` si regresó al menú principal.
      */
     fun avanzarSiguienteNivel(): Boolean {
-        detenerSimulacion()
+        liberarRecursos()
         val siguiente = gestorProgreso.obtenerSiguienteNivel(dificultad)
         return if (siguiente != null && gestorProgreso.esNivelDesbloqueado(siguiente)) {
             navegador.irAJuego(siguiente)
@@ -477,11 +513,11 @@ class VistaJuego(
             siguienteNivel = siguiente,
             puntajeActual = gestorProgreso.puntajeActual,
             alAvanzarNivel = { nivelDestino ->
-                detenerSimulacion()
+                liberarRecursos()
                 navegador.irAJuego(nivelDestino)
             },
             alVolverMenu = {
-                detenerSimulacion()
+                liberarRecursos()
                 navegador.irAMenu()
             }
         )
@@ -490,17 +526,15 @@ class VistaJuego(
     }
 
     /**
-     * Valida la respuesta numérica ingresada por el usuario:
+     * Valida de forma segura la respuesta numérica ingresada por el usuario:
+     * - Si el campo está vacío o contiene caracteres no numéricos:
+     *   Maneja de forma segura la conversión sin lanzar [NumberFormatException], aplica
+     *   borde rojo suave (`.input-error`) en [txtRespuesta] y detiene la simulación.
      * - Si es correcta:
-     *   1. Registra la victoria y el tiempo en [IGestorProgreso] (desbloqueando automáticamente
-     *      el siguiente nivel en la secuencia Fácil → Medio → Difícil).
-     *   2. Muestra feedback de éxito, inicia la simulación y notifica el fin del nivel a
-     *      [INavegadorEscenas.irANivelCompletado] delegando la construcción de la vista final (SRP / DIP).
+     *   Registra victoria y tiempo en [IGestorProgreso], muestra feedback de éxito,
+     *   inicia la simulación y notifica a [INavegadorEscenas.irANivelCompletado].
      * - Si es incorrecta:
-     *   1. Penaliza el puntaje (-10 puntos sin bajar de 0) y descuenta 1 vida en [IGestorProgreso].
-     *   2. Si las vidas llegan a 0: registra las estadísticas del intento fallido, reinicia el
-     *      estado de las 3 vidas y notifica a [INavegadorEscenas.irAGameOver] para desplegar
-     *      la pantalla dedicada de Game Over (SRP / DIP).
+     *   Penaliza puntaje y descuenta 1 vida; si llega a 0 vidas, notifica Game Over.
      *
      * @return `true` si la respuesta fue admitida dentro del margen de error, `false` en caso contrario.
      */
@@ -509,6 +543,7 @@ class VistaJuego(
 
         if (valorIngresado == null) {
             detenerYReiniciarLienzo()
+            UIFactory.marcarErrorCampo(txtRespuesta)
             gestorFeedback.mostrarErrorFormato("¡Entrada inválida! Por favor ingresa un número.")
             return false
         }
@@ -516,6 +551,7 @@ class VistaJuego(
         val esCorrecto = problemaActual.validarRespuesta(valorIngresado)
 
         return if (esCorrecto) {
+            UIFactory.marcarExitoCampo(txtRespuesta)
             // 1. Registra tiempo, logro, puntaje y desbloquea en cadena el siguiente nivel (SRP / OCP)
             val tiempoUsado = calcularTiempoTranscurridoSegundos()
             gestorProgreso.registrarTiempoNivel(tiempoUsado)
@@ -544,6 +580,7 @@ class VistaJuego(
             navegador.irANivelCompletado(dificultad, estadisticasVictoria, siguiente)
             true
         } else {
+            UIFactory.marcarErrorCampo(txtRespuesta)
             // 1. Penalización de puntaje y descuento de 1 vida (Issue #18)
             gestorProgreso.registrarIntentoFallido(problemaActual.id)
             val vidasRestantes = gestorProgreso.perderVida()
@@ -559,6 +596,7 @@ class VistaJuego(
                 gestorProgreso.registrarGameOver()
                 reiniciosPorGameOver += 1
                 reiniciarNivelActual(preservarMensajeGameOver = true)
+                UIFactory.marcarErrorCampo(txtRespuesta)
                 gestorFeedback.mostrarGameOver(
                     "💀 ¡Game Over / Nivel Fallido! Te quedaste sin vidas. Progreso reiniciado con 3 vidas."
                 )
@@ -574,12 +612,12 @@ class VistaJuego(
     }
 
     /**
-     * Inicia o reinicia la simulación del objeto en movimiento en el Canvas según sus condiciones iniciales.
+     * Inicia o reinicia la simulación delegando exclusivamente en [MotorSimulacionCanvas] (SRP).
      */
     fun iniciarOReiniciarSimulacion() {
         val alturaEfectiva = problemaActual.alturaReferenciaSimulacion
         renderizador.reiniciarEfectos()
-        controladorSimulacion.iniciarOReiniciar(
+        motorSimulacion.iniciarOReiniciar(
             nuevaAltura = alturaEfectiva,
             nuevaVelocidadInicial = problemaActual.velocidadInicial,
             nuevaDireccion = problemaActual.direccionMovimiento,
@@ -588,10 +626,36 @@ class VistaJuego(
     }
 
     /**
-     * Detiene el temporizador de la simulación gráfica.
+     * Inicia o reanuda el motor de simulación (`play`).
+     */
+    fun playSimulacion() {
+        motorSimulacion.play()
+    }
+
+    /**
+     * Pausa temporalmente el motor de simulación (`pause`).
+     */
+    fun pausarSimulacion() {
+        motorSimulacion.pause()
+    }
+
+    /**
+     * Detiene explícitamente el temporizador de la simulación gráfica (`stop`).
      */
     fun detenerSimulacion() {
-        controladorSimulacion.detener()
+        motorSimulacion.stop()
+    }
+
+    /**
+     * Detiene el [AnimationTimer] activo y desvincula los listeners de la vista
+     * para evitar fugas de memoria (*memory leaks*) al cambiar de escena (Issue #21).
+     */
+    override fun liberarRecursos() {
+        detenerSimulacion()
+        panelVidas.desvincular()
+        marcadorPuntos.desvincular()
+        txtRespuesta.textProperty().removeListener(listenerTextoRespuesta)
+        recursosLiberados = true
     }
 
     private fun detenerYReiniciarLienzo() {

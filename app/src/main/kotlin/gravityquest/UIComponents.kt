@@ -218,15 +218,52 @@ object UIFactory {
      * Parsea una cadena de texto admitiendo coma o punto como separador decimal.
      * Encapsulado en [UIFactory] delegando en [CalculosAuxiliares] (SRP).
      */
-    fun parsearNumeroDecimal(texto: String): Double? =
+    fun parsearNumeroDecimal(texto: String?): Double? =
         CalculosAuxiliares.parsearNumeroDecimal(texto)
 
     /**
-     * Obtiene y parsea el valor numérico decimal contenido en un [TextField].
-     * Encapsulado en [UIFactory] (SRP / POO).
+     * Obtiene y parsea de forma segura el valor numérico decimal contenido en un [TextField],
+     * manejando entradas vacías o caracteres inválidos sin lanzar excepciones no controladas (Issue #21).
      */
     fun obtenerValorDecimal(campo: TextField): Double? =
         parsearNumeroDecimal(campo.text)
+
+    /**
+     * Aplica un feedback visual suave de error sobre un [TextField] (borde rojo neón `.input-error`
+     * y vibración corta) cuando se detecta una entrada vacía o numéricamente inválida (Issue #21).
+     */
+    fun marcarErrorCampo(campo: TextField) {
+        campo.styleClass.remove("input-exito")
+        if (!campo.styleClass.contains("input-error")) {
+            campo.styleClass.add("input-error")
+        }
+        if (!campo.styleClass.contains("text-field-error")) {
+            campo.styleClass.add("text-field-error")
+        }
+        FxAnimationUtils.animarVibracion(campo, desplazamiento = 5.0, duracionMs = 40.0) {
+            campo.translateX = 0.0
+        }
+    }
+
+    /**
+     * Aplica un estado visual de validación exitosa sobre un [TextField] eliminando clases de error.
+     */
+    fun marcarExitoCampo(campo: TextField) {
+        campo.styleClass.removeAll("input-error", "text-field-error")
+        if (!campo.styleClass.contains("input-exito")) {
+            campo.styleClass.add("input-exito")
+        }
+        campo.translateX = 0.0
+    }
+
+    /**
+     * Limpia las clases de estado de validación (`.input-error`, `.text-field-error`, `.input-exito`)
+     * sobre el [TextField] restableciendo su estilo original.
+     */
+    fun limpiarEstadoCampo(campo: TextField) {
+        campo.styleClass.removeAll("input-error", "text-field-error", "input-exito")
+        campo.translateX = 0.0
+    }
 }
 
 /**

@@ -299,4 +299,99 @@ class NavegacionTest {
             assertTrue(juego.lblResultado.styleClass.contains("resultado-exito"))
         }
     }
+
+    // ========================================================================
+    // 4. Pruebas para Issue #21: MotorSimulacionCanvas, Delta Time, Recursos y Formularios
+    // ========================================================================
+
+    @Test
+    fun testMotorSimulacionCanvasDeltaTimeIndependenciaFpsYDetencionEnSuelo() {
+        val calc = CalculadoraFisica()
+        val obj60Hz = ObjetoSimulado(alturaMaxima = 20.0)
+        val obj120Hz = ObjetoSimulado(alturaMaxima = 20.0)
+
+        val motor60Hz = MotorSimulacionCanvas(
+            objetoSimulado = obj60Hz,
+            calculadora = calc,
+            alturaMetrosInicial = 20.0,
+            estrategiaInicial = EstrategiaCaidaLibre
+        )
+        val motor120Hz = MotorSimulacionCanvas(
+            objetoSimulado = obj120Hz,
+            calculadora = calc,
+            alturaMetrosInicial = 20.0,
+            estrategiaInicial = EstrategiaCaidaLibre
+        )
+
+        // Simular exactamente 1.0 segundo a 60 FPS (60 pasos de 1/60s) vs 120 FPS (120 pasos de 1/120s)
+        val t0 = 1_000_000_000L
+        motor60Hz.avanzarFrame(t0)
+        motor120Hz.avanzarFrame(t0)
+
+        val paso60 = 1_000_000_000L / 60L
+        for (i in 1..60) {
+            motor60Hz.avanzarFrame(t0 + i * paso60)
+        }
+
+        val paso120 = 1_000_000_000L / 120L
+        for (i in 1..120) {
+            motor120Hz.avanzarFrame(t0 + i * paso120)
+        }
+
+        // Ambos motores deben coincidir en tiempo (~1.0s) y posición (~4.905m) sin importar los Hz del monitor
+        assertEquals(obj60Hz.tiempo, obj120Hz.tiempo, 0.001, "El tiempo acumulado con Delta Time debe ser independiente de los FPS")
+        assertEquals(obj60Hz.posicionY, obj120Hz.posicionY, 0.01, "La posición física calculada con Delta Time debe ser idéntica en 60Hz y 120Hz")
+        assertFalse(obj60Hz.enSuelo)
+
+        // Avanzar hasta superar el tiempo total (~2.02s): el objeto debe detenerse exactamente en el suelo (20.0m)
+        for (i in 61..140) {
+            motor60Hz.avanzarFrame(t0 + i * paso60)
+        }
+        assertTrue(obj60Hz.enSuelo, "El objeto debe marcar enSuelo = true al tocar el suelo")
+        assertEquals(20.0, obj60Hz.posicionY, 1e-6, "El objeto no debe atravesar el suelo (20.0m)")
+        assertFalse(motor60Hz.enCurso, "El motor debe detener el AnimationTimer automáticamente al tocar el suelo")
+    }
+
+    @Test
+    fun testNavegadorEscenasDetieneTimerYLiberaRecursosAlCambiarEscena() {
+        ejecutarEnFx {
+            val stage = Stage()
+            val navegador = NavegadorEscenas(stage)
+
+            navegador.irAJuego(Dificultad.FACIL)
+            val vistaJuego = navegador.escenaActual as VistaJuego
+
+            vistaJuego.iniciarOReiniciarSimulacion()
+            assertTrue(vistaJuego.simulacionEnCurso, "La simulación debe estar en curso tras iniciar")
+            assertFalse(vistaJuego.recursosLiberados)
+
+            // Cambiar de escena hacia el menú principal debe detener explícitamente el AnimationTimer
+            navegador.irAMenu()
+            assertFalse(vistaJuego.simulacionEnCurso, "NavegadorEscenas debe detener el AnimationTimer al cambiar de escena")
+            assertTrue(vistaJuego.recursosLiberados, "VistaJuego debe haber liberado sus listeners y recursos")
+            assertTrue(navegador.limpiezasEjecutadas >= 1)
+        }
+    }
+
+    @Test
+    fun testValidacionSeguraFormularioVacioYCaracteresInvalidosConFeedbackVisual() {
+        ejecutarEnFx {
+            val espia = NavegadorEspia()
+            val juego = VistaJuego(Dificultad.FACIL, espia)
+
+            // 1. Campo vacío
+            juego.txtRespuesta.text = "   "
+            assertFalse(juego.validarRespuesta(), "El formulario vacío no debe lanzar excepción y debe retornar false")
+            assertTrue(juego.txtRespuesta.styleClass.contains("input-error"), "El TextField debe mostrar borde rojo (.input-error)")
+
+            // 2. Caracteres inválidos (NumberFormatException prevenido)
+            juego.txtRespuesta.text = "abc123??"
+            assertFalse(juego.validarRespuesta(), "Caracteres inválidos deben manejarse de forma segura")
+            assertTrue(juego.txtRespuesta.styleClass.contains("input-error"))
+
+            // 3. Al volver a escribir, el estilo de error se limpia suavemente
+            juego.txtRespuesta.text = "2.02"
+            assertFalse(juego.txtRespuesta.styleClass.contains("input-error"), "Editar el campo debe limpiar la clase .input-error")
+        }
+    }
 }

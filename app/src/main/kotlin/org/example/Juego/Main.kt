@@ -53,12 +53,17 @@ import gravityquest.models.IRepositorioProblemas
  */
 
 /**
- * Modelo de estado que encapsula las propiedades físicas del objeto en caída.
+ * Modelo de estado que encapsula las propiedades físicas del objeto en caída o lanzamiento.
+ * Reutilizable cuadro a cuadro para evitar asignaciones de memoria en `AnimationTimer.handle` (Issue #21).
  */
 class ObjetoSimulado(
-    val alturaMaxima: Double = PhysicsConstants.ALTURA_DEFAULT
+    alturaMaxima: Double = PhysicsConstants.ALTURA_DEFAULT
 ) {
-    /** Posición vertical actual en metros (desde el punto de lanzamiento y = 0 hasta alturaMaxima). */
+    /** Altura máxima de referencia en metros para acotar la posición física del objeto. */
+    var alturaMaxima: Double = alturaMaxima.coerceAtLeast(0.0)
+        private set
+
+    /** Posición vertical actual en metros (acotada siempre dentro de `0.0..alturaMaxima`). */
     var posicionY: Double = 0.0
         private set
 
@@ -66,18 +71,38 @@ class ObjetoSimulado(
     var velocidadY: Double = 0.0
         private set
 
-    /** Tiempo transcurrido de la caída en segundos. */
+    /** Tiempo transcurrido de la simulación en segundos. */
     var tiempo: Double = 0.0
         private set
 
-    /** Indica si el objeto ha llegado al suelo (fin de la caída). */
+    /** Último diferencial de tiempo real ($\Delta t$) aplicado en segundos. */
+    var ultimoDeltaSegundos: Double = 0.0
+        private set
+
+    /** Indica si el objeto ha llegado al suelo (fin del movimiento). */
     var enSuelo: Boolean = false
         private set
 
-    fun actualizar(posicion: Double, velocidad: Double, tiempoTranscurrido: Double, haLlegadoAlSuelo: Boolean) {
-        this.posicionY = posicion.coerceIn(0.0, alturaMaxima)
-        this.velocidadY = velocidad
-        this.tiempo = tiempoTranscurrido
+    /** Actualiza el límite superior de altura al cambiar de ejercicio físico sin recrear el objeto. */
+    fun configurarAlturaMaxima(nuevaAltura: Double) {
+        if (!nuevaAltura.isNaN() && !nuevaAltura.isInfinite() && nuevaAltura >= 0.0) {
+            this.alturaMaxima = nuevaAltura
+            this.posicionY = this.posicionY.coerceIn(0.0, this.alturaMaxima)
+        }
+    }
+
+    fun actualizar(
+        posicion: Double,
+        velocidad: Double,
+        tiempoTranscurrido: Double,
+        haLlegadoAlSuelo: Boolean,
+        deltaSegundos: Double = 0.0
+    ) {
+        val posSegura = if (posicion.isNaN() || posicion.isInfinite()) 0.0 else posicion
+        this.posicionY = posSegura.coerceIn(0.0, alturaMaxima)
+        this.velocidadY = if (velocidad.isNaN() || velocidad.isInfinite()) 0.0 else velocidad
+        this.tiempo = if (tiempoTranscurrido.isNaN() || tiempoTranscurrido.isInfinite()) 0.0 else tiempoTranscurrido.coerceAtLeast(0.0)
+        this.ultimoDeltaSegundos = if (deltaSegundos.isNaN() || deltaSegundos.isInfinite()) 0.0 else deltaSegundos.coerceAtLeast(0.0)
         this.enSuelo = haLlegadoAlSuelo
     }
 
@@ -85,6 +110,7 @@ class ObjetoSimulado(
         posicionY = 0.0
         velocidadY = 0.0
         tiempo = 0.0
+        ultimoDeltaSegundos = 0.0
         enSuelo = false
     }
 }
@@ -170,25 +196,32 @@ interface IGestorFeedback {
 
 /**
  * Gestor dinámico de retroalimentación visual con animaciones seguras y estilos CSS.
+ * Soporta vinculación opcional con el [TextField] del formulario para resaltar con borde
+ * rojo suave (`.input-error`) ante errores de formato o precisión (Issue #21).
  */
 class GestorFeedbackVisual(
-    private val labelResultado: Label
+    private val labelResultado: Label,
+    private val campoRespuesta: TextField? = null
 ) : IGestorFeedback {
 
     override fun mostrarExito(mensaje: String) {
+        campoRespuesta?.let { UIFactory.marcarExitoCampo(it) }
         actualizarEstilo(esExito = true, mensaje = mensaje)
         FxAnimationUtils.animarPulso(labelResultado) { restablecerTransformaciones() }
     }
 
     override fun mostrarErrorPrecision(mensaje: String) {
+        campoRespuesta?.let { UIFactory.marcarErrorCampo(it) }
         mostrarFallo(mensaje)
     }
 
     override fun mostrarErrorFormato(mensaje: String) {
+        campoRespuesta?.let { UIFactory.marcarErrorCampo(it) }
         mostrarFallo(mensaje)
     }
 
     override fun mostrarGameOver(mensaje: String) {
+        campoRespuesta?.let { UIFactory.marcarErrorCampo(it) }
         mostrarFallo(mensaje)
         if (!labelResultado.styleClass.contains("resultado-gameover")) {
             labelResultado.styleClass.add("resultado-gameover")
@@ -215,6 +248,7 @@ class GestorFeedbackVisual(
     override fun limpiar() {
         labelResultado.text = ""
         labelResultado.styleClass.removeAll("resultado-exito", "resultado-error", "resultado-gameover")
+        campoRespuesta?.let { UIFactory.limpiarEstadoCampo(it) }
         restablecerTransformaciones()
     }
 
@@ -316,32 +350,37 @@ open class GravityQuestApp : Application() {
     var renderizador: RenderizadorSimulacion
     var gestorFeedback: IGestorFeedback
 
-    // 6. Controlador de simulación cinemática desacoplado (DRY / SRP)
+    // 6. Motor de simulación cinemática desacoplado con Delta Time (DRY / SRP - Issue #21)
+    val motorSimulacion: MotorSimulacionCanvas
     private val controladorSimulacion: ControladorSimulacion
 
-    val timerSimulacion: AnimationTimer? get() = controladorSimulacion.timer
+    val timerSimulacion: AnimationTimer? get() = motorSimulacion.timer
     var tiempoInicioNano: Long = 0L
-    val simulacionEnCurso: Boolean get() = controladorSimulacion.enCurso
+    val simulacionEnCurso: Boolean get() = motorSimulacion.enCurso
 
     init {
         vistaFormulario.configurarEnunciado(nivelActual.enunciado)
         renderizador = RenderizadorCanvas(canvasSimulacion, alturaProblema)
-        gestorFeedback = GestorFeedbackVisual(lblResultado)
+        gestorFeedback = GestorFeedbackVisual(lblResultado, txtRespuesta)
         controladorSimulacion = ControladorSimulacion(
             objetoSimulado = objetoSimulado,
             calculadora = calculadora,
             alturaMetros = alturaProblema,
             alActualizar = { renderizador.renderizar(it) }
         )
+        motorSimulacion = controladorSimulacion
+        txtRespuesta.textProperty().addListener { _, _, _ ->
+            UIFactory.limpiarEstadoCampo(txtRespuesta)
+        }
         renderizador.renderizar(objetoSimulado)
     }
 
     fun iniciarOReiniciarSimulacion() {
-        controladorSimulacion.iniciarOReiniciar(alturaProblema)
+        motorSimulacion.iniciarOReiniciar(alturaProblema)
     }
 
     fun detenerSimulacion() {
-        controladorSimulacion.detener()
+        motorSimulacion.stop()
     }
 
     fun validarRespuesta(): Boolean {
@@ -405,6 +444,7 @@ open class GravityQuestApp : Application() {
 
     override fun stop() {
         detenerSimulacion()
+        navegador?.detenerRecursosEscenaActual()
         super.stop()
     }
 }
