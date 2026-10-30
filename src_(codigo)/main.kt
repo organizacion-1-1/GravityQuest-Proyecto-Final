@@ -236,7 +236,7 @@ class VistaFormulario(
         wrap = true
     ),
     val txtRespuesta: TextField = UIFactory.crearCampoTexto(
-        prompt = "Ingresa tu respuesta (ej. 2.02)",
+        prompt = "Ingresa tu respuesta",
         anchoMax = 220.0
     ),
     val btnValidar: Button = UIFactory.crearBotonPrimario("Validar y Simular", anchoMax = 220.0),

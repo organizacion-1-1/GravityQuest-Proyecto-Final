@@ -218,6 +218,61 @@ enum class TipoEscenario(
 }
 
 /**
+ * Contrato modular para el renderizado de entidades físicas participantes en la simulación (OCP & SRP).
+ * Permite intercambiar el objeto simulado (meteorito, sonda, cohete, asteroide) sin modificar
+ * el motor físico ni la estructura del [RenderizadorCanvas].
+ */
+interface EntidadFisicaRenderizable {
+    val nombreEntidad: String
+
+    fun renderizarEntidad(
+        gc: GraphicsContext,
+        centroX: Double,
+        centroY: Double,
+        radio: Double,
+        objeto: ObjetoSimulado,
+        enSueloVisual: Boolean,
+        direccion: DireccionMovimiento
+    )
+}
+
+/**
+ * Componente dedicado al renderizado gráfico del meteorito con estela ígnea de fuego,
+ * partículas, cráteres poligonales y rotación dinámica (SRP, OCP & DRY).
+ */
+class MeteoritoRenderizable(
+    override val nombreEntidad: String = "Meteorito Espacial",
+    val rutaSpriteOpcional: String = "/assets/meteorito.png"
+) : EntidadFisicaRenderizable {
+
+    private val spriteCargado by lazy {
+        GraficosUtils.cargarSpriteMeteoritoOpcional(rutaSpriteOpcional)
+    }
+
+    override fun renderizarEntidad(
+        gc: GraphicsContext,
+        centroX: Double,
+        centroY: Double,
+        radio: Double,
+        objeto: ObjetoSimulado,
+        enSueloVisual: Boolean,
+        direccion: DireccionMovimiento
+    ) {
+        GraficosUtils.dibujarCuerpoMeteorito(
+            gc = gc,
+            centroX = centroX,
+            centroY = centroY,
+            radio = radio,
+            velocidadY = objeto.velocidadY,
+            tiempo = objeto.tiempo,
+            enSuelo = enSueloVisual,
+            direccion = direccion,
+            imagenSprite = spriteCargado
+        )
+    }
+}
+
+/**
  * Contrato de abstracción para el renderizado visual de la simulación física (SRP & DIP).
  */
 interface RenderizadorSimulacion {
@@ -231,11 +286,12 @@ interface RenderizadorSimulacion {
  *
  * Incluye:
  * - Escenarios polimórficos ([EscenarioRenderizable]) con gradientes e iluminación.
+ * - Entidad física modular ([EntidadFisicaRenderizable] / [MeteoritoRenderizable]).
  * - Cuadrícula física de medición en metros.
  * - Interpolación suave de movimiento a 60 FPS.
  * - Línea de estela / trayectoria en tiempo real ([PuntoEstela]).
  * - Sistema de partículas al lanzar e impactar ([SistemaParticulas]).
- * - Sombra proyectada dinámica y sprite de cápsula con relieve 3D.
+ * - Sombra proyectada dinámica, meteorito con rotación y estela de fuego.
  * - Vector de velocidad ($v$) interactivo con flecha y código de color dinámico.
  */
 open class RenderizadorCanvas(
@@ -243,7 +299,8 @@ open class RenderizadorCanvas(
     var alturaMaximaMetros: Double = PhysicsConstants.ALTURA_DEFAULT,
     var direccion: DireccionMovimiento = DireccionMovimiento.ABAJO,
     var velocidadInicial: Double = 0.0,
-    var escenario: EscenarioRenderizable = TipoEscenario.desdeParametros(direccion, velocidadInicial)
+    var escenario: EscenarioRenderizable = TipoEscenario.desdeParametros(direccion, velocidadInicial),
+    var entidadRenderizable: EntidadFisicaRenderizable = MeteoritoRenderizable()
 ) : RenderizadorSimulacion {
 
     private val gc: GraphicsContext = canvas.graphicsContext2D
@@ -400,14 +457,14 @@ open class RenderizadorCanvas(
         GraficosUtils.dibujarEstela(gc, puntosEstela, radioObjeto)
         GraficosUtils.dibujarParticulas(gc, sistemaParticulas.particulasActivas)
 
-        // 10. Dibujo del sprite detallado con relieve 3D y vector de velocidad dinámico ($v$)
-        GraficosUtils.dibujarSpriteObjeto(
+        // 10. Dibujo modular de la entidad física (Meteorito con rotación y estela de fuego) y vector ($v$)
+        entidadRenderizable.renderizarEntidad(
             gc = gc,
             centroX = centroX,
             centroY = centroY,
             radio = radioObjeto,
-            velocidadY = objeto.velocidadY,
-            enSuelo = enSueloVisual,
+            objeto = objeto,
+            enSueloVisual = enSueloVisual,
             direccion = direccion
         )
 

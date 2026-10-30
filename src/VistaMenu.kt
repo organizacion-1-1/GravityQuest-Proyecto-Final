@@ -174,7 +174,9 @@ class VistaMenu(
     }
 
     /**
-     * Consulta [GestorProgreso] y actualiza los botones deshabilitando aquellos bloqueados.
+     * Consulta [GestorProgreso] y actualiza los botones deshabilitando aquellos bloqueados (`setDisable(true)`)
+     * y aplicando la clase CSS `.nivel-bloqueado`. Si la dificultad seleccionada quedó bloqueada tras un
+     * Game Over, restablece automáticamente la selección a [Dificultad.FACIL].
      */
     fun refrescarEstadoProgreso() {
         for ((dif, btn) in botonesDificultad) {
@@ -187,6 +189,9 @@ class VistaMenu(
             } else {
                 btn.styleClass.remove("nivel-bloqueado")
             }
+        }
+        if (!gestorProgreso.esNivelDesbloqueado(dificultadSeleccionada)) {
+            actualizarDificultad(Dificultad.FACIL)
         }
     }
 }

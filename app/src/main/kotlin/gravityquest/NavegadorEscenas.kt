@@ -44,6 +44,36 @@ interface INavegadorEscenas {
     }
 
     /**
+     * Navega a la pantalla final de "Game Over" presentando las estadísticas del intento (Issue #20).
+     *
+     * @param dificultad Nivel de dificultad en el que ocurrió el Game Over.
+     * @param estadisticas Objeto de valor inmutable con las estadísticas de la partida.
+     */
+    fun irAGameOver(
+        dificultad: Dificultad,
+        estadisticas: EstadisticasPartida = EstadisticasPartida(vidasRestantes = 0, dificultad = dificultad)
+    ) {
+        val vista = VistaGameOver(dificultad, estadisticas, this)
+        cambiarEscena(vista.root, "${GameConfig.TITULO_APP} - Game Over")
+    }
+
+    /**
+     * Navega a la pantalla triunfal de "¡Nivel Completado!" presentando recompensas y estadísticas (Issue #20).
+     *
+     * @param dificultadSuperada Nivel de dificultad superado exitosamente.
+     * @param estadisticas Objeto de valor inmutable con las estadísticas y bonificaciones del nivel.
+     * @param siguienteNivel Siguiente dificultad desbloqueada, o `null` si se completó el último nivel.
+     */
+    fun irANivelCompletado(
+        dificultadSuperada: Dificultad,
+        estadisticas: EstadisticasPartida = EstadisticasPartida(dificultad = dificultadSuperada),
+        siguienteNivel: Dificultad? = dificultadSuperada.siguienteNivel
+    ) {
+        val vista = VistaNivelCompletado(dificultadSuperada, estadisticas, this, null, siguienteNivel)
+        cambiarEscena(vista.root, "${GameConfig.TITULO_APP} - ¡Nivel Completado!")
+    }
+
+    /**
      * Cambia la escena activa del Stage por una nueva raíz visual.
      *
      * @param nodo Nodo raíz que conformará la nueva vista.
@@ -99,6 +129,31 @@ class NavegadorEscenas(
     override fun irAJuego(problema: Problema) {
         val vistaJuego = VistaJuego(problema.dificultad, this, repositorio, calculadora, gestorProgreso, stage, problemaInicial = problema)
         cambiarEscena(vistaJuego.root, "${GameConfig.TITULO_APP} - Misión: ${problema.dificultad.nombreVisible}")
+    }
+
+    override fun irAGameOver(dificultad: Dificultad, estadisticas: EstadisticasPartida) {
+        val vistaGameOver = VistaGameOver(
+            dificultad = dificultad,
+            estadisticas = estadisticas,
+            navegador = this,
+            gestorProgreso = gestorProgreso
+        )
+        cambiarEscena(vistaGameOver.root, "${GameConfig.TITULO_APP} - Game Over")
+    }
+
+    override fun irANivelCompletado(
+        dificultadSuperada: Dificultad,
+        estadisticas: EstadisticasPartida,
+        siguienteNivel: Dificultad?
+    ) {
+        val vistaVictoria = VistaNivelCompletado(
+            dificultadSuperada = dificultadSuperada,
+            estadisticas = estadisticas,
+            navegador = this,
+            gestorProgreso = gestorProgreso,
+            siguienteNivel = siguienteNivel
+        )
+        cambiarEscena(vistaVictoria.root, "${GameConfig.TITULO_APP} - ¡Nivel Completado!")
     }
 
     override fun cambiarEscena(nodo: Parent, titulo: String) {

@@ -1,6 +1,7 @@
 package gravityquest
 
 import javafx.scene.canvas.GraphicsContext
+import javafx.scene.image.Image
 import javafx.scene.paint.Color
 import javafx.scene.paint.CycleMethod
 import javafx.scene.paint.LinearGradient
@@ -314,10 +315,45 @@ object GraficosUtils {
     }
 
     /**
-     * Renderiza el sprite detallado del objeto físico (cápsula/sonda espacial con relieve 3D,
-     * anillo energético neón, aletas estabilizadoras y brillo especular).
+     * Calcula el ángulo de rotación dinámica del meteorito en grados en función del tiempo
+     * transcurrido y la velocidad instantánea (DRY).
      */
-    fun dibujarSpriteObjeto(
+    fun calcularAnguloRotacionMeteorito(tiempoSegundos: Double, velocidadY: Double): Double {
+        if (tiempoSegundos <= 0.0) return 0.0
+        val factorRapidez = (1.0 + abs(velocidadY) * 0.08).coerceIn(1.0, 3.5)
+        return (tiempoSegundos * 135.0 * factorRapidez) % 360.0
+    }
+
+    /**
+     * Determina la dirección vertical de la estela de fuego en coordenadas de pantalla (`-1.0` = hacia arriba,
+     * `+1.0` = hacia abajo), siempre opuesta al vector instantáneo de velocidad ($v$):
+     * - En Caída Libre / Lanzamiento Hacia Abajo: el objeto cae hacia abajo, por lo que la estela apunta hacia arriba (`-1.0`).
+     * - En Lanzamiento Hacia Arriba: mientras sube ($v > 0$), la estela apunta hacia abajo (`+1.0`);
+     *   cuando desacelera y cae ($v < 0$), la estela se invierte hacia arriba (`-1.0`).
+     */
+    fun calcularDireccionEstelaFuego(velocidadY: Double, direccion: DireccionMovimiento): Double =
+        if (direccion == DireccionMovimiento.ARRIBA) {
+            if (velocidadY >= 0.0) 1.0 else -1.0
+        } else {
+            -1.0
+        }
+
+    /**
+     * Intenta cargar de forma segura la imagen opcional `/assets/meteorito.png` si existe en el classpath.
+     */
+    fun cargarSpriteMeteoritoOpcional(rutaRecurso: String = "/assets/meteorito.png"): Image? =
+        try {
+            val stream = GraficosUtils::class.java.getResourceAsStream(rutaRecurso)
+            if (stream != null) Image(stream) else null
+        } catch (_: Exception) {
+            null
+        }
+
+    /**
+     * Dibuja la estela ígnea de fuego y plasma detrás del meteorito usando gradientes de
+     * amarillo, naranja y rojo orientados en dirección opuesta al vector de velocidad ($v$).
+     */
+    fun dibujarEstelaFuegoMeteorito(
         gc: GraphicsContext,
         centroX: Double,
         centroY: Double,
@@ -326,64 +362,148 @@ object GraficosUtils {
         enSuelo: Boolean,
         direccion: DireccionMovimiento
     ) {
-        val diametro = radio * 2.0
-        val pixelX = centroX - radio
-        val pixelY = centroY - radio
+        val rapidez = abs(velocidadY)
+        if (enSuelo || rapidez < 0.15) return
 
-        // 1. Halo exterior de energía neón
-        val colorHalo = if (enSuelo) {
-            Color.rgb(74, 222, 128, 0.28)
+        val sentidoColaY = calcularDireccionEstelaFuego(velocidadY, direccion)
+        val largoEstela = (radio * 1.6 + rapidez * 1.35).coerceIn(radio * 1.4, radio * 4.2)
+        val yPuntaCola = centroY + sentidoColaY * largoEstela
+        val yInicioCola = centroY + sentidoColaY * (radio * 0.45)
+
+        // Gradiente lineal ígneo (amarillo incandescente -> naranja -> rojo -> transparente)
+        val gradienteFuego = LinearGradient(
+            centroX, yInicioCola, centroX, yPuntaCola, false, CycleMethod.NO_CYCLE,
+            Stop(0.0, Color.rgb(254, 240, 138, 0.92)), // Amarillo núcleo (#fef08a)
+            Stop(0.35, Color.rgb(249, 115, 22, 0.80)), // Naranja intenso (#f97316)
+            Stop(0.75, Color.rgb(239, 68, 68, 0.48)),  // Rojo ígneo (#ef4444)
+            Stop(1.0, Color.rgb(239, 68, 68, 0.0))
+        )
+
+        // Cono exterior de fuego
+        gc.fill = gradienteFuego
+        gc.fillPolygon(
+            doubleArrayOf(centroX - radio * 0.82, centroX + radio * 0.82, centroX),
+            doubleArrayOf(yInicioCola, yInicioCola, yPuntaCola),
+            3
+        )
+
+        // Núcleo interior incandescente
+        val yPuntaNucleo = centroY + sentidoColaY * (largoEstela * 0.58)
+        gc.fill = Color.rgb(254, 249, 195, 0.85)
+        gc.fillPolygon(
+            doubleArrayOf(centroX - radio * 0.42, centroX + radio * 0.42, centroX),
+            doubleArrayOf(yInicioCola, yInicioCola, yPuntaNucleo),
+            3
+        )
+    }
+
+    /**
+     * Dibuja el cuerpo detallado del meteorito en el [Canvas] aplicando rotación dinámica,
+     * silueta poligonal irregular de roca espacial, gradientes radiales de roca/fuego y cráteres.
+     */
+    fun dibujarCuerpoMeteorito(
+        gc: GraphicsContext,
+        centroX: Double,
+        centroY: Double,
+        radio: Double,
+        velocidadY: Double,
+        tiempo: Double,
+        enSuelo: Boolean,
+        direccion: DireccionMovimiento,
+        imagenSprite: Image? = null
+    ) {
+        // 1. Estela de fuego orientada según el vector velocidad instantáneo
+        dibujarEstelaFuegoMeteorito(gc, centroX, centroY, radio, velocidadY, enSuelo, direccion)
+
+        // 2. Halo térmico exterior alrededor del meteorito
+        val radioHalo = radio * 1.48
+        gc.fill = if (enSuelo) {
+            Color.rgb(74, 222, 128, 0.25)
         } else {
-            val c = obtenerColorPorVelocidad(velocidadY)
-            Color.color(c.red, c.green, c.blue, 0.25)
+            Color.rgb(249, 115, 22, 0.24)
         }
-        val radioHalo = radio * 1.45
-        gc.fill = colorHalo
         gc.fillOval(centroX - radioHalo, centroY - radioHalo, radioHalo * 2.0, radioHalo * 2.0)
 
-        // 2. Aletas estabilizadoras de la sonda/cápsula
-        gc.fill = Color.web("#475569")
-        val offsetAleta = if (direccion == DireccionMovimiento.ARRIBA) radio * 0.35 else -radio * 0.35
-        gc.fillPolygon(
-            doubleArrayOf(centroX - radio * 0.85, centroX - radio * 1.35, centroX - radio * 0.65),
-            doubleArrayOf(centroY, centroY + offsetAleta, centroY - offsetAleta * 0.5),
-            3
-        )
-        gc.fillPolygon(
-            doubleArrayOf(centroX + radio * 0.85, centroX + radio * 1.35, centroX + radio * 0.65),
-            doubleArrayOf(centroY, centroY + offsetAleta, centroY - offsetAleta * 0.5),
-            3
-        )
+        // 3. Transformación de rotación dinámica sobre el eje del meteorito
+        val anguloRotacion = if (enSuelo) 0.0 else calcularAnguloRotacionMeteorito(tiempo, velocidadY)
+        gc.save()
+        gc.translate(centroX, centroY)
+        gc.rotate(anguloRotacion)
 
-        // 3. Cuerpo esférico con relieve 3D mediante RadialGradient
-        val gradienteCuerpo = if (enSuelo) {
-            crearGradienteRadialEsfera(
-                colorBrillo = Color.web("#bbf7d0"),
-                colorMedio = Color.web("#22c55e"),
-                colorBorde = Color.web("#14532d")
-            )
+        if (imagenSprite != null && !imagenSprite.isError && imagenSprite.width > 0) {
+            gc.drawImage(imagenSprite, -radio, -radio, radio * 2.0, radio * 2.0)
         } else {
-            crearGradienteRadialEsfera(
-                colorBrillo = Color.web("#e0f2fe"),
-                colorMedio = Color.web("#0ea5e9"),
-                colorBorde = Color.web("#0c4a6e")
-            )
+            // Polígono irregular de 10 vértices que modela la morfología rocosa del meteorito
+            val factoresRadio = doubleArrayOf(1.02, 0.88, 1.06, 0.91, 1.04, 0.86, 0.98, 0.90, 1.05, 0.89)
+            val nVertices = factoresRadio.size
+            val puntosX = DoubleArray(nVertices)
+            val puntosY = DoubleArray(nVertices)
+            for (i in 0 until nVertices) {
+                val theta = (2.0 * Math.PI * i) / nVertices
+                val rVertice = radio * factoresRadio[i]
+                puntosX[i] = cos(theta) * rVertice
+                puntosY[i] = sin(theta) * rVertice
+            }
+
+            // Gradiente radial con tonos de roca ígnea y corteza incandescente
+            gc.fill = if (enSuelo) {
+                crearGradienteRadialEsfera(
+                    colorBrillo = Color.web("#fde68a"),
+                    colorMedio = Color.web("#78716c"),
+                    colorBorde = Color.web("#292524")
+                )
+            } else {
+                crearGradienteRadialEsfera(
+                    colorBrillo = Color.web("#fdba74"),
+                    colorMedio = Color.web("#9a3412"),
+                    colorBorde = Color.web("#431407")
+                )
+            }
+            gc.fillPolygon(puntosX, puntosY, nVertices)
+
+            // Borde incandescente de entrada atmosférica
+            gc.stroke = if (enSuelo) Color.web("#4ade80") else Color.web("#fb923c")
+            gc.lineWidth = 1.5
+            gc.strokePolygon(puntosX, puntosY, nVertices)
+
+            // Cráteres internos tallados sobre la superficie del meteorito
+            gc.fill = Color.rgb(28, 25, 23, 0.65)
+            gc.fillOval(-radio * 0.45, -radio * 0.38, radio * 0.38, radio * 0.32)
+            gc.fillOval(radio * 0.12, -radio * 0.10, radio * 0.34, radio * 0.30)
+            gc.fillOval(-radio * 0.18, radio * 0.18, radio * 0.28, radio * 0.24)
+
+            // Brillo especular sobre el borde del cráter principal
+            gc.stroke = Color.rgb(254, 215, 170, 0.45)
+            gc.lineWidth = 0.9
+            gc.strokeOval(-radio * 0.45, -radio * 0.38, radio * 0.38, radio * 0.32)
         }
-        gc.fill = gradienteCuerpo
-        gc.fillOval(pixelX, pixelY, diametro, diametro)
 
-        // 4. Cinturón / anillo ecuatorial metálico de la cápsula
-        gc.stroke = if (enSuelo) Color.web("#86efac") else Color.web("#7dd3fc")
-        gc.lineWidth = 1.4
-        gc.strokeLine(centroX - radio * 0.82, centroY, centroX + radio * 0.82, centroY)
+        gc.restore()
+    }
 
-        // 5. Contorno exterior nítido y brillo especular superior
-        gc.stroke = Color.web("#f8fafc")
-        gc.lineWidth = 1.5
-        gc.strokeOval(pixelX, pixelY, diametro, diametro)
-
-        gc.fill = Color.rgb(255, 255, 255, 0.65)
-        gc.fillOval(centroX - radio * 0.45, centroY - radio * 0.55, radio * 0.42, radio * 0.28)
+    /**
+     * Renderiza el sprite detallado del objeto físico delegando al renderizado del meteorito (DRY).
+     */
+    fun dibujarSpriteObjeto(
+        gc: GraphicsContext,
+        centroX: Double,
+        centroY: Double,
+        radio: Double,
+        velocidadY: Double,
+        enSuelo: Boolean,
+        direccion: DireccionMovimiento,
+        tiempo: Double = 0.0
+    ) {
+        dibujarCuerpoMeteorito(
+            gc = gc,
+            centroX = centroX,
+            centroY = centroY,
+            radio = radio,
+            velocidadY = velocidadY,
+            tiempo = tiempo,
+            enSuelo = enSuelo,
+            direccion = direccion
+        )
     }
 
     /**
