@@ -3,20 +3,20 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación II (RepoSense + análisis de calidad POO/SOLID). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-11-02.
+> Generado: 2026-11-06.
 
 ## 1. Veredicto
 
 | Aspecto | Resultado |
 |---|---|
-| Índice de calidad POO/SOLID | **1/100** |
+| Índice de calidad POO/SOLID | **0/100** |
 | Código (LOC) | 19,842 |
 | Archivos de código | 78 |
-| Clases (bien usadas) | 233 (35 OK) |
+| Clases (bien usadas) | 233 (26 OK) |
 | Código dentro de clases (%POO) | 99% |
 | Funciones fuera de clases | 0 |
 | Duplicación lógica | 68.9% |
-| Señales S/O/L/I/D | 92/9/3/6/70 |
+| Señales S/O/L/I/D | 66/0/3/6/32 |
 | Tope duro aplicado | `DUP>=50%` → índice ≤ 15 |
 
 > Este informe **describe** lo que el análisis midió con los criterios ya establecidos de la materia. No es una nota.
@@ -37,7 +37,7 @@ Criterios de `CRITERIOS-CALIDAD.md`. **Aprobar** se juega con el perfil `estanda
 | Código dentro de clases (%POO) | ≥ 85% | 99% | sí |
 | Duplicación lógica | ≤ 10% | 68.9% | no |
 | Funciones fuera de clases | ≤ 1 | 0 | sí |
-| Señales POO/SOLID críticas | ninguna | Clase demasiado grande (SRP), Baja cohesión (LCOM), Complejidad alta, Acoplamiento alto (CBO), Switch sobre tipos (OCP), Interfaz con demasiados métodos (ISP), Override vacío / 'no implementado' (LSP) | no |
+| Señales POO/SOLID críticas | ninguna | Clase demasiado grande (SRP), Baja cohesión (LCOM), Complejidad alta, Acoplamiento alto (CBO), Interfaz con demasiados métodos (ISP), Override vacío / 'no implementado' (LSP) | no |
 
 **Criterios para destacar**
 
@@ -46,8 +46,8 @@ Criterios de `CRITERIOS-CALIDAD.md`. **Aprobar** se juega con el perfil `estanda
 | Código dentro de clases (%POO) | ≥ 95% | 99% | sí |
 | Duplicación lógica | ≤ 5% | 68.9% | no |
 | Funciones fuera de clases | ≤ 1 | 0 | sí |
-| Señales POO/SOLID críticas | ninguna | Clase demasiado grande (SRP), Baja cohesión (LCOM), Complejidad alta, Acoplamiento alto (CBO), Switch sobre tipos (OCP), Interfaz con demasiados métodos (ISP), Override vacío / 'no implementado' (LSP) | no |
-| Índice de calidad POO/SOLID | ≥ 60 | 1/100 | no |
+| Señales POO/SOLID críticas | ninguna | Clase demasiado grande (SRP), Baja cohesión (LCOM), Complejidad alta, Acoplamiento alto (CBO), Interfaz con demasiados métodos (ISP), Override vacío / 'no implementado' (LSP) | no |
+| Índice de calidad POO/SOLID | ≥ 60 | 0/100 | no |
 
 ### Cómo se calcula el %POO (y por qué no sube solo)
 
@@ -72,12 +72,12 @@ Reúne lo que el análisis marcó y lo que todavía falta para cada semáforo. C
 | Falla | Tu resultado | Requisito | Archivos |
 |---|---|---|---|
 | Duplicación lógica | 68.9% | Aprobar: ≤ 10%<br>Destacar: ≤ 5% | `src_(codigo)/NavegadorEscenas.kt`, `src_(codigo)/RenderizadorSimulacion.kt`, `src_(codigo)/UIComponents.kt`, `src_(codigo)/VistaJuego.kt` |
-| Señales POO/SOLID críticas | Clase demasiado grande (SRP), Baja cohesión (LCOM), Complejidad alta, Acoplamiento alto (CBO), Switch sobre tipos (OCP), Interfaz con demasiados métodos (ISP), Override vacío / 'no implementado' (LSP) | Aprobar: ninguna<br>Destacar: ninguna | `app/src/main/kotlin/gravityquest/EstadisticasPartida.kt`, `app/src/main/kotlin/gravityquest/GestorProgreso.kt`, `app/src/main/kotlin/gravityquest/GraficosUtils.kt`, `app/src/main/kotlin/gravityquest/MarcadorPuntosView.kt`, `app/src/main/kotlin/gravityquest/MotorSimulacionCanvas.kt`, `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt` (+56 más) |
-| Índice de calidad POO/SOLID | 1/100 | Destacar: ≥ 60 | — |
+| Señales POO/SOLID críticas | Clase demasiado grande (SRP), Baja cohesión (LCOM), Complejidad alta, Acoplamiento alto (CBO), Interfaz con demasiados métodos (ISP), Override vacío / 'no implementado' (LSP) | Aprobar: ninguna<br>Destacar: ninguna | `app/src/main/kotlin/gravityquest/GestorProgreso.kt`, `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt`, `app/src/main/kotlin/gravityquest/RenderizadorSimulacion.kt`, `app/src/main/kotlin/gravityquest/UIComponents.kt`, `app/src/main/kotlin/gravityquest/VistaJuego.kt`, `app/src/main/kotlin/gravityquest/VistaMenu.kt` (+24 más) |
+| Índice de calidad POO/SOLID | 0/100 | Destacar: ≥ 60 | — |
 | Métodos/funciones largos o con muchos parámetros | **49** método(s)/función(es) largos o con muchos parámetros | Sin señales | `app/src/main/kotlin/gravityquest/GestorVidas.kt`, `app/src/main/kotlin/gravityquest/MotorSimulacionCanvas.kt`, `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt`, `app/src/main/kotlin/gravityquest/RenderizadorSimulacion.kt`, `app/src/main/kotlin/gravityquest/VentanaPista.kt`, `app/src/main/kotlin/gravityquest/VistaJuego.kt` (+23 más) |
-| Herencia profunda (DIT) | **6** clase(s) con herencia profunda | Sin señales | `app/src/main/kotlin/org/example/Juego/Main.kt`, `src/main.kt`, `src_(codigo)/main.kt` |
-| Dependencia de concretos y falta de abstracciones (DIP) | **70** dependencia(s) de concretos sin abstracciones | Sin señales | `app/src/main/kotlin/gravityquest/EstadisticasPartida.kt`, `app/src/main/kotlin/gravityquest/GestorProgreso.kt`, `app/src/main/kotlin/gravityquest/GraficosUtils.kt`, `app/src/main/kotlin/gravityquest/MarcadorPuntosView.kt`, `app/src/main/kotlin/gravityquest/MotorSimulacionCanvas.kt`, `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt` (+49 más) |
-| Clase sin métodos (solo datos) | **51** clase(s) sin métodos (solo datos) | Sin señales | `app/src/main/kotlin/gravityquest/EstadisticasPartida.kt`, `app/src/main/kotlin/gravityquest/GestorVidas.kt`, `app/src/main/kotlin/gravityquest/GraficosUtils.kt`, `app/src/main/kotlin/gravityquest/MotorSimulacionCanvas.kt`, `app/src/main/kotlin/gravityquest/PhysicsConstants.kt`, `app/src/main/kotlin/gravityquest/RenderizadorSimulacion.kt` (+27 más) |
+| Herencia profunda (DIT) | **3** clase(s) con herencia profunda | Sin señales | `app/src/main/kotlin/org/example/Juego/Main.kt`, `src/main.kt`, `src_(codigo)/main.kt` |
+| Dependencia de concretos y falta de abstracciones (DIP) | **32** dependencia(s) de concretos sin abstracciones | Sin señales | `app/src/main/kotlin/gravityquest/GestorProgreso.kt`, `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt`, `app/src/main/kotlin/gravityquest/RenderizadorSimulacion.kt`, `app/src/main/kotlin/gravityquest/UIComponents.kt`, `app/src/main/kotlin/gravityquest/VistaJuego.kt`, `app/src/main/kotlin/gravityquest/models/GeneradorProblemas.kt` (+20 más) |
+| Clase sin métodos (solo datos) | **42** clase(s) sin métodos (solo datos) | Sin señales | `app/src/main/kotlin/gravityquest/EstadisticasPartida.kt`, `app/src/main/kotlin/gravityquest/GraficosUtils.kt`, `app/src/main/kotlin/gravityquest/PhysicsConstants.kt`, `app/src/main/kotlin/gravityquest/RenderizadorSimulacion.kt`, `app/src/main/kotlin/gravityquest/VistaJuego.kt`, `app/src/main/kotlin/gravityquest/models/GeneradorProblemas.kt` (+18 más) |
 | Campos públicos (encapsulación) | **98** clase(s) con campos públicos | Sin señales | `app/src/main/kotlin/gravityquest/EstadisticasPartida.kt`, `app/src/main/kotlin/gravityquest/GestorProgreso.kt`, `app/src/main/kotlin/gravityquest/GestorVidas.kt`, `app/src/main/kotlin/gravityquest/GraficosUtils.kt`, `app/src/main/kotlin/gravityquest/MarcadorPuntosView.kt`, `app/src/main/kotlin/gravityquest/MotorSimulacionCanvas.kt` (+46 más) |
 
 ## 4. Aspectos evaluados
@@ -88,7 +88,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Un resumen numérico (0-100) que combina la riqueza de clases bien usadas con la penalización por señales POO/SOLID y duplicación, y luego aplica topes duros.
 - **Por qué importa:** Ordena y prioriza la revisión: un índice bajo indica varias señales que conviene mirar juntas.
-- **Tu resultado:** índice **1/100**
+- **Tu resultado:** índice **0/100**
 
 ### 2. Duplicación lógica (DRY) (duplicacion) — con señales
 
@@ -117,7 +117,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Clases con demasiadas líneas o métodos de LÓGICA. No cuentan los getters/setters triviales ni la cantidad de campos por sí sola.
 - **Por qué importa:** Una clase que hace de todo cambia por muchos motivos y cuesta entenderla y probarla.
-- **Tu resultado:** **26** clase(s) demasiado grande(s)
+- **Tu resultado:** **9** clase(s) demasiado grande(s)
 - **Para investigar la causa:**
     - ¿La clase creció por acumulación de responsabilidades?
     - ¿Qué partes de la clase se usan siempre juntas y cuáles no?
@@ -127,7 +127,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Métodos y campos de una clase que casi no se relacionan entre sí.
 - **Por qué importa:** Una unidad que cambia por motivos distintos y comparte poca información suele esconder más de una responsabilidad.
-- **Tu resultado:** **21** clase(s) con baja cohesión
+- **Tu resultado:** **18** clase(s) con baja cohesión
 - **Para investigar la causa:**
     - ¿Qué métodos de la clase no comparten estado con el resto?
     - ¿Cambian por motivos distintos según la tarea?
@@ -155,9 +155,9 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 ### 9. Acoplamiento alto (CBO) (acoplamiento) — con señales
 
-- **Qué mide:** Cuánto depende una clase de otros tipos del proyecto.
+- **Qué mide:** Cuánto depende una clase de otros tipos del proyecto. No cuentan los tipos de la plataforma (biblioteca estándar, DOM, motor Godot) ni los métodos/propiedades propias.
 - **Por qué importa:** Piezas muy enlazadas hacen que un cambio se propague y que sea difícil reemplazar partes.
-- **Tu resultado:** **76** clase(s) muy acoplada(s)
+- **Tu resultado:** **18** clase(s) muy acoplada(s)
 - **Para investigar la causa:**
     - ¿La clase conoce detalles internos de muchas otras?
     - ¿Se puede cambiar una parte sin tocar las demás?
@@ -167,21 +167,17 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Profundidad de la cadena de herencia de una clase.
 - **Por qué importa:** Jerarquías muy profundas vuelven difícil saber de dónde viene cada comportamiento.
-- **Tu resultado:** **6** clase(s) con herencia profunda
+- **Tu resultado:** **3** clase(s) con herencia profunda
 - **Para investigar la causa:**
     - ¿La jerarquía creció para reutilizar código o para modelar una relación real 'es-un'?
     - ¿Qué comportamiento cambia entre niveles de la jerarquía?
     - ¿Se evaluó la composición como alternativa?
 
-### 11. Switch sobre tipos (OCP) (ocp) — con señales
+### 11. Switch sobre tipos (OCP) (ocp) — sin señales
 
-- **Qué mide:** Chequeos repetidos de tipo (`instanceof`/`is`/`typeof`) que equivalen a un switch sobre el tipo.
+- **Qué mide:** Cadenas de dispatch por tipo (`else if ... is` / `else if ... instanceof`, `switch` sobre tipo o `typeof`). Un `is Tipo variable` aislado (pattern matching / cast seguro) NO cuenta como switch.
 - **Por qué importa:** Cada tipo nuevo obliga a tocar varios lugares, en vez de extender con una implementación nueva.
-- **Tu resultado:** **9** clase(s) con switch sobre tipos
-- **Para investigar la causa:**
-    - ¿Qué operación se resuelve preguntando el tipo?
-    - ¿Qué se toca cada vez que aparece un tipo o caso nuevo?
-    - ¿El comportamiento podría vivir en la propia jerarquía de tipos?
+- **Tu resultado:** **0** clase(s) con switch sobre tipos
 
 ### 12. Interfaz con demasiados métodos (ISP) (isp) — con señales
 
@@ -205,9 +201,9 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 ### 14. Dependencia de concretos y falta de abstracciones (DIP) (dip) — con señales
 
-- **Qué mide:** Instanciación directa de clases concretas y ausencia de interfaces o clases abstractas pese al acoplamiento.
+- **Qué mide:** Instanciación directa de clases **propias** concretas y ausencia de interfaces o clases abstractas pese al acoplamiento. No cuentan los structs ni los nodos/tipos del motor.
 - **Por qué importa:** Depender de implementaciones concretas dificulta cambiar o probar una parte sin arrastrar las demás.
-- **Tu resultado:** **70** dependencia(s) de concretos sin abstracciones
+- **Tu resultado:** **32** dependencia(s) de concretos sin abstracciones
 - **Para investigar la causa:**
     - ¿La clase crea por dentro a sus colaboradores en vez de recibirlos?
     - ¿Hay puntos de variación que convendría expresar como abstracción?
@@ -217,7 +213,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Clases que solo acumulan campos y no tienen comportamiento.
 - **Por qué importa:** Separar datos de comportamiento reparte por el proyecto la lógica que debería estar cerca de esos datos.
-- **Tu resultado:** **51** clase(s) sin métodos (solo datos)
+- **Tu resultado:** **42** clase(s) sin métodos (solo datos)
 - **Para investigar la causa:**
     - ¿Dónde vive el comportamiento que opera sobre esos datos?
     - ¿La clase representa un concepto del dominio o un contenedor técnico?
