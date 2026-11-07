@@ -269,6 +269,43 @@ xychart-beta
 | 18 | 2026-10-30 | `f8ab0c3` | ciro | 17,870 | 1 | 99% | 68.8% | 0 |
 | 19 | 2026-10-30 | `61da5f8` | ciro | 19,842 | 1 | 99% | 68.9% | 0 |
 
+<!-- actividad-clases:inicio -->
+## Actividad en días de clase
+
+> Período **2026-08-14 → 2026-10-29** · **17 clases** (lunes, viernes) · calendario oficial de la materia.
+>
+> `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**. Se usan las fechas de clase del calendario oficial; los días fuera del calendario no se incluyen.
+>
+> Se recorre `git log --all` sobre un mirror (todas las ramas y `refs/pull/*`), con deduplicación por commit. Fecha = fecha de autor en UTC-3. Los commits locales no pusheados no se ven. Si el trabajo fue en pareja y el commit es de otra persona, figura a nombre del autor del commit; para reflejarlo, usar `Co-authored-by` o una nota manual.
+>
+> Sección informativa: no modifica el semáforo de aprobación.
+
+### colombati-creator
+
+**12/17 clases con actividad** · 19 commits · 14 merges
+
+| Fecha | Marca | Repositorios | Commits / merges |
+|---|:--:|---|--:|
+| 2026-08-14 | No | sin actividad | 0 / 0 |
+| 2026-08-21 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
+| 2026-08-24 | No | sin actividad | 0 / 0 |
+| 2026-08-28 | **Sí** | GravityQuest-Proyecto-Final | 2 / 2 |
+| 2026-08-31 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
+| 2026-09-04 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
+| 2026-09-07 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
+| 2026-09-14 | No | sin actividad | 0 / 0 |
+| 2026-09-25 | No | sin actividad | 0 / 0 |
+| 2026-09-28 | No | sin actividad | 0 / 0 |
+| 2026-10-02 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
+| 2026-10-05 | **Sí** | GravityQuest-Proyecto-Final | 2 / 3 |
+| 2026-10-09 | **Sí** | GravityQuest-Proyecto-Final | 3 / 3 |
+| 2026-10-16 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
+| 2026-10-19 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
+| 2026-10-23 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
+| 2026-10-26 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
+
+<!-- actividad-clases:fin -->
+
 ---
 _Informe generado por la cátedra. Los criterios y umbrales de medición corresponden al perfil `exigente` de `calidad.py`; el semáforo de aprobación, a `CRITERIOS-CALIDAD.md` (ver `README.md`). Ante dudas, revisá el archivo señalado._
 <!-- evaluacion:fin -->
