@@ -306,13 +306,13 @@ xychart-beta
 | 2026-10-23 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
 | 2026-10-26 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
 
-#### Aportes fuera del calendario de clases
+#### Aportes fuera del calendario de clases — colombati-creator
 
-**1 fecha fuera del calendario** · 2 commits · 3 merges
+**colombati-creator — 1 fecha fuera del calendario** · 2 commits · 3 merges
 
-| Fecha | Repositorios | Commits / merges |
-|---|---|--:|
-| 2026-10-30 | GravityQuest-Proyecto-Final | 2 / 3 |
+| Alumno | Fecha | Repositorios | Commits / merges |
+|---|---|---|---|
+| colombati-creator (`colombati-creator`) | 2026-10-30 | GravityQuest-Proyecto-Final | 2 / 3 |
 
 <!-- actividad-clases:fin -->
 
