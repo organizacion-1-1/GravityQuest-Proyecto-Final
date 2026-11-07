@@ -272,11 +272,11 @@ xychart-beta
 <!-- actividad-clases:inicio -->
 ## Actividad en días de clase
 
-> Período **2026-08-14 → 2026-10-29** · **17 clases** (lunes, viernes) · calendario oficial de la materia.
+> Período evaluado **2026-08-14 → 2026-11-07** · **20 clases** (lunes, viernes) · días de clase del calendario, extendidos hasta la fecha de corte.
 >
 > `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**. El cuadro principal usa sólo las fechas de clase del calendario oficial.
 >
-> **Aportes fuera del calendario:** cada alumno tiene un cuadro aparte con las fechas no lectivas con actividad, desde **2026-08-14** hasta **2026-11-06** (ventana de aportes). Esas fechas no forman parte del cuadro principal, pero se muestran para no perder trabajo hecho en fines de semana, feriados o después del período.
+> **Aportes fuera del calendario:** cada alumno tiene un cuadro aparte con las fechas no lectivas con actividad, desde **2026-08-14** hasta **2026-11-07** (ventana de aportes). Esas fechas no forman parte del cuadro principal, pero se muestran para no perder trabajo hecho en fines de semana, feriados o después del período.
 >
 > Se recorre `git log --all` sobre un mirror (todas las ramas y `refs/pull/*`), con deduplicación por commit. Fecha = fecha de autor en UTC-3. Los commits locales no pusheados no se ven. Si el trabajo fue en pareja y el commit es de otra persona, figura a nombre del autor del commit; para reflejarlo, usar `Co-authored-by` o una nota manual.
 >
@@ -284,7 +284,7 @@ xychart-beta
 
 ### colombati-creator
 
-**12/17 clases con actividad** · 19 commits · 14 merges
+**13/20 clases con actividad** · 21 commits · 17 merges
 
 | Fecha | Marca | Repositorios | Commits / merges |
 |---|:--:|---|--:|
@@ -305,14 +305,13 @@ xychart-beta
 | 2026-10-19 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
 | 2026-10-23 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
 | 2026-10-26 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
+| 2026-10-30 | **Sí** | GravityQuest-Proyecto-Final | 2 / 3 |
+| 2026-11-02 | No | sin actividad | 0 / 0 |
+| 2026-11-06 | No | sin actividad | 0 / 0 |
 
 #### Aportes fuera del calendario de clases — colombati-creator
 
-**colombati-creator — 1 fecha fuera del calendario** · 2 commits · 3 merges
-
-| Alumno | Fecha | Repositorios | Commits / merges |
-|---|---|---|---|
-| colombati-creator (`colombati-creator`) | 2026-10-30 | GravityQuest-Proyecto-Final | 2 / 3 |
+_Sin aportes fuera del calendario de clases para colombati-creator._
 
 <!-- actividad-clases:fin -->
 
