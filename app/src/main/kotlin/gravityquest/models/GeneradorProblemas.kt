@@ -1,186 +1,171 @@
 package gravityquest.models
+import gravityquest.*; import kotlin.math.sqrt; import kotlin.random.Random
+typealias IRandom = Random
 
-import gravityquest.PhysicsConstants
-
-/**
- * Contrato de abstracción para repositorios y proveedores de problemas físicos.
- *
- * Principio de Inversión de Dependencias (DIP) y Principio Abierto/Cerrado (OCP):
- * Desacopla la obtención y consulta de ejercicios de su almacenamiento concreto.
- */
-interface IRepositorioProblemas {
-    fun obtenerTodos(): List<Problema>
-    fun obtenerPorDificultad(dificultad: Dificultad): List<Problema>
-    fun obtenerPorId(id: Int): Problema?
-    fun obtenerPorTipo(tipo: TipoProblema): List<Problema>
-    fun agregarProblema(problema: Problema)
-    fun cantidadTotal(): Int
-    fun cantidadPorDificultad(dificultad: Dificultad): Int
-    fun obtenerProblemaAleatorio(dificultad: Dificultad? = null): Problema?
+interface IRepositorioConsulta {
+    fun obtenerTodosLosProblemas(): IList<Problema>
+    fun obtenerProblemaPorId(id: IInt): Problema?
+    fun contarPorDificultad(dificultad: Dificultad): IInt
 }
 
-/**
- * Generador y repositorio en memoria de problemas físicos para GravityQuest.
- *
- * Principio de Responsabilidad Única (SRP):
- * Se encarga exclusivamente de la instanciación inicial, almacenamiento protegido,
- * filtrado y provisión de problemas físicos por nivel de [Dificultad] y tipo cinemático.
- *
- * Encapsulamiento:
- * Protege la colección mutable interna y expone vistas inmutables de sólo lectura.
- */
+interface IRepositorioProblemas : IRepositorioConsulta {
+    fun obtenerProblemasPorDificultad(dificultad: Dificultad): IList<Problema>
+    fun obtenerProblemasMezclados(dificultad: Dificultad, generadorAleatorio: IRandom = Random.Default): IList<Problema>
+}
+
+interface IFabricaBancoNivel {
+    fun construir(): IList<Problema>
+}
+
+class FabricaBancoFacil : IFabricaBancoNivel {
+    private val g: IDouble = PhysicsConstants.GRAVEDAD_TIERRA
+
+    override fun construir(): IList<Problema> {
+        return (1..20).map { indice -> crearProblemaFacil(indice) }
+    }
+
+    private fun crearProblemaFacil(indice: IInt): Problema {
+        val t = indice * 0.5 + 0.5
+        val h = 0.5 * g * t * t
+        val resp = if (indice % 2 == 1) t else g * t
+        return armarProblemaCaida(indice, h, resp)
+    }
+
+    private fun armarProblemaCaida(id: IInt, h: IDouble, resp: IDouble): Problema {
+        val inc = obtenerIncognitaFacil(id)
+        val uni = obtenerUnidadFacil(id)
+        return Problema(
+            id = id,
+            dificultad = Dificultad.FACIL,
+            tipo = TipoProblema.CAIDA_LIBRE,
+            enunciado = "\u0053onda #$id cae libremente desde ${"%.2f".format(h)} m \u0028g = 9.8 m/s\u00b2\u0029. \u0048alla $inc.",
+            incognita = inc,
+            unidadRespuesta = uni,
+            alturaInicial = h,
+            velocidadInicial = 0.0,
+            respuestaCorrecta = resp,
+            pista = "\u0041plica t = \u221a\u00282h/g\u0029 o v = g\u00b7t"
+        )
+    }
+
+    private fun obtenerIncognitaFacil(id: IInt): IString {
+        return if (id % 2 == 1) "\u0054iempo de ca\u00edda" else "\u0056elocidad de impacto"
+    }
+
+    private fun obtenerUnidadFacil(id: IInt): IString {
+        return if (id % 2 == 1) "s" else "m/s"
+    }
+}
+
+class FabricaBancoMedio : IFabricaBancoNivel {
+    private val g: IDouble = PhysicsConstants.GRAVEDAD_TIERRA
+
+    override fun construir(): IList<Problema> {
+        return (1..20).map { idx -> crearProblemaMedio(20 + idx, idx) }
+    }
+
+    private fun crearProblemaMedio(id: IInt, idx: IInt): Problema {
+        val v0 = idx * 2.0 + 3.0
+        if (idx % 2 == 1) return crearLanzamientoAbajo(id, idx * 8.0 + 10.0, v0)
+        return crearLanzamientoArriba(id, v0)
+    }
+
+    private fun crearLanzamientoAbajo(id: IInt, h: IDouble, v0: IDouble): Problema {
+        val vf = sqrt(v0 * v0 + 2.0 * g * h)
+        return Problema(
+            id = id,
+            dificultad = Dificultad.MEDIO,
+            tipo = TipoProblema.LANZAMIENTO_ABAJO,
+            enunciado = "\u0043\u00e1psula #$id se lanza hacia abajo a $v0 m/s desde $h m. \u0048alla su rapidez final.",
+            incognita = "\u0056elocidad final",
+            unidadRespuesta = "m/s",
+            alturaInicial = h,
+            velocidadInicial = v0,
+            respuestaCorrecta = vf,
+            pista = "\u0055sa v_f = \u221a\u0028v\u2080\u00b2 + 2\u00b7g\u00b7h\u0029"
+        )
+    }
+
+    private fun crearLanzamientoArriba(id: IInt, v0: IDouble): Problema {
+        val hMax = (v0 * v0) / (2.0 * g)
+        return Problema(
+            id = id,
+            dificultad = Dificultad.MEDIO,
+            tipo = TipoProblema.LANZAMIENTO_ARRIBA,
+            enunciado = "\u0050royectil #$id se dispara verticalmente hacia arriba a $v0 m/s. \u0048alla su altura m\u00e1xima.",
+            incognita = "\u0041ltura m\u00e1xima",
+            unidadRespuesta = "m",
+            alturaInicial = hMax,
+            velocidadInicial = v0,
+            respuestaCorrecta = hMax,
+            pista = "\u0055sa h_max = v\u2080\u00b2 / \u00282\u00b7g\u0029"
+        )
+    }
+}
+
+class FabricaBancoDificil : IFabricaBancoNivel {
+    private val g: IDouble = PhysicsConstants.GRAVEDAD_TIERRA
+
+    override fun construir(): IList<Problema> {
+        return (1..20).map { idx -> crearProblemaDificil(40 + idx, idx) }
+    }
+
+    private fun crearProblemaDificil(id: IInt, idx: IInt): Problema {
+        val h = idx * 12.5 + 25.0
+        val v0 = idx * 3.5 + 5.0
+        val vf = sqrt(v0 * v0 + 2.0 * g * h)
+        val t = (vf - v0) / g
+        return armarProblemaDificil(id, h, v0 to t)
+    }
+
+    private fun armarProblemaDificil(id: IInt, h: IDouble, par: IPunto2D): Problema {
+        val v0 = par.first
+        val t = par.second
+        return Problema(
+            id = id,
+            dificultad = Dificultad.DIFICIL,
+            tipo = TipoProblema.LANZAMIENTO_ABAJO,
+            enunciado = "\u004deteorito #$id desciende desde $h m con v\u2080 = $v0 m/s. \u0043alcula el tiempo exacto de impacto.",
+            incognita = "\u0054iempo de impacto",
+            unidadRespuesta = "s",
+            alturaInicial = h,
+            velocidadInicial = v0,
+            respuestaCorrecta = t,
+            pista = "\u0043alcula primero v_f = \u221a\u0028v\u2080\u00b2 + 2gh\u0029 y luego t = \u0028v_f - v\u2080\u0029 / g"
+        )
+    }
+}
+
 class GeneradorProblemas(
-    problemasIniciales: List<Problema> = crearCatalogoBase()
+    private val fabricas: IList<IFabricaBancoNivel> = listOf(
+        FabricaBancoFacil(),
+        FabricaBancoMedio(),
+        FabricaBancoDificil()
+    )
 ) : IRepositorioProblemas {
 
-    private val problemas: MutableList<Problema> = mutableListOf()
+    private val bancoProblemas: IList<Problema> = fabricas.flatMap { it.construir() }
 
-    init {
-        for (problema in problemasIniciales) {
-            agregarProblema(problema)
-        }
+    override fun obtenerTodosLosProblemas(): IList<Problema> {
+        return bancoProblemas.toList()
     }
 
-    override fun obtenerTodos(): List<Problema> = problemas.toList()
-
-    override fun obtenerPorDificultad(dificultad: Dificultad): List<Problema> =
-        problemas.filter { it.dificultad == dificultad }
-
-    override fun obtenerPorId(id: Int): Problema? =
-        problemas.firstOrNull { it.id == id }
-
-    override fun obtenerPorTipo(tipo: TipoProblema): List<Problema> =
-        problemas.filter { it.tipo == tipo }
-
-    override fun agregarProblema(problema: Problema) {
-        require(problemas.none { it.id == problema.id }) {
-            "Ya existe un problema registrado con el ID ${problema.id}"
-        }
-        problemas.add(problema)
+    override fun obtenerProblemasPorDificultad(dificultad: Dificultad): IList<Problema> {
+        return bancoProblemas.filter { it.dificultad == dificultad }
     }
 
-    override fun cantidadTotal(): Int = problemas.size
-
-    override fun cantidadPorDificultad(dificultad: Dificultad): Int =
-        problemas.count { it.dificultad == dificultad }
-
-    override fun obtenerProblemaAleatorio(dificultad: Dificultad?): Problema? {
-        val candidatos = if (dificultad != null) obtenerPorDificultad(dificultad) else problemas
-        return candidatos.randomOrNull()
+    override fun obtenerProblemasMezclados(
+        dificultad: Dificultad,
+        generadorAleatorio: IRandom
+    ): IList<Problema> {
+        return obtenerProblemasPorDificultad(dificultad).shuffled(generadorAleatorio)
     }
 
-    /**
-     * Restablece el repositorio al catálogo predeterminado de GravityQuest.
-     */
-    fun reiniciarAlCatalogoBase() {
-        problemas.clear()
-        crearCatalogoBase().forEach { agregarProblema(it) }
+    override fun obtenerProblemaPorId(id: IInt): Problema? {
+        return bancoProblemas.find { it.id == id }
     }
 
-    companion object {
-        /**
-         * Crea y retorna el catálogo base de ejercicios físicos de GravityQuest,
-         * utilizando la constante centralizada [PhysicsConstants.GRAVEDAD_TIERRA].
-         */
-        fun crearCatalogoBase(): List<Problema> {
-            val g = PhysicsConstants.GRAVEDAD_TIERRA
-            return listOf(
-                // ====================================================================
-                // NIVEL FÁCIL (Caída libre pura, v₀ = 0 m/s)
-                // ====================================================================
-                Problema(
-                    id = 1,
-                    enunciado = "Un objeto cae libremente desde una altura de 20.0 metros sin velocidad inicial. Calcula el tiempo en segundos que tarda en llegar al suelo (g = $g m/s²).",
-                    dificultad = Dificultad.FACIL,
-                    valorEsperado = 2.02,
-                    unidadMedida = "s",
-                    pista = "Aplica la fórmula de tiempo de caída: t = √(2h / g).",
-                    tipo = TipoProblema.CAIDA_LIBRE,
-                    datosAdicionales = mapOf("alturaMetros" to 20.0, "gravedad" to g, "v0" to 0.0)
-                ),
-                Problema(
-                    id = 2,
-                    enunciado = "Una cápsula espacial de entrenamiento se suelta en caída libre desde 45.0 metros de altura sobre la plataforma terrestre. Determina cuántos segundos demora en tocar el suelo (g = $g m/s²).",
-                    dificultad = Dificultad.FACIL,
-                    valorEsperado = 3.03,
-                    unidadMedida = "s",
-                    pista = "Recuerda que como v₀ = 0, el tiempo depende únicamente de h y g: t = √(2 * 45 / $g).",
-                    tipo = TipoProblema.CAIDA_LIBRE,
-                    datosAdicionales = mapOf("alturaMetros" to 45.0, "gravedad" to g, "v0" to 0.0)
-                ),
-                Problema(
-                    id = 3,
-                    enunciado = "Se deja caer una esfera de acero experimental desde 80.0 metros de altura en reposo. Calcula la magnitud de la velocidad final de impacto con el suelo en m/s (g = $g m/s²).",
-                    dificultad = Dificultad.FACIL,
-                    valorEsperado = 39.62,
-                    unidadMedida = "m/s",
-                    pista = "Utiliza la fórmula de velocidad final: v_f = √(2 * g * h).",
-                    tipo = TipoProblema.CAIDA_LIBRE,
-                    datosAdicionales = mapOf("alturaMetros" to 80.0, "gravedad" to g, "v0" to 0.0)
-                ),
-
-                // ====================================================================
-                // NIVEL MEDIO (Lanzamiento vertical hacia abajo, v₀ > 0 m/s)
-                // ====================================================================
-                Problema(
-                    id = 4,
-                    enunciado = "Un dron de suministros lanza verticalmente hacia abajo un paquete desde una altura de 25.0 metros con una velocidad inicial de 5.0 m/s. Determina su velocidad al impactar contra el suelo en m/s (g = $g m/s²).",
-                    dificultad = Dificultad.MEDIO,
-                    valorEsperado = 22.70,
-                    unidadMedida = "m/s",
-                    pista = "Aplica la fórmula de velocidad final para lanzamiento hacia abajo: v_f = √(v₀² + 2gh).",
-                    tipo = TipoProblema.LANZAMIENTO_VERTICAL_ABAJO,
-                    datosAdicionales = mapOf("alturaMetros" to 25.0, "v0" to 5.0, "gravedad" to g)
-                ),
-                Problema(
-                    id = 5,
-                    enunciado = "Un proyectil de exploración es impulsado hacia abajo desde un risco de 30.0 metros con una velocidad inicial de 4.0 m/s. ¿Cuántos segundos tarda en llegar al suelo? (g = $g m/s²).",
-                    dificultad = Dificultad.MEDIO,
-                    valorEsperado = 2.10,
-                    unidadMedida = "s",
-                    pista = "Aplica la fórmula de tiempo de caída: t = (-v₀ + √(v₀² + 2gh)) / g.",
-                    tipo = TipoProblema.LANZAMIENTO_VERTICAL_ABAJO,
-                    datosAdicionales = mapOf("alturaMetros" to 30.0, "v0" to 4.0, "gravedad" to g)
-                ),
-
-                // ====================================================================
-                // NIVEL DIFÍCIL (Lanzamiento vertical hacia arriba, desaceleración por g)
-                // ====================================================================
-                Problema(
-                    id = 6,
-                    enunciado = "Un cohete sonda se dispara verticalmente hacia arriba con una velocidad inicial de 20.0 m/s. Calcula el tiempo en segundos que tarda en alcanzar su altura máxima (g = $g m/s²).",
-                    dificultad = Dificultad.DIFICIL,
-                    valorEsperado = 2.04,
-                    unidadMedida = "s",
-                    pista = "En el punto más alto la velocidad instantánea se anula (v = 0). Usa t_subida = v₀ / g.",
-                    tipo = TipoProblema.LANZAMIENTO_VERTICAL_ARRIBA,
-                    datosAdicionales = mapOf("v0" to 20.0, "gravedad" to g, "alturaMetros" to (20.0 * 20.0 / (2.0 * g)))
-                ),
-                Problema(
-                    id = 7,
-                    enunciado = "Se dispara verticalmente hacia arriba una bengala de emergencia con velocidad de 25.0 m/s desde el suelo. ¿Cuál es la altura máxima en metros que alcanza antes de comenzar a caer? (g = $g m/s²).",
-                    dificultad = Dificultad.DIFICIL,
-                    valorEsperado = 31.86,
-                    unidadMedida = "m",
-                    pista = "En la cúspide v = 0. Despeja h de la fórmula: h_máx = v₀² / (2g).",
-                    tipo = TipoProblema.LANZAMIENTO_VERTICAL_ARRIBA,
-                    datosAdicionales = mapOf("v0" to 25.0, "gravedad" to g, "alturaMetros" to (25.0 * 25.0 / (2.0 * g)))
-                ),
-
-                // ====================================================================
-                // EXTENSIÓN OCP (Movimiento Rectilíneo Uniforme - MRU)
-                // ====================================================================
-                Problema(
-                    id = 8,
-                    enunciado = "Un rover de reconocimiento se desplaza en línea recta sobre una planicie a velocidad constante de 15.0 m/s durante 8.0 segundos. ¿Qué distancia en metros recorre?",
-                    dificultad = Dificultad.FACIL,
-                    valorEsperado = 120.0,
-                    unidadMedida = "m",
-                    pista = "En MRU la aceleración es cero. Aplica la relación directa: d = v · t.",
-                    tipo = TipoProblema.MRU,
-                    datosAdicionales = mapOf("velocidad" to 15.0, "tiempo" to 8.0)
-                )
-            )
-        }
+    override fun contarPorDificultad(dificultad: Dificultad): IInt {
+        return bancoProblemas.count { it.dificultad == dificultad }
     }
 }

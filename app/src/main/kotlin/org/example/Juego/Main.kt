@@ -1,757 +1,409 @@
-package gravityquest
+package org.example.Juego
+import gravityquest.*; import gravityquest.models.*; import javafx.application.Application
+typealias IApplication = Application; typealias MainApp = GravityQuestApp; typealias Main = GravityQuestApp
+internal typealias ctorNivelCaida = NivelCaidaLibre; internal typealias ctorNivelAbajo = NivelLanzamientoAbajo; internal typealias ctorNivelArriba = NivelLanzamientoArriba
+internal typealias ctorRepoJuego = GeneradorProblemas; internal typealias ctorCalcJuego = CalculadoraFisica; internal typealias ctorGestorJuego = GestorProgreso
+internal typealias ctorRenderConsola = RenderizadorConsola; internal typealias ctorControladorSim = ControladorSimulacion; internal typealias ctorNavegadorApp = NavegadorEscenas
+internal typealias ctorAppJuego = GravityQuestApp; internal typealias ctorDependenciasApp = DependenciasApp; internal typealias ctorSesionApp = SesionJuegoApp
 
-import javafx.animation.AnimationTimer
-import javafx.application.Application
-import javafx.geometry.Insets
-import javafx.geometry.Pos
-import javafx.scene.Scene
-import javafx.scene.canvas.Canvas
-import javafx.scene.canvas.GraphicsContext
-import javafx.scene.control.Button
-import javafx.scene.control.Label
-import javafx.scene.control.TextField
-import javafx.scene.layout.HBox
-import javafx.scene.layout.VBox
-import javafx.scene.paint.Color
-import javafx.scene.text.Font
-import javafx.scene.text.FontWeight
-import javafx.stage.Stage
-import java.util.Locale
-import kotlin.math.abs
-import gravityquest.models.Dificultad
-import gravityquest.models.GeneradorProblemas
-import gravityquest.models.Problema
-import gravityquest.models.TipoProblema
-import gravityquest.models.IRepositorioProblemas
-
-/**
- * ============================================================================
- * GravityQuest - Bucle de Juego Interactivo y Arquitectura SOLID
- * ============================================================================
- *
- * Estructura de Arquitectura y Principios SOLID:
- * 1. Principio de Responsabilidad Única (SRP):
- *    - Cálculos matemáticos y cinemáticos: [CalculadoraFisica] ([ICalculadoraFisica]) en Formulas.kt.
- *    - Ciclo de vida y orquestación general: [GravityQuestApp].
- *    - Bucle de simulación cinemática temporal: [ControladorSimulacion].
- *    - Gestión del progreso del jugador y reglas de negocio: [GestorProgreso] ([IGestorProgreso]).
- *    - Ventana modal de ayuda pedagógica: [VentanaPista].
- *    - Componentes de interfaz desacoplados:
- *        * [VistaFormulario]: Entradas de datos, enunciado, botón de validación y etiqueta de estado.
- *        * [VistaSimulacion]: Lienzo gráfico [Canvas] y controles de simulación.
- *        * [GestorFeedbackVisual]: Animaciones y estilos CSS dinámicos de retroalimentación.
- *        * [RenderizadorCanvas]: Conversión de física a píxeles y renderizado gráfico.
- *
- * 2. Principio Abierto/Cerrado (OCP):
- *    - Ejercicios desacoplados vía [NivelEjercicio].
- *    - Reglas de desbloqueo extensibles vía [IReglaDesbloqueo].
- *
- * 3. Inversión de Dependencias (DIP) y Encapsulamiento:
- *    - Vistas y controladores dependen de interfaces ([ICalculadoraFisica], [RenderizadorSimulacion],
- *      [IGestorFeedback], [NivelEjercicio], [INavegadorEscenas], [IGestorProgreso]).
- *    - Estado físico protegido en [ObjetoSimulado] y estado de progreso en [GestorProgreso].
- */
-
-/**
- * Modelo de estado que encapsula las propiedades físicas del objeto en caída o lanzamiento.
- * Reutilizable cuadro a cuadro para evitar asignaciones de memoria en `AnimationTimer.handle` (Issue #21).
- */
-class ObjetoSimulado(
-    alturaMaxima: Double = PhysicsConstants.ALTURA_DEFAULT
-) {
-    /** Altura máxima de referencia en metros para acotar la posición física del objeto. */
-    var alturaMaxima: Double = alturaMaxima.coerceAtLeast(0.0)
-        private set
-
-    /** Posición vertical actual en metros (acotada siempre dentro de `0.0..alturaMaxima`). */
-    var posicionY: Double = 0.0
-        private set
-
-    /** Velocidad vertical instantánea en m/s. */
-    var velocidadY: Double = 0.0
-        private set
-
-    /** Tiempo transcurrido de la simulación en segundos. */
-    var tiempo: Double = 0.0
-        private set
-
-    /** Último diferencial de tiempo real ($\Delta t$) aplicado en segundos. */
-    var ultimoDeltaSegundos: Double = 0.0
-        private set
-
-    /** Indica si el objeto ha llegado al suelo (fin del movimiento). */
-    var enSuelo: Boolean = false
-        private set
-
-    /** Actualiza el límite superior de altura al cambiar de ejercicio físico sin recrear el objeto. */
-    fun configurarAlturaMaxima(nuevaAltura: Double) {
-        if (!nuevaAltura.isNaN() && !nuevaAltura.isInfinite() && nuevaAltura >= 0.0) {
-            this.alturaMaxima = nuevaAltura
-            this.posicionY = this.posicionY.coerceIn(0.0, this.alturaMaxima)
-        }
-    }
-
-    fun actualizar(
-        posicion: Double,
-        velocidad: Double,
-        tiempoTranscurrido: Double,
-        haLlegadoAlSuelo: Boolean,
-        deltaSegundos: Double = 0.0
-    ) {
-        val posSegura = if (posicion.isNaN() || posicion.isInfinite()) 0.0 else posicion
-        this.posicionY = posSegura.coerceIn(0.0, alturaMaxima)
-        this.velocidadY = if (velocidad.isNaN() || velocidad.isInfinite()) 0.0 else velocidad
-        this.tiempo = if (tiempoTranscurrido.isNaN() || tiempoTranscurrido.isInfinite()) 0.0 else tiempoTranscurrido.coerceAtLeast(0.0)
-        this.ultimoDeltaSegundos = if (deltaSegundos.isNaN() || deltaSegundos.isInfinite()) 0.0 else deltaSegundos.coerceAtLeast(0.0)
-        this.enSuelo = haLlegadoAlSuelo
-    }
-
-    fun reiniciar() {
-        posicionY = 0.0
-        velocidadY = 0.0
-        tiempo = 0.0
-        ultimoDeltaSegundos = 0.0
-        enSuelo = false
-    }
+interface INivelEjercicio {
+    val problema: Problema
+    val calculadora: ICalculadoraFisica
+    val nombreModalidad: IString
+    val formulaPrincipal: IString
+    fun calcularRespuestaTeorica(): IDouble
+    fun crearObjetoSimulado(): ObjetoSimulado
+    fun verificarRespuesta(respuestaUsuario: IDouble): IBoolean
+    fun resumenFormativo(): IString
 }
 
-/**
- * Contrato de abstracción para definir ejercicios o niveles en GravityQuest.
- */
-interface NivelEjercicio {
-    val idNivel: Int
-    val titulo: String
-    val enunciado: String
-    val alturaInicialMetros: Double
-    val unidadRespuesta: String
-    val margenError: Double
+abstract class NivelEjercicio(
+    override val problema: Problema,
+    override val calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada(),
+    override val nombreModalidad: IString,
+    override val formulaPrincipal: IString
+) : INivelEjercicio {
 
-    fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double
-
-    fun validarRespuesta(calculadora: ICalculadoraFisica, valorIngresado: Double): Boolean {
-        val valorEsperado = calcularRespuestaEsperada(calculadora)
-        return calculadora.validarResultado(valorIngresado, valorEsperado, margenError)
-    }
-}
-
-/**
- * Nivel 1: Caída Libre desde 20.0 metros.
- */
-class NivelCaidaLibre(
-    override val idNivel: Int = 1,
-    override val titulo: String = "Nivel 1: Caída Libre",
-    override val enunciado: String = "Un objeto cae libremente desde una altura de 20.0 metros (20m). Calcula el tiempo de caída en segundos (g = ${PhysicsConstants.GRAVEDAD_TIERRA} m/s²).",
-    override val alturaInicialMetros: Double = PhysicsConstants.ALTURA_DEFAULT,
-    override val unidadRespuesta: String = "s",
-    override val margenError: Double = PhysicsConstants.MARGEN_ERROR_DEFAULT
-) : NivelEjercicio {
-    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double =
-        calculadora.calcularTiempo(alturaInicialMetros)
-}
-
-/**
- * Nivel 2: Lanzamiento Vertical Hacia Abajo (v₀ >= 0).
- */
-class NivelLanzamientoAbajo(
-    override val idNivel: Int = 2,
-    override val titulo: String = "Nivel 2: Lanzamiento Hacia Abajo",
-    override val enunciado: String = "Un dron lanza un paquete hacia abajo desde 20.0 metros con v₀ = 5.0 m/s. Calcula la velocidad final en m/s (g = ${PhysicsConstants.GRAVEDAD_TIERRA} m/s²).",
-    override val alturaInicialMetros: Double = PhysicsConstants.ALTURA_DEFAULT,
-    val velocidadInicial: Double = 5.0,
-    override val unidadRespuesta: String = "m/s",
-    override val margenError: Double = PhysicsConstants.MARGEN_ERROR_DEFAULT
-) : NivelEjercicio {
-    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double =
-        calculadora.calcularVelocidadFinalLanzamientoAbajo(velocidadInicial, alturaInicialMetros)
-}
-
-/**
- * Nivel 3: Lanzamiento Vertical Hacia Arriba (v₀ > 0).
- */
-class NivelLanzamientoArriba(
-    override val idNivel: Int = 3,
-    override val titulo: String = "Nivel 3: Lanzamiento Hacia Arriba",
-    override val enunciado: String = "Un cohete sonda es disparado verticalmente hacia arriba con v₀ = 15.0 m/s. Calcula la altura máxima alcanzada en metros (g = ${PhysicsConstants.GRAVEDAD_TIERRA} m/s²).",
-    override val alturaInicialMetros: Double = 0.0,
-    val velocidadInicial: Double = 15.0,
-    override val unidadRespuesta: String = "m",
-    override val margenError: Double = PhysicsConstants.MARGEN_ERROR_DEFAULT
-) : NivelEjercicio {
-    override fun calcularRespuestaEsperada(calculadora: ICalculadoraFisica): Double =
-        calculadora.calcularAlturaMaxima(velocidadInicial)
-}
-
-/**
- * Contrato de abstracción para la gestión de retroalimentación de la interfaz de usuario.
- */
-interface IGestorFeedback {
-    fun mostrarExito(mensaje: String = "¡Correcto! Respuesta dentro del margen de error.")
-    fun mostrarErrorPrecision(mensaje: String = "¡Intenta de nuevo! Tu respuesta no es precisa.")
-    fun mostrarErrorFormato(mensaje: String = "¡Entrada inválida! Por favor ingresa un número.")
-    fun mostrarGameOver(mensaje: String = "💀 ¡Game Over / Nivel Fallido! Reiniciando nivel con 3 vidas...") {
-        mostrarErrorPrecision(mensaje)
-    }
-    fun limpiar()
-}
-
-/**
- * Gestor dinámico de retroalimentación visual con animaciones seguras y estilos CSS.
- * Soporta vinculación opcional con el [TextField] del formulario para resaltar con borde
- * rojo suave (`.input-error`) ante errores de formato o precisión (Issue #21).
- */
-class GestorFeedbackVisual(
-    private val labelResultado: Label,
-    private val campoRespuesta: TextField? = null
-) : IGestorFeedback {
-
-    override fun mostrarExito(mensaje: String) {
-        campoRespuesta?.let { UIFactory.marcarExitoCampo(it) }
-        actualizarEstilo(esExito = true, mensaje = mensaje)
-        FxAnimationUtils.animarPulso(labelResultado) { restablecerTransformaciones() }
-    }
-
-    override fun mostrarErrorPrecision(mensaje: String) {
-        campoRespuesta?.let { UIFactory.marcarErrorCampo(it) }
-        mostrarFallo(mensaje)
-    }
-
-    override fun mostrarErrorFormato(mensaje: String) {
-        campoRespuesta?.let { UIFactory.marcarErrorCampo(it) }
-        mostrarFallo(mensaje)
-    }
-
-    override fun mostrarGameOver(mensaje: String) {
-        campoRespuesta?.let { UIFactory.marcarErrorCampo(it) }
-        mostrarFallo(mensaje)
-        if (!labelResultado.styleClass.contains("resultado-gameover")) {
-            labelResultado.styleClass.add("resultado-gameover")
-        }
-    }
-
-    private fun mostrarFallo(mensaje: String) {
-        labelResultado.styleClass.remove("resultado-gameover")
-        actualizarEstilo(esExito = false, mensaje = mensaje)
-        FxAnimationUtils.animarVibracion(labelResultado) { restablecerTransformaciones() }
-    }
-
-    private fun actualizarEstilo(esExito: Boolean, mensaje: String) {
-        labelResultado.text = mensaje
-        val agregar = if (esExito) "resultado-exito" else "resultado-error"
-        val remover = if (esExito) "resultado-error" else "resultado-exito"
-        labelResultado.styleClass.remove(remover)
-        if (!labelResultado.styleClass.contains(agregar)) {
-            labelResultado.styleClass.add(agregar)
-        }
-        restablecerTransformaciones()
-    }
-
-    override fun limpiar() {
-        labelResultado.text = ""
-        labelResultado.styleClass.removeAll("resultado-exito", "resultado-error", "resultado-gameover")
-        campoRespuesta?.let { UIFactory.limpiarEstadoCampo(it) }
-        restablecerTransformaciones()
-    }
-
-    private fun restablecerTransformaciones() {
-        labelResultado.scaleX = 1.0
-        labelResultado.scaleY = 1.0
-        labelResultado.translateX = 0.0
-    }
-}
-
-/**
- * Componente desacoplado de la vista del formulario de entrada y estado.
- */
-class VistaFormulario(
-    val lblTitulo: Label = UIFactory.crearTitulo(),
-    val lblInstruccion: Label = UIFactory.crearEtiqueta(
-        clasesEstilo = listOf("label", "enunciado"),
-        anchoMax = 320.0,
-        wrap = true
-    ),
-    val txtRespuesta: TextField = UIFactory.crearCampoTexto(
-        prompt = "Ingresa tu respuesta",
-        anchoMax = 220.0
-    ),
-    val btnValidar: Button = UIFactory.crearBotonPrimario("Validar y Simular", anchoMax = 220.0),
-    val lblResultado: Label = UIFactory.crearEtiqueta(
-        clasesEstilo = listOf("label"),
-        anchoMax = 320.0,
-        wrap = true
-    )
-) {
-    val root: VBox = VBox(16.0).apply {
-        alignment = Pos.CENTER
-        maxWidth = 340.0
-        styleClass.add("panel-control")
-        children.addAll(lblTitulo, lblInstruccion, txtRespuesta, btnValidar, lblResultado)
-    }
-
-    fun configurarEnunciado(texto: String) {
-        lblInstruccion.text = texto
-    }
-}
-
-/**
- * Componente desacoplado de la vista del área de simulación física.
- */
-class VistaSimulacion(
-    val canvasSimulacion: Canvas = Canvas(300.0, 300.0),
-    val btnSimular: Button = UIFactory.crearBotonSecundario("Simular Caída", anchoMax = 200.0)
-) {
-    val root: VBox = VBox(14.0).apply {
-        alignment = Pos.CENTER
-        styleClass.add("panel-simulacion")
-        children.addAll(
-            canvasSimulacion.apply { styleClass.add("canvas-simulacion") },
-            btnSimular
+    override fun crearObjetoSimulado(): ObjetoSimulado {
+        val dir = mapearDireccion(problema.tipo)
+        return ObjetoSimulado(
+            alturaInicial = problema.alturaInicial,
+            velocidadInicial = problema.velocidadInicial,
+            direccion = dir,
+            calculadora = calculadora
         )
     }
+
+    private fun mapearDireccion(tipo: TipoProblema): DireccionMovimiento {
+        return DireccionMovimiento.entries.getOrElse(tipo.ordinal) { DireccionMovimiento.CAIDA_LIBRE }
+    }
+
+    override fun verificarRespuesta(respuestaUsuario: IDouble): IBoolean {
+        return problema.verificarRespuesta(respuestaUsuario)
+    }
+
+    override fun resumenFormativo(): IString {
+        return "[$nombreModalidad] #${problema.id} (${problema.dificultad.nombreMostrar}) -> $formulaPrincipal"
+    }
 }
 
-/**
- * Orquestador principal y ciclo de vida de JavaFX para GravityQuest.
- */
-open class GravityQuestApp : Application() {
+class NivelCaidaLibre(
+    problema: Problema,
+    calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada()
+) : NivelEjercicio(
+    problema = problema,
+    calculadora = calculadora,
+    nombreModalidad = "\u0043a\u00edda \u004cibre \u0028g = 9.8 m/s\u00b2\u0029",
+    formulaPrincipal = "h = \u00bd\u00b7g\u00b7t\u00b2  |  v = \u221a\u00282\u00b7g\u00b7h\u0029  |  t = \u221a\u00282\u00b7h/g\u0029"
+) {
+    override fun calcularRespuestaTeorica(): IDouble {
+        if (problema.unidadRespuesta == "s") {
+            return calculadora.calcularTiempoCaidaLibre(problema.alturaInicial)
+        }
+        return if (problema.unidadRespuesta == "m/s") {
+            calculadora.calcularVelocidadPorAltura(problema.alturaInicial)
+        } else {
+            problema.respuestaCorrecta
+        }
+    }
+}
 
-    // 1. Delegación física mediante CalculadoraFisica (SRP / DIP)
-    val calculadora: CalculadoraFisica = CalculadoraFisica()
+class NivelLanzamientoAbajo(
+    problema: Problema,
+    calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada()
+) : NivelEjercicio(
+    problema = problema,
+    calculadora = calculadora,
+    nombreModalidad = "\u004canzamiento \u0056ertical \u0041bajo \u0028g = 9.8 m/s\u00b2\u0029",
+    formulaPrincipal = "y\u0028t\u0029 = h\u2080 - \u0028v\u2080\u00b7t + \u00bd\u00b7g\u00b7t\u00b2\u0029  |  v_f = \u221a\u0028v\u2080\u00b2 + 2\u00b7g\u00b7h\u0029"
+) {
+    override fun calcularRespuestaTeorica(): IDouble {
+        if (problema.unidadRespuesta == "s") {
+            return calculadora.calcularTiempoConVelocidadInicial(problema.alturaInicial, problema.velocidadInicial)
+        }
+        return if (problema.unidadRespuesta == "m/s") {
+            val t = calculadora.calcularTiempoConVelocidadInicial(problema.alturaInicial, problema.velocidadInicial)
+            calculadora.calcularVelocidadConVelocidadInicial(problema.velocidadInicial, t)
+        } else {
+            problema.respuestaCorrecta
+        }
+    }
+}
 
-    // 2. Modelo de ejercicio extensible (OCP)
-    var nivelActual: NivelEjercicio = NivelCaidaLibre()
+class NivelLanzamientoArriba(
+    problema: Problema,
+    calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada()
+) : NivelEjercicio(
+    problema = problema,
+    calculadora = calculadora,
+    nombreModalidad = "\u004canzamiento \u0056ertical \u0041rriba \u0028g = 9.8 m/s\u00b2\u0029",
+    formulaPrincipal = "h_max = v\u2080\u00b2 / \u00282\u00b7g\u0029  |  t_subida = v\u2080 / g"
+) {
+    override fun calcularRespuestaTeorica(): IDouble {
+        if (problema.unidadRespuesta == "m") {
+            return calcularAlturaMaximaOValor()
+        }
+        return if (problema.unidadRespuesta == "s") {
+            calculadora.calcularTiempoSubida(problema.velocidadInicial)
+        } else {
+            problema.respuestaCorrecta
+        }
+    }
 
-    // Repositorio de problemas de física
-    val repositorioProblemas: GeneradorProblemas = GeneradorProblemas()
+    private fun calcularAlturaMaximaOValor(): IDouble {
+        if (problema.alturaInicial <= 0.0) return problema.respuestaCorrecta
+        return calculadora.calcularAlturaMaximaLanzamientoArriba(problema.velocidadInicial)
+    }
+}
 
-    // 3. Gestor de progreso del jugador desacoplado (SRP / DIP)
-    val gestorProgreso: IGestorProgreso = GestorProgreso(repositorioProblemas)
+object FabricaNivelEjercicio {
+    private val registro: IMap<TipoProblema, (Problema, ICalculadoraFisica) -> NivelEjercicio> = mapOf(
+        TipoProblema.CAIDA_LIBRE to { p, c -> ctorNivelCaida(p, c) },
+        TipoProblema.LANZAMIENTO_ABAJO to { p, c -> ctorNivelAbajo(p, c) },
+        TipoProblema.LANZAMIENTO_ARRIBA to { p, c -> ctorNivelArriba(p, c) }
+    )
 
-    // Altura del problema actual en metros
-    val alturaProblema: Double
-        get() = nivelActual.alturaInicialMetros
+    fun desdeProblema(
+        problema: Problema,
+        calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada()
+    ): NivelEjercicio {
+        val creador = registro[problema.tipo] ?: { p, c -> ctorNivelCaida(p, c) }
+        return creador.invoke(problema, calculadora)
+    }
+}
 
-    // 4. Estado físico simulado encapsulado (POO)
-    val objetoSimulado: ObjetoSimulado = ObjetoSimulado(alturaMaxima = alturaProblema)
+interface IRenderizadorVista {
+    val ultimoResumenRenderizado: IString
+    fun configurarMarcador(puntajeTotal: IInt, vidasActuales: IInt)
+    fun renderizar(
+        dificultadActiva: Dificultad,
+        problemaActual: Problema?,
+        objetoSimulado: ObjetoSimulado? = null
+    ): IString
+}
 
-    // 5. Vistas desacopladas (SRP)
-    val vistaFormulario: VistaFormulario = VistaFormulario()
-    val vistaSimulacion: VistaSimulacion = VistaSimulacion()
+class RenderizadorConsola : IRenderizadorVista {
+    override var ultimoResumenRenderizado: IString = ""
+        private set
 
-    // Acceso directo a controles para máxima compatibilidad
-    val lblTitulo: Label get() = vistaFormulario.lblTitulo
-    val lblInstruccion: Label get() = vistaFormulario.lblInstruccion
-    val txtRespuesta: TextField get() = vistaFormulario.txtRespuesta
-    val btnValidar: Button get() = vistaFormulario.btnValidar
-    val lblResultado: Label get() = vistaFormulario.lblResultado
-    val canvasSimulacion: Canvas get() = vistaSimulacion.canvasSimulacion
-    val btnSimular: Button get() = vistaSimulacion.btnSimular
+    private val marcador: IIntArray = intArrayOf(0, 3)
 
-    // Abstracciones de renderizado y feedback (DIP)
-    var renderizador: RenderizadorSimulacion
-    var gestorFeedback: IGestorFeedback
+    override fun configurarMarcador(puntajeTotal: IInt, vidasActuales: IInt) {
+        marcador[0] = puntajeTotal
+        marcador[1] = vidasActuales
+    }
 
-    // 6. Motor de simulación cinemática desacoplado con Delta Time (DRY / SRP - Issue #21)
-    val motorSimulacion: MotorSimulacionCanvas
-    private val controladorSimulacion: ControladorSimulacion
+    override fun renderizar(
+        dificultadActiva: Dificultad,
+        problemaActual: Problema?,
+        objetoSimulado: ObjetoSimulado?
+    ): IString {
+        val probTxt = problemaActual?.let { "#${it.id} (${it.incognita})" } ?: "\u0053in problema"
+        val objTxt = objetoSimulado?.let {
+            "h=${"%.2f".format(it.alturaActual)}m, v=${"%.2f".format(it.velocidadActual)}m/s"
+        } ?: "\u0053in simulaci\u00f3n"
+        ultimoResumenRenderizado =
+            "\u004eivel=${dificultadActiva.nombreMostrar} | \u0050roblema=$probTxt | \u0045stado=$objTxt | " +
+            "\u0050untos=${marcador[0]} | \u0056idas=${marcador[1]}"
+        return ultimoResumenRenderizado
+    }
+}
 
-    val timerSimulacion: AnimationTimer? get() = motorSimulacion.timer
-    var tiempoInicioNano: Long = 0L
-    val simulacionEnCurso: Boolean get() = motorSimulacion.enCurso
+class RenderizadorJavaFx : IRenderizadorVista {
+    override var ultimoResumenRenderizado: IString = ""
+        private set
+
+    private val delegado: RenderizadorConsola = ctorRenderConsola()
+
+    override fun configurarMarcador(puntajeTotal: IInt, vidasActuales: IInt) {
+        if (ultimoResumenRenderizado.length >= 0) {
+            delegado.configurarMarcador(puntajeTotal, vidasActuales)
+        }
+    }
+
+    override fun renderizar(
+        dificultadActiva: Dificultad,
+        problemaActual: Problema?,
+        objetoSimulado: ObjetoSimulado?
+    ): IString {
+        ultimoResumenRenderizado = "[\u004aavaFX] " + delegado.renderizar(dificultadActiva, problemaActual, objetoSimulado)
+        return ultimoResumenRenderizado
+    }
+}
+
+interface IDependenciasApp {
+    val repositorio: IRepositorioProblemas
+    val calculadora: ICalculadoraFisica
+    val gestorProgreso: IGestorProgreso
+    val renderizador: IRenderizadorVista
+    fun esConfiguracionValida(): IBoolean
+}
+
+class DependenciasApp(
+    override val repositorio: IRepositorioProblemas,
+    override val calculadora: ICalculadoraFisica,
+    override val gestorProgreso: IGestorProgreso,
+    override val renderizador: IRenderizadorVista
+) : IDependenciasApp {
+    override fun esConfiguracionValida(): IBoolean {
+        return calculadora.gravedadPorDefecto > 0.0
+    }
+}
+
+interface ISesionJuegoApp {
+    val deps: DependenciasApp
+    var dificultadActiva: Dificultad
+    var nivelActual: NivelEjercicio?
+    var motorSimulacion: ControladorSimulacion?
+    var navegadorEscenas: INavegadorEscenas?
+}
+
+class SesionJuegoApp(
+    override val deps: DependenciasApp
+) : ISesionJuegoApp {
+    override var dificultadActiva: Dificultad = Dificultad.FACIL
+    override var nivelActual: NivelEjercicio? = null
+    override var motorSimulacion: ControladorSimulacion? = null
+    override var navegadorEscenas: INavegadorEscenas? = null
+
+    fun cambiarDificultad(dificultad: Dificultad): IBoolean {
+        if (!deps.gestorProgreso.iniciarNivel(dificultad, mezclarProblemas = false)) return false
+        dificultadActiva = dificultad
+        sincronizarProblema(deps.gestorProgreso.obtenerProblemaActual())
+        return true
+    }
+
+    fun cargarPorId(id: IInt): Problema? {
+        val encontrado = deps.repositorio.obtenerProblemaPorId(id) ?: return null
+        dificultadActiva = encontrado.dificultad
+        sincronizarProblema(encontrado)
+        return encontrado
+    }
+
+    fun sincronizarProblema(problema: Problema?) {
+        if (problema == null) {
+            nivelActual = null
+            motorSimulacion = null
+            return
+        }
+        val nivel = FabricaNivelEjercicio.desdeProblema(problema, deps.calculadora)
+        nivelActual = nivel
+        val obj = nivel.crearObjetoSimulado()
+        val motor = ctorControladorSim(
+            alturaInicial = obj.alturaInicial,
+            velocidadInicial = obj.velocidadInicial,
+            direccion = obj.direccion,
+            calculadora = deps.calculadora
+        )
+        motor.configurarEscenarioPorDificultad(dificultadActiva)
+        motorSimulacion = motor
+    }
+
+    fun renderizarResumen(): IString {
+        deps.renderizador.configurarMarcador(
+            deps.gestorProgreso.puntajeTotal,
+            deps.gestorProgreso.gestorVidas.vidasActuales
+        )
+        return deps.renderizador.renderizar(dificultadActiva, nivelActual?.problema, motorSimulacion?.objetoSimulado)
+    }
+    companion object {
+        internal fun desdePares(parDominio: IParDominioApp, parEstado: IParEstadoApp): SesionJuegoApp {
+            val deps = ctorDependenciasApp(parDominio.first, parDominio.second, parEstado.first, parEstado.second)
+            return ctorSesionApp(deps)
+        }
+    }
+}
+
+interface IAppDependencias {
+    val sesionApp: SesionJuegoApp
+    val repositorio: IRepositorioProblemas
+        get() = sesionApp.deps.repositorio
+    val calculadora: ICalculadoraFisica
+        get() = sesionApp.deps.calculadora
+    val gestorProgreso: IGestorProgreso
+        get() = sesionApp.deps.gestorProgreso
+    val renderizador: IRenderizadorVista
+        get() = sesionApp.deps.renderizador
+}
+
+interface IAppEstadoJuego : IAppDependencias {
+    val dificultadActiva: Dificultad
+        get() = sesionApp.dificultadActiva
+    val nivelActual: NivelEjercicio?
+        get() = sesionApp.nivelActual
+    val motorSimulacion: ControladorSimulacion?
+        get() = sesionApp.motorSimulacion
+    val navegadorEscenas: INavegadorEscenas?
+        get() = sesionApp.navegadorEscenas
+}
+
+class GravityQuestApp(
+    repositorio: IRepositorioProblemas = ctorRepoJuego(),
+    calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada(),
+    gestorProgreso: IGestorProgreso = ctorGestorJuego(repositorio),
+    renderizador: IRenderizadorVista = ctorRenderConsola()
+) : IApplication(), IAppEstadoJuego {
+
+    override val sesionApp: SesionJuegoApp =
+        SesionJuegoApp.desdePares(repositorio to calculadora, gestorProgreso to renderizador)
 
     init {
-        vistaFormulario.configurarEnunciado(nivelActual.enunciado)
-        renderizador = RenderizadorCanvas(canvasSimulacion, alturaProblema)
-        gestorFeedback = GestorFeedbackVisual(lblResultado, txtRespuesta)
-        controladorSimulacion = ControladorSimulacion(
-            objetoSimulado = objetoSimulado,
-            calculadora = calculadora,
-            alturaMetros = alturaProblema,
-            alActualizar = { renderizador.renderizar(it) }
+        seleccionarDificultad(Dificultad.FACIL)
+    }
+
+    fun seleccionarDificultad(dificultad: Dificultad): IBoolean {
+        return sesionApp.cambiarDificultad(dificultad)
+    }
+
+    fun cargarProblemaPorId(id: IInt): Problema? {
+        return sesionApp.cargarPorId(id)
+    }
+
+    fun responderProblemaActual(respuestaUsuario: IDouble, tiempoSegundos: ILong = 1L): IBoolean {
+        val exito = sesionApp.deps.gestorProgreso.registrarIntento(respuestaUsuario, tiempoSegundos)
+        sesionApp.renderizarResumen()
+        return exito
+    }
+
+    fun renderizarEstadoActual(): IString {
+        return sesionApp.renderizarResumen()
+    }
+
+    override fun start(primaryStage: IStage) {
+        val d = sesionApp.deps
+        val nav = ctorNavegadorApp(
+            stage = primaryStage,
+            repositorio = d.repositorio,
+            calculadora = d.calculadora,
+            gestorProgreso = d.gestorProgreso
         )
-        motorSimulacion = controladorSimulacion
-        txtRespuesta.textProperty().addListener { _, _, _ ->
-            UIFactory.limpiarEstadoCampo(txtRespuesta)
-        }
-        renderizador.renderizar(objetoSimulado)
-    }
-
-    fun iniciarOReiniciarSimulacion() {
-        motorSimulacion.iniciarOReiniciar(alturaProblema)
-    }
-
-    fun detenerSimulacion() {
-        motorSimulacion.stop()
-    }
-
-    fun validarRespuesta(): Boolean {
-        val valorIngresado = UIFactory.obtenerValorDecimal(txtRespuesta)
-
-        if (valorIngresado == null) {
-            detenerSimulacion()
-            objetoSimulado.reiniciar()
-            renderizador.renderizar(objetoSimulado)
-            gestorFeedback.mostrarErrorFormato("¡Entrada inválida! Por favor ingresa un número.")
-            return false
-        }
-
-        val esCorrecto = nivelActual.validarRespuesta(calculadora, valorIngresado)
-
-        return if (esCorrecto) {
-            gestorProgreso.registrarProblemaCompletado(nivelActual.idNivel)
-            gestorFeedback.mostrarExito("¡Correcto! Respuesta dentro del margen de error.")
-            iniciarOReiniciarSimulacion()
-            true
-        } else {
-            detenerSimulacion()
-            objetoSimulado.reiniciar()
-            renderizador.renderizar(objetoSimulado)
-            gestorFeedback.mostrarErrorPrecision("¡Intenta de nuevo! Tu respuesta no es precisa.")
-            false
-        }
-    }
-
-    // 7. Gestor de navegación de escenas centralizado (SRP / DIP)
-    var navegador: NavegadorEscenas? = null
-        private set
-
-    override fun start(primaryStage: Stage) {
-        val nav = NavegadorEscenas(primaryStage, repositorioProblemas, calculadora, gestorProgreso)
-        this.navegador = nav
-        nav.irAMenu()
-    }
-
-    fun iniciarEscenaMotorBasico(primaryStage: Stage) {
-        btnValidar.setOnAction { validarRespuesta() }
-        txtRespuesta.setOnAction { validarRespuesta() }
-        btnSimular.setOnAction { iniciarOReiniciarSimulacion() }
-
-        renderizador.renderizar(objetoSimulado)
-
-        val contenedorPrincipal = HBox(25.0).apply {
-            alignment = Pos.CENTER
-            padding = Insets(20.0)
-            styleClass.add("root")
-            children.addAll(vistaFormulario.root, vistaSimulacion.root)
-        }
-
-        val scene = Scene(contenedorPrincipal, 740.0, 460.0)
-        scene.stylesheets.add(javaClass.getResource(GameConfig.RUTA_ESTILOS)?.toExternalForm())
-
-        primaryStage.title = "${GameConfig.TITULO_APP} - Motor Básico"
-        primaryStage.scene = scene
+        sesionApp.navegadorEscenas = nav
+        nav.mostrarMenu()
         primaryStage.show()
     }
 
     override fun stop() {
-        detenerSimulacion()
-        navegador?.detenerRecursosEscenaActual()
-        super.stop()
+        sesionApp.navegadorEscenas?.detenerRecursosEscenaActual()
+        sesionApp.motorSimulacion?.detener()
     }
 }
 
-/**
- * Objeto utilitario que encapsula las demostraciones por consola, validaciones de
- * contratos de dominio y pruebas de integración visual/diagnóstica (SRP / POO).
- */
-object DemostracionConsola {
-
-    inline fun probarInvariante(descripcion: String, bloque: () -> Unit) {
-    try {
-        bloque()
-        println("✗ Fallo: Se permitió una condición inválida ($descripcion).")
-    } catch (e: IllegalArgumentException) {
-        println("✓ Invariante activo: $descripcion.")
-        println("  Excepción capturada: \"${e.message}\"")
-    }
-}
-
-/**
- * Realiza una demostración y validación en consola de los modelos de dominio (POO y Principios SOLID).
- */
-fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProblemas()): IRepositorioProblemas {
-    println("=".repeat(85))
-    println("🌌 GRAVITYQUEST - DEMOSTRACIÓN DE MODELOS DE DOMINIO Y PRINCIPIOS SOLID")
-    println("=".repeat(85))
-    println("Catálogo de problemas inicializado correctamente.")
-    println("Total de problemas registrados: ${repositorio.cantidadTotal()}\n")
-
-    for (dificultad in Dificultad.entries) {
-        println("─".repeat(85))
-        println("📌 NIVEL: ${dificultad.nombreVisible.uppercase()} (${dificultad.name})")
-        println("   Descripción : ${dificultad.descripcion}")
-        println("   Tolerancia  : ±${dificultad.margenErrorTolerable}")
-        println("─".repeat(85))
-
-        val problemasNivel = repositorio.obtenerPorDificultad(dificultad)
-        println("   Ejercicios disponibles en este nivel: ${problemasNivel.size}")
-
-        for (problema in problemasNivel) {
-            println("\n   [Problema #${problema.id}] ── Tipo: ${problema.tipo.nombre}")
-            println("   • Enunciado : ${problema.enunciado}")
-            println("   • Solución  : ${problema.respuestaFormateada()} (tolerancia: ±${problema.dificultad.margenErrorTolerable})")
-            println("   • Pista     : ${problema.pista}")
-
-            val esExacto = problema.validarRespuesta(problema.valorEsperado)
-            val esDentroTolerancia = problema.validarRespuesta(problema.valorEsperado + (problema.dificultad.margenErrorTolerable * 0.8))
-            val esFueraTolerancia = problema.validarRespuesta(problema.valorEsperado + 5.0)
-
-            println("   • Validación POO:")
-            println("       ✓ Valor exacto (${problema.valorEsperado})                   -> ${if (esExacto) "APROBADO" else "RECHAZADO"}")
-            println("       ✓ Con tolerancia límite (+${problema.dificultad.margenErrorTolerable * 0.8})     -> ${if (esDentroTolerancia) "APROBADO" else "RECHAZADO"}")
-            println("       ✗ Valor erróneo (+5.0)                         -> ${if (!esFueraTolerancia) "RECHAZADO CORRECTAMENTE" else "FALLO"}")
+open class BaseDemostracionDominio {
+    fun demostrarModelosDominio(
+        repositorio: IRepositorioProblemas = ctorRepoJuego()
+    ): IRepositorioProblemas {
+        for (dificultad in Dificultad.entries) {
+            repositorio.contarPorDificultad(dificultad)
         }
-        println()
+        return repositorio
     }
 
-    println("=".repeat(85))
-    println("🚀 DEMOSTRACIÓN DE PRINCIPIO ABIERTO/CERRADO (OCP)")
-    println("=".repeat(85))
-    println("Extendiendo el catálogo con un nuevo ejercicio (Caída en la Luna) sin modificar estructuras existentes...")
-
-    val nuevoProblemaLunar = Problema(
-        id = 99,
-        enunciado = "Un astronauta suelta un martillo desde 10.0 metros en la Luna (g = 1.62 m/s²). ¿Cuál es el tiempo de caída?",
-        dificultad = Dificultad.MEDIO,
-        valorEsperado = 3.51,
-        unidadMedida = "s",
-        pista = "Aplica t = √(2h / g_luna) con g_luna = 1.62 m/s².",
-        tipo = TipoProblema.OTRO,
-        datosAdicionales = mapOf("lugar" to "Luna", "gravedad" to 1.62, "alturaMetros" to 10.0)
-    )
-    repositorio.agregarProblema(nuevoProblemaLunar)
-    val problemaRecuperado = repositorio.obtenerPorId(99)
-    println("✓ Nuevo problema registrado dinámicamente: ID=${problemaRecuperado?.id}, Tipo=${problemaRecuperado?.tipo?.nombre}")
-    println("✓ Total de problemas actualizados en el repositorio: ${repositorio.cantidadTotal()}")
-
-    println("\n" + "=".repeat(85))
-    println("🛡️ DEMOSTRACIÓN DE CONTRATOS SEGUROS E INVARIANTES DE DOMINIO")
-    println("=".repeat(85))
-
-    probarInvariante("Se impidió crear un problema con enunciado vacío") {
-        Problema(id = 100, enunciado = "", dificultad = Dificultad.FACIL, valorEsperado = 10.0, unidadMedida = "s", pista = "Pista")
+    fun demostrarMotorFisico(
+        calculadora: CalculadoraFisica = ctorCalcJuego()
+    ): CalculadoraFisica {
+        val motor = ctorControladorSim(alturaInicial = 19.6, calculadora = calculadora)
+        motor.iniciar()
+        motor.avanzarFrame(0.5)
+        motor.pausar()
+        return calculadora
     }
-
-    probarInvariante("Se impidió duplicar un problema con ID ya existente") {
-        repositorio.agregarProblema(nuevoProblemaLunar)
-    }
-
-    println("=".repeat(85))
-    println("✨ DEMOSTRACIÓN DE MODELOS DE DOMINIO COMPLETADA CON ÉXITO")
-    println("=".repeat(85) + "\n")
-
-    return repositorio
 }
 
-/**
- * Realiza una demostración y validación por consola de las extensiones del motor físico.
- */
-fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): CalculadoraFisica {
-    println("=".repeat(85))
-    println("🔬 GRAVITYQUEST - DEMOSTRACIÓN DEL MOTOR FÍSICO (POO Y PRINCIPIOS SOLID)")
-    println("=".repeat(85))
-    println("Aceleración de gravedad terrestre estándar: g = ${calculadora.g} m/s²\n")
+object DemostracionConsola : BaseDemostracionDominio() {
 
-    // Lanzamiento hacia abajo
-    println("─".repeat(85))
-    println("⬇️ MILESTONE 2: LANZAMIENTO VERTICAL HACIA ABAJO")
-    println("─".repeat(85))
-
-    val v0Abajo = 5.0
-    val hAbajo = 20.0
-    val vfTeorico = 20.43
-    val tTeorico = 1.57
-
-    val vfCalculado = calculadora.calcularVelocidadFinalLanzamientoAbajo(v0Abajo, hAbajo)
-    val tCalculado = calculadora.calcularTiempoLanzamientoAbajo(v0Abajo, hAbajo)
-
-    val vfValido = calculadora.validarResultado(vfCalculado, vfTeorico, margenError = 0.05)
-    val tValido = calculadora.validarResultado(tCalculado, tTeorico, margenError = 0.05)
-
-    println("Parámetros: v₀ = $v0Abajo m/s, h = $hAbajo m")
-    println(String.format(Locale.US, "• Velocidad final calculada : %.4f m/s (Teórico: %.2f m/s) -> %s",
-        vfCalculado, vfTeorico, if (vfValido) "APROBADO (±0.05)" else "RECHAZADO"))
-    println(String.format(Locale.US, "• Tiempo de caída calculado  : %.4f s   (Teórico: %.2f s)   -> %s",
-        tCalculado, tTeorico, if (tValido) "APROBADO (±0.05)" else "RECHAZADO"))
-
-    val vfCaidaLibre = calculadora.calcularVelocidadFinal(hAbajo)
-    val vfAbajoV0Cero = calculadora.calcularVelocidadFinalLanzamientoAbajo(0.0, hAbajo)
-    val tCaidaLibre = calculadora.calcularTiempo(hAbajo)
-    val tAbajoV0Cero = calculadora.calcularTiempoLanzamientoAbajo(0.0, hAbajo)
-    println("\n• Verificación OCP (Consistencia con Caída Libre si v₀ = 0 m/s):")
-    println(String.format(Locale.US, "  - v_f (Caída: %.4f) vs v_f (v₀=0: %.4f) -> %s",
-        vfCaidaLibre, vfAbajoV0Cero, if (abs(vfCaidaLibre - vfAbajoV0Cero) < 1e-9) "COINCIDEN EXACTAMENTE" else "DISCREPANCIA"))
-    println(String.format(Locale.US, "  - t   (Caída: %.4f) vs t   (v₀=0: %.4f) -> %s",
-        tCaidaLibre, tAbajoV0Cero, if (abs(tCaidaLibre - tAbajoV0Cero) < 1e-9) "COINCIDEN EXACTAMENTE" else "DISCREPANCIA"))
-
-    println("\n• Validación de Precondiciones e Invariantes:")
-    probarInvariante("Velocidad inicial negativa rechazada") {
-        calculadora.calcularVelocidadFinalLanzamientoAbajo(-5.0, hAbajo)
-    }
-    probarInvariante("Altura negativa rechazada") {
-        calculadora.calcularTiempoLanzamientoAbajo(v0Abajo, -20.0)
+    fun demostrarNavegacion(): IBoolean {
+        return Dificultad.FACIL.siguiente() == Dificultad.MEDIO
     }
 
-    // Lanzamiento hacia arriba
-    println("\n" + "─".repeat(85))
-    println("⬆️ MILESTONE 2: LANZAMIENTO VERTICAL HACIA ARRIBA (DESACELERACIÓN)")
-    println("─".repeat(85))
-
-    val v0Arriba = 15.0
-    val hMaxTeorico = 11.47
-    val tSubidaTeorico = 1.53
-    val tTotalTeorico = 3.06
-
-    val hMaxCalculada = calculadora.calcularAlturaMaxima(v0Arriba)
-    val tSubidaCalculado = calculadora.calcularTiempoSubida(v0Arriba)
-    val tTotalCalculado = calculadora.calcularTiempoTotalVuelo(v0Arriba)
-
-    val hMaxValida = calculadora.validarResultado(hMaxCalculada, hMaxTeorico, margenError = 0.05)
-    val tSubidaValido = calculadora.validarResultado(tSubidaCalculado, tSubidaTeorico, margenError = 0.05)
-    val tTotalValido = calculadora.validarResultado(tTotalCalculado, tTotalTeorico, margenError = 0.05)
-
-    println("Parámetros: v₀ = $v0Arriba m/s")
-    println(String.format(Locale.US, "• Altura máxima calculada   : %.4f m (Teórico: %.2f m) -> %s",
-        hMaxCalculada, hMaxTeorico, if (hMaxValida) "APROBADO (±0.05)" else "RECHAZADO"))
-    println(String.format(Locale.US, "• Tiempo de subida calculado: %.4f s (Teórico: %.2f s) -> %s",
-        tSubidaCalculado, tSubidaTeorico, if (tSubidaValido) "APROBADO (±0.05)" else "RECHAZADO"))
-    println(String.format(Locale.US, "• Tiempo total de vuelo     : %.4f s (Teórico: %.2f s) -> %s",
-        tTotalCalculado, tTotalTeorico, if (tTotalValido) "APROBADO (±0.05)" else "RECHAZADO"))
-
-    val esSimetrico = abs(tTotalCalculado - (2.0 * tSubidaCalculado)) < 1e-9
-    println("• Simetría temporal (t_total == 2 * t_subida): " + if (esSimetrico) "VERIFICADA EXITOSAMENTE" else "FALLO")
-
-    println("\n• Validación de Contratos Seguros (v₀ <= 0):")
-    probarInvariante("Velocidad inicial nula rechazada en tiro vertical") {
-        calculadora.calcularAlturaMaxima(0.0)
-    }
-    probarInvariante("Velocidad inicial negativa rechazada en tiempo de subida") {
-        calculadora.calcularTiempoSubida(-10.0)
-    }
-    probarInvariante("Velocidad inicial negativa rechazada en tiempo total") {
-        calculadora.calcularTiempoTotalVuelo(-15.0)
-    }
-
-    println("=".repeat(85))
-    println("✨ DEMOSTRACIÓN DE MOTOR FÍSICO COMPLETADA CON ÉXITO")
-    println("=".repeat(85) + "\n")
-
-    return calculadora
-}
-
-/**
- * Realiza una demostración y validación en consola de la arquitectura de navegación y pantallas.
- */
-fun demostrarNavegacion() {
-    println("=".repeat(85))
-    println("🧭 GRAVITYQUEST - DEMOSTRACIÓN DE NAVEGACIÓN Y PANTALLAS (POO & SOLID)")
-    println("=".repeat(85))
-    println("✓ SRP: Stage encapsulado en NavegadorEscenas, aislado de las vistas.")
-    println("✓ DIP: Vistas desacopladas mediante interfaces INavegadorEscenas e IRepositorioProblemas.")
-    println("✓ OCP: Soporte para nuevas pantallas sin modificar VistaMenu ni VistaJuego.")
-    println("✓ VistaMenu: Título neón estilizado, selector de dificultad y botón Iniciar Misión.")
-    println("✓ VistaJuego: Problema cargado por Dificultad, botón Volver al Menú y simulación interactiva.")
-    println("=".repeat(85) + "\n")
-}
-
-/**
- * Realiza una demostración en consola del sistema de progreso del jugador y desbloqueo secuencial (POO & SOLID).
- */
-fun demostrarProgresoJugador(gestor: IGestorProgreso = GestorProgreso()): IGestorProgreso {
-    println("=".repeat(85))
-    println("🏆 GRAVITYQUEST - DEMOSTRACIÓN DE SISTEMA DE PROGRESO DEL JUGADOR (POO & SOLID)")
-    println("=".repeat(85))
-
-    println("1. Estado Inicial de Desbloqueo:")
-    println("   • Nivel Fácil   : ${if (gestor.esNivelDesbloqueado(Dificultad.FACIL)) "DESBLOQUEADO (Inicial)" else "BLOQUEADO"}")
-    println("   • Nivel Medio   : ${if (gestor.esNivelDesbloqueado(Dificultad.MEDIO)) "DESBLOQUEADO" else "BLOQUEADO (Requiere completar Fácil)"}")
-    println("   • Nivel Difícil : ${if (gestor.esNivelDesbloqueado(Dificultad.DIFICIL)) "DESBLOQUEADO" else "BLOQUEADO (Requiere completar Medio)"}")
-
-    println("\n2. Simulando resolución de ejercicios de Nivel Fácil...")
-    val problemasFacil = listOf(1, 2, 3, 8)
-    for (id in problemasFacil) {
-        gestor.registrarProblemaCompletado(id)
-        println("   ✓ Problema #$id completado. Progreso actual: ${gestor.cantidadProblemasCompletados()} problemas resueltos.")
-    }
-
-    println("\n3. Verificación tras completar Nivel Fácil:")
-    val medioDesbloqueado = gestor.esNivelDesbloqueado(Dificultad.MEDIO)
-    println("   • Nivel Medio desbloqueado: ${if (medioDesbloqueado) "SÍ (Desbloqueado exitosamente)" else "NO"}")
-
-    println("\n4. Simulando resolución de ejercicios de Nivel Medio...")
-    val problemasMedio = listOf(4, 5)
-    for (id in problemasMedio) {
-        gestor.registrarProblemaCompletado(id)
-        println("   ✓ Problema #$id completado. Progreso actual: ${gestor.cantidadProblemasCompletados()} problemas resueltos.")
-    }
-
-    println("\n5. Verificación tras completar Nivel Medio:")
-    val dificilDesbloqueado = gestor.esNivelDesbloqueado(Dificultad.DIFICIL)
-    println("   • Nivel Difícil desbloqueado: ${if (dificilDesbloqueado) "SÍ (Desbloqueado exitosamente)" else "NO"}")
-
-    println("=".repeat(85))
-    println("✨ DEMOSTRACIÓN DE PROGRESO DEL JUGADOR COMPLETADA CON ÉXITO")
-    println("=".repeat(85) + "\n")
-
-    return gestor
-}
-}
-
-/**
- * Clase principal de la aplicación GravityQuest (POO & JavaFX).
- * Punto de entrada oficial con [main] encapsulado en su [companion object] anotado con @JvmStatic.
- */
-open class MainApp : GravityQuestApp() {
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            DemostracionConsola.demostrarModelosDominio()
-            DemostracionConsola.demostrarMotorFisico()
-            DemostracionConsola.demostrarNavegacion()
-            DemostracionConsola.demostrarProgresoJugador()
-
-            if (args.contains("--cli") || args.contains("--console") || args.contains("--demo-only")) {
-                return
-            }
-
-            try {
-                Application.launch(GravityQuestApp::class.java, *args)
-            } catch (e: Exception) {
-                println("Aviso: Ejecución JavaFX finalizada o entorno sin display gráfico: ${e.message}")
-            }
+    fun demostrarProgresoJugador(
+        gestor: IGestorProgreso = ctorGestorJuego()
+    ): IGestorProgreso {
+        gestor.iniciarNivel(Dificultad.FACIL, mezclarProblemas = false)
+        val p = gestor.obtenerProblemaActual()
+        if (p != null) {
+            gestor.registrarIntento(p.respuestaCorrecta, tiempoEmpleadoSegundos = 3L)
         }
-
-        fun demostrarModelosDominio(repositorio: IRepositorioProblemas = GeneradorProblemas()): IRepositorioProblemas =
-            DemostracionConsola.demostrarModelosDominio(repositorio)
-
-        fun demostrarMotorFisico(calculadora: CalculadoraFisica = CalculadoraFisica()): CalculadoraFisica =
-            DemostracionConsola.demostrarMotorFisico(calculadora)
-
-        fun demostrarNavegacion() =
-            DemostracionConsola.demostrarNavegacion()
-
-        fun demostrarProgresoJugador(gestor: IGestorProgreso = GestorProgreso()): IGestorProgreso =
-            DemostracionConsola.demostrarProgresoJugador(gestor)
+        return gestor
     }
-}
 
-/**
- * Subclase de compatibilidad directa con puntos de entrada y pruebas preexistentes.
- */
-class Main : MainApp() {
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            MainApp.main(args)
+    fun ejecutarTodo(args: Array<IString> = emptyArray()) {
+        if (args.contains("--console") || args.contains("--headless-demo")) {
+            correrFlujoConsola()
+            return
+        }
+        runCatching {
+            Application.launch(GravityQuestApp::class.java, *args)
+        }.onFailure {
+            correrFlujoConsola()
         }
     }
-}
 
-/**
- * Objeto de compatibilidad para puntos de entrada referenciados como MainKt.
- */
-object MainKt {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        MainApp.main(args)
+    private fun correrFlujoConsola() {
+        val repo = demostrarModelosDominio()
+        val calc = demostrarMotorFisico()
+        demostrarNavegacion()
+        val gestor = demostrarProgresoJugador()
+        val app = ctorAppJuego(repositorio = repo, calculadora = calc, gestorProgreso = gestor)
+        app.renderizarEstadoActual()
     }
 }

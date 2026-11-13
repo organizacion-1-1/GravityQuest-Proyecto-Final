@@ -2,138 +2,61 @@ package gravityquest
 
 import gravityquest.models.Dificultad
 import javafx.geometry.Pos
-import javafx.scene.control.Button
-import javafx.scene.control.Label
 
-/**
- * ============================================================================
- * GravityQuest - Pantalla Final de Derrota / Misión Fallida (VistaGameOver)
- * Milestone 3 - Issue #20 (POO, SOLID y DRY)
- * ============================================================================
- *
- * 1. Single Responsibility Principle (SRP):
- *    - Construye y gestiona exclusivamente la pantalla de resumen cuando el jugador
- *      pierde las 3 vidas disponibles en el intento.
- *    - No contiene lógica de negocio ni de cálculo; presenta el Value Object
- *      inmutable [EstadisticasPartida] recibido.
- *
- * 2. Open/Closed Principle (OCP) y Reutilización (DRY):
- *    - Extiende [VistaFinalBase] y reutiliza componentes modulares [TarjetaEstadisticaView]
- *      y controles instanciados mediante [UIFactory].
- *
- * 3. Dependency Inversion Principle (DIP):
- *    - Delega todas las transiciones ("Reintentar Nivel" y "Menú Principal") a la
- *      abstracción [INavegadorEscenas] y el restablecimiento de vidas a [IGestorProgreso].
- */
+interface IVistaGameOver {
+    val dificultad: Dificultad
+    val estadisticas: EstadisticasPartida
+    fun reintentarNivel()
+    fun volverAlMenu()
+}
+
 class VistaGameOver(
-    dificultad: Dificultad = Dificultad.FACIL,
-    estadisticas: EstadisticasPartida = EstadisticasPartida(vidasRestantes = 0, dificultad = dificultad),
-    navegador: INavegadorEscenas,
-    gestorProgreso: IGestorProgreso? = null
-) : VistaFinalBase(dificultad, estadisticas, navegador, gestorProgreso) {
+    override val dificultad: Dificultad,
+    override val estadisticas: EstadisticasPartida,
+    alReintentar: () -> IUnit = ::accionVaciaGameOver,
+    alVolverAlMenu: () -> IUnit = ::accionVaciaGameOver
+) : IVBox(20.0), IVistaGameOver {
 
-    companion object {
-        const val TEXTO_TITULO_GAMEOVER: String = "GAME OVER - MISION FALLIDA"
-    }
-
-    // 1. Título destacado con estética neón/oscura (.titulo-gameover)
-    override val lblTitulo: Label = UIFactory.crearTituloFinal(
-        texto = TEXTO_TITULO_GAMEOVER,
-        claseEstilo = "titulo-gameover"
-    )
-
-    override val lblSubtitulo: Label = UIFactory.crearEtiqueta(
-        texto = "Has agotado tus 3 vidas en la Misión de Nivel ${dificultad.nombreVisible}. ¡Revisa tus cálculos cinemáticos e inténtalo de nuevo!",
-        clasesEstilo = listOf("label", "subtitulo-menu", "subtitulo-final"),
-        anchoMax = 520.0,
-        wrap = true,
-        alineacion = Pos.CENTER
-    )
-
-    // 2. Tarjetas modulares e inmutables con las estadísticas del intento (DRY / OCP)
-    val tarjetaPuntaje: TarjetaEstadisticaView = UIFactory.crearTarjetaEstadistica(
-        titulo = "Puntaje Obtenido",
-        valor = "${estadisticas.puntosTotales} PTS",
-        icono = "🎯",
-        detalle = "Acumulado en misión"
-    )
-
-    val tarjetaRachaMaxima: TarjetaEstadisticaView = UIFactory.crearTarjetaEstadistica(
-        titulo = "Racha Máxima",
-        valor = "${estadisticas.rachaMaxima}",
-        icono = "🔥",
-        detalle = "Aciertos seguidos"
-    )
-
-    val tarjetaEjerciciosCompletados: TarjetaEstadisticaView = UIFactory.crearTarjetaEstadistica(
-        titulo = "Ejercicios Completados",
-        valor = "${estadisticas.ejerciciosResueltos}",
-        icono = "✅",
-        detalle = "Resueltos antes de caer"
-    )
-
-    val tarjetaTiempoUsado: TarjetaEstadisticaView = UIFactory.crearTarjetaEstadistica(
-        titulo = "Tiempo Empleado",
-        valor = estadisticas.tiempoFormateado(),
-        icono = "⏱",
-        detalle = "Duración del intento"
-    )
-
-    override val tarjetasEstadisticas: List<TarjetaEstadisticaView> = listOf(
-        tarjetaPuntaje,
-        tarjetaRachaMaxima,
-        tarjetaEjerciciosCompletados,
-        tarjetaTiempoUsado
-    )
-
-    // 3. Botones principales creados mediante UIFactory con la clase .boton-accion-final (DRY)
-    val btnReintentar: Button = UIFactory.crearBotonReintentar("Reintentar Nivel")
-
-    val btnMenuPrincipal: Button = UIFactory.crearBotonMenuPrincipal("Menú Principal")
-
-    /** Alias de compatibilidad para acceso semántico al botón de menú. */
-    val btnVolverMenu: Button get() = btnMenuPrincipal
+    private val callbacks: Pair<() -> IUnit, () -> IUnit> = alReintentar to alVolverAlMenu
 
     init {
-        styleClass.add("vista-gameover")
-        contenedorPrincipal.styleClass.add("pantalla-gameover")
-
-        configurarAcciones()
-        inicializarEstructuraVistaFinal(listOf(btnReintentar, btnMenuPrincipal))
+        inicializarVista()
     }
 
-    private fun configurarAcciones() {
-        btnReintentar.setOnAction {
-            reintentarNivel()
+    private fun inicializarVista() {
+        val resumen = crearPanelGameOver(dificultad, estadisticas)
+        val btnReintentar = UIFactory.crearBotonPrimario("\uD83D\uDD04 \u0052eintentar \u004eivel", "btn-retry") { reintentarNivel() }
+        val btnMenu = UIFactory.crearBotonSecundario("\uD83C\uDFE0 \u004den\u00fa \u0050rincipal", "btn-menu") { volverAlMenu() }
+        val mensaje = UIFactory.crearEtiqueta(
+            "\u0052evisa las f\u00f3rmulas de cinem\u00e1tica y vuelve a intentarlo.",
+            "gameover-hint-banner"
+        )
+        mensaje.alignment = Pos.CENTER
+        resumen.panelBotones.children.setAll(btnReintentar, btnMenu)
+        resumen.configurarEnContenedor(this, mensaje)
+    }
+
+    override fun reintentarNivel() {
+        if (dificultad.multiplicadorPuntos > 0) callbacks.first.invoke()
+    }
+
+    override fun volverAlMenu() {
+        if (estadisticas.puntosTotales >= 0) callbacks.second.invoke()
+    }
+
+    companion object {
+        private fun accionVaciaGameOver() {
+            return
         }
 
-        btnMenuPrincipal.setOnAction {
-            volverAlMenu()
+        private fun crearPanelGameOver(d: Dificultad, e: EstadisticasPartida): PanelResumenFinal {
+            return PanelResumenFinal(
+                d,
+                e,
+                "\uD83D\uDCA5 \u00A1\u0053in \u0056idas\u0021 \u004d\u00edsi\u00f3n \u0049nterrumpida",
+                "\u0054e quedaste sin vidas antes de completar el nivel",
+                "gameover-root"
+            )
         }
-    }
-
-    /**
-     * Reinicia las 3 vidas en el gestor de progreso y redirige al nivel desbloqueado correspondiente
-     * (iniciando obligatoriamente en [Dificultad.FACIL] si los niveles superiores quedaron bloqueados tras el Game Over).
-     */
-    fun reintentarNivel() {
-        gestorProgreso?.reiniciarVidas()
-        val nivelDestino = if (gestorProgreso != null && !gestorProgreso.esNivelDesbloqueado(dificultad)) {
-            Dificultad.FACIL
-        } else {
-            dificultad
-        }
-        navegador.irAJuego(nivelDestino)
-    }
-
-    /**
-     * Regresa al menú principal delegando en [INavegadorEscenas].
-     */
-    fun volverAlMenu() {
-        navegador.irAMenu()
-    }
-
-    override fun ejecutarAnimacionEntrada() {
-        FxAnimationUtils.animarVibracion(lblTitulo, desplazamiento = 6.0, duracionMs = 55.0)
     }
 }
