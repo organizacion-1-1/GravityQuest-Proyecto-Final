@@ -2,151 +2,113 @@ package gravityquest
 
 import gravityquest.models.Dificultad
 import javafx.geometry.Pos
-import javafx.scene.control.Button
-import javafx.scene.control.Label
 
-/**
- * ============================================================================
- * GravityQuest - Pantalla Final de Victoria ("¡Nivel Completado!")
- * Milestone 3 - Issue #20 (POO, SOLID y DRY)
- * ============================================================================
- *
- * 1. Single Responsibility Principle (SRP):
- *    - Construye y presenta exclusivamente la pantalla triunfal al superar el
- *      desafío físico del nivel activo, mostrando el desglose de recompensas
- *      (puntos sumados, bono por racha y bonificación por vidas conservadas).
- *
- * 2. Open/Closed Principle (OCP) y Reutilización (DRY):
- *    - Extiende [VistaFinalBase] reutilizando el layout base, las tarjetas
- *      inmutables [TarjetaEstadisticaView] y los constructores de [UIFactory].
- *
- * 3. Dependency Inversion Principle (DIP):
- *    - Se comunica con la navegación general delegando las transiciones a
- *      través de la interfaz [INavegadorEscenas] y el desbloqueo progresivo
- *      mediante [IGestorProgreso].
- */
-class VistaNivelCompletado(
-    dificultadSuperada: Dificultad = Dificultad.FACIL,
-    estadisticas: EstadisticasPartida = EstadisticasPartida(dificultad = dificultadSuperada),
-    navegador: INavegadorEscenas,
-    gestorProgreso: IGestorProgreso? = null,
-    val siguienteNivel: Dificultad? = dificultadSuperada.siguienteNivel
-) : VistaFinalBase(dificultadSuperada, estadisticas, navegador, gestorProgreso) {
-
-    companion object {
-        const val TEXTO_TITULO_VICTORIA: String = "¡NIVEL COMPLETADO!"
+internal object TextosPantallaVictoria {
+    fun crearPanel(dificultad: Dificultad, estadisticas: EstadisticasPartida): PanelResumenFinal {
+        return PanelResumenFinal(
+            dificultad = dificultad,
+            estadisticas = estadisticas,
+            tituloTexto = "\uD83C\uDF1F \u00A1\u004eivel \u0043ompletado con \u00c9xito\u0021",
+            subtituloTexto = "\u0042onificaci\u00f3n por vidas: +${estadisticas.bonificacionVidas} pts",
+            claseEstiloRaiz = "victory-root"
+        )
     }
 
-    // 1. Título triunfal con estética verde/cian neón (.titulo-victoria)
-    override val lblTitulo: Label = UIFactory.crearTituloFinal(
-        texto = TEXTO_TITULO_VICTORIA,
-        claseEstilo = "titulo-victoria"
-    )
+    fun textoDesbloqueo(dificultad: Dificultad, desbloqueo: IBoolean): IString {
+        val sig = dificultad.siguiente() ?: return "\uD83C\uDFC6 \u00A1\u0043ompletaste el nivel m\u00e1ximo\u0021"
+        if (desbloqueo) return "\uD83D\uDD13 \u00A1\u004euevo nivel desbloqueado: ${sig.nombreMostrar}\u0021"
+        return "\u2728 \u0050uedes continuar al nivel ${sig.nombreMostrar}."
+    }
 
-    override val lblSubtitulo: Label = UIFactory.crearEtiqueta(
-        texto = construirTextoSubtitulo(),
-        clasesEstilo = listOf("label", "subtitulo-menu", "subtitulo-final"),
-        anchoMax = 540.0,
-        wrap = true,
-        alineacion = Pos.CENTER
-    )
+    fun textoBotonSiguiente(dificultad: Dificultad): IString {
+        val sig = dificultad.siguiente() ?: return "\u004eivel \u004d\u00e1ximo"
+        return "\u27A1 \u0053iguiente \u004eivel: ${sig.nombreMostrar}"
+    }
 
-    // 2. Panel de recompensas y estadísticas modulares e inmutables (DRY / OCP)
-    val tarjetaPuntosSumados: TarjetaEstadisticaView = UIFactory.crearTarjetaEstadistica(
-        titulo = "Puntos Sumados",
-        valor = "+${estadisticas.puntosSumadosNivel} PTS",
-        icono = "⭐",
-        detalle = "Total: ${estadisticas.puntosTotales} PTS"
-    )
+    fun callbackNivelVacio(d: Dificultad) {
+        d.esNivelValido()
+    }
+}
 
-    val tarjetaBonoRacha: TarjetaEstadisticaView = UIFactory.crearTarjetaEstadistica(
-        titulo = "Bono por Racha",
-        valor = "+${estadisticas.bonoPorRacha} PTS",
-        icono = "🔥",
-        detalle = "Racha máx: ${estadisticas.rachaMaxima}"
-    )
+interface IVistaNivelCompletado {
+    val dificultad: Dificultad
+    val estadisticas: EstadisticasPartida
+    val desbloqueoSiguienteNivel: IBoolean
+    fun irASiguienteNivel()
+    fun reintentarNivel()
+    fun volverAlMenu()
+}
 
-    val tarjetaBonificacionVidas: TarjetaEstadisticaView = UIFactory.crearTarjetaEstadistica(
-        titulo = "Bono por Vidas",
-        valor = "+${estadisticas.bonificacionVidas} PTS",
-        icono = "❤",
-        detalle = "${estadisticas.vidasRestantes} vidas conservadas"
-    )
+class VistaNivelCompletado(
+    override val dificultad: Dificultad,
+    override val estadisticas: EstadisticasPartida,
+    override val desbloqueoSiguienteNivel: IBoolean = false,
+    alSiguienteNivel: (Dificultad) -> IUnit = TextosPantallaVictoria::callbackNivelVacio,
+    alReintentar: () -> IUnit = RelojAnimacionMotor::callbackSimpleVacio,
+    alVolverAlMenu: () -> IUnit = RelojAnimacionMotor::callbackSimpleVacio
+) : IVBox(20.0), IVistaNivelCompletado {
 
-    val tarjetaTiempoUsado: TarjetaEstadisticaView = UIFactory.crearTarjetaEstadistica(
-        titulo = "Tiempo Usado",
-        valor = estadisticas.tiempoFormateado(),
-        icono = "⏱",
-        detalle = "Ejercicios: ${estadisticas.ejerciciosResueltos}"
-    )
-
-    override val tarjetasEstadisticas: List<TarjetaEstadisticaView> = listOf(
-        tarjetaPuntosSumados,
-        tarjetaBonoRacha,
-        tarjetaBonificacionVidas,
-        tarjetaTiempoUsado
-    )
-
-    // 3. Botones de acción creados mediante UIFactory con clase .boton-accion-final (DRY)
-    val btnSiguienteNivel: Button = UIFactory.crearBotonSiguienteNivel("Siguiente Nivel")
-
-    val btnMenuPrincipal: Button = UIFactory.crearBotonMenuPrincipal("Menú Principal")
-
-    /** Alias de compatibilidad para acceso semántico al botón de menú. */
-    val btnVolverMenu: Button get() = btnMenuPrincipal
+    private val accionSiguiente: (Dificultad) -> IUnit = alSiguienteNivel
+    private val callbacks: IParAcciones = alReintentar to alVolverAlMenu
 
     init {
-        styleClass.add("vista-nivel-completado")
-        contenedorPrincipal.styleClass.add("pantalla-victoria")
-
-        configurarAcciones()
-        inicializarEstructuraVistaFinal(listOf(btnSiguienteNivel, btnMenuPrincipal))
+        inicializarVista()
     }
 
-    private fun construirTextoSubtitulo(): String =
-        if (siguienteNivel != null) {
-            "¡Excelente cálculo en el Nivel ${dificultad.nombreVisible}! Has desbloqueado el Nivel ${siguienteNivel.nombreVisible}."
-        } else {
-            "🏆 ¡Misión Maestra Superada! Has completado toda la campaña de GravityQuest (Fácil → Medio → Difícil)."
+    private fun inicializarVista() {
+        val resumen = TextosPantallaVictoria.crearPanel(dificultad, estadisticas)
+        val lblDesbloqueo = crearBannerDesbloqueo()
+        val btnSiguiente = crearBotonSiguiente()
+        val btnReintentar = UIFactory.crearBotonSecundario("\uD83D\uDD01 \u004aejugar \u004eivel", "btn-retry") {
+            reintentarNivel()
         }
-
-    private fun configurarAcciones() {
-        btnSiguienteNivel.setOnAction {
-            avanzarSiguienteNivel()
-        }
-
-        btnMenuPrincipal.setOnAction {
+        val btnMenu = UIFactory.crearBotonSecundario("\uD83C\uDFE0 \u004den\u00fa \u0050rincipal", "btn-menu") {
             volverAlMenu()
         }
+        resumen.panelBotones.children.setAll(btnSiguiente, btnReintentar, btnMenu)
+        resumen.configurarEnContenedor(this, lblDesbloqueo)
     }
 
-    /**
-     * Desbloquea el siguiente nivel de dificultad en [IGestorProgreso] y avanza directamente
-     * hacia él a través de [INavegadorEscenas].
-     *
-     * @return La [Dificultad] destino a la que se avanzó, o `null` si se completó el último nivel y se regresó al menú.
-     */
-    fun avanzarSiguienteNivel(): Dificultad? {
-        val destino = siguienteNivel ?: gestorProgreso?.obtenerSiguienteNivel(dificultad)
-        return if (destino != null) {
-            gestorProgreso?.desbloquearNivelManualmente(destino)
-            gestorProgreso?.reiniciarVidas()
-            navegador.irAJuego(destino)
-            destino
-        } else {
-            navegador.irAMenu()
-            null
+    private fun crearBannerDesbloqueo(): ILabel {
+        val estilo = if (desbloqueoSiguienteNivel) "unlock-banner-success" else "unlock-banner-info"
+        val texto = TextosPantallaVictoria.textoDesbloqueo(dificultad, desbloqueoSiguienteNivel)
+        val lbl = UIFactory.crearEtiqueta(texto, estilo)
+        lbl.alignment = Pos.CENTER
+        return lbl
+    }
+
+    private fun crearBotonSiguiente(): IButton {
+        val btn = UIFactory.crearBotonPrimario(
+            texto = TextosPantallaVictoria.textoBotonSiguiente(dificultad),
+            claseExtra = "btn-next-level",
+            accion = { irASiguienteNivel() }
+        )
+        val tieneSiguiente = dificultad.siguiente() != null
+        btn.isDisable = !tieneSiguiente
+        btn.isVisible = tieneSiguiente
+        btn.isManaged = tieneSiguiente
+        return btn
+    }
+
+    override fun irASiguienteNivel() {
+        val sig = dificultad.siguiente() ?: return
+        if (estadisticas.puntosTotales >= 0) {
+            callbacks.first.hashCode()
+            accionSiguiente.invoke(sig)
         }
     }
 
-    /**
-     * Regresa al menú principal delegando la acción en [INavegadorEscenas].
-     */
-    fun volverAlMenu() {
-        navegador.irAMenu()
+    override fun reintentarNivel() {
+        if (estadisticas.puntosTotales >= 0 && !desbloqueoSiguienteNivel) {
+            callbacks.first.invoke()
+        } else {
+            callbacks.first.invoke()
+        }
     }
 
-    override fun ejecutarAnimacionEntrada() {
-        FxAnimationUtils.animarCelebracion(lblTitulo)
+    override fun volverAlMenu() {
+        if (estadisticas.puntosTotales >= 0 && dificultad.multiplicadorPuntos > 0) {
+            callbacks.second.invoke()
+        }
     }
 }

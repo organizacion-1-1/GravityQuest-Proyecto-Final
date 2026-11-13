@@ -1,421 +1,277 @@
 package gravityquest
+import gravityquest.models.Dificultad; import javafx.animation.*; import javafx.event.EventHandler; import javafx.geometry.*; import javafx.scene.Node; import javafx.scene.control.*; import javafx.scene.effect.DropShadow; import javafx.scene.layout.*; import javafx.scene.paint.Color; import javafx.util.Duration
+typealias IButton = Button; typealias ITextField = TextField; typealias IDuration = Duration; typealias IDropShadow = DropShadow; typealias IParTarjetaBoton = Pair<IVBox, IButton>
+typealias IFadeTransition = FadeTransition; typealias IScaleTransition = ScaleTransition; typealias ITranslateTransition = TranslateTransition; typealias FxAnimationUtils = AnimadorUI
+internal typealias ctorLabel = Label; internal typealias ctorTextField = TextField; internal typealias ctorInsets = Insets; internal typealias ctorDropShadow = DropShadow
+internal typealias ctorButton = Button; internal typealias ctorHBox = HBox; internal typealias ctorVBox = VBox
+internal typealias ctorFade = FadeTransition; internal typealias ctorScale = ScaleTransition; internal typealias ctorTranslate = TranslateTransition
 
-import javafx.animation.FadeTransition
-import javafx.animation.ScaleTransition
-import javafx.animation.TranslateTransition
-import javafx.geometry.Pos
-import javafx.scene.Node
-import javafx.scene.control.Button
-import javafx.scene.control.Label
-import javafx.scene.control.TextField
-import javafx.scene.control.ToggleButton
-import javafx.scene.control.ToggleGroup
-import javafx.scene.layout.HBox
-import javafx.scene.layout.VBox
-import javafx.util.Duration
+interface IUIFactoryEtiquetas {
+    fun crearTitulo(texto: IString, claseExtra: IString = ""): ILabel
+    fun crearSubtitulo(texto: IString, claseExtra: IString = ""): ILabel
+    fun crearEtiqueta(texto: IString, claseExtra: IString = ""): ILabel
+}
 
-/**
- * ============================================================================
- * GravityQuest - Fábrica de Componentes Visuales y Extensiones UI (DRY & SRP)
- * ============================================================================
- *
- * Principio DRY & Patrón Factory:
- * Centraliza la creación e instanciación de controles JavaFX estilizados (botones,
- * etiquetas, campos de texto, íconos de vida y selectores) en una sola línea de código,
- * garantizando uniformidad visual y reduciendo drásticamente la duplicación entre vistas.
- */
-object UIFactory {
+interface IUIFactoryTextos : IUIFactoryEtiquetas {
+    fun crearCampoNumerico(placeholder: IString = "0.00", anchoPref: IDouble = 180.0): ITextField
+    fun crearMargen(vertical: IDouble, horizontal: IDouble = vertical): IInsets
+    fun crearFila(espaciado: IDouble = 12.0, alineacion: IPos = Pos.CENTER): IHBox
+    fun crearColumna(espaciado: IDouble = 12.0, alineacion: IPos = Pos.CENTER): IVBox
+}
 
-    /**
-     * Instancia un botón con estilo primario espacial (#0284c7).
-     */
-    fun crearBotonPrimario(texto: String, anchoMax: Double? = null): Button =
-        Button(texto).apply {
-            styleClass.addAll("button", "btn-primario")
-            anchoMax?.let { maxWidth = it }
-        }
-
-    /**
-     * Instancia un botón con estilo secundario oscuro (#334155).
-     */
-    fun crearBotonSecundario(texto: String, claseExtra: String? = null, anchoMax: Double? = null): Button =
-        Button(texto).apply {
-            styleClass.addAll(listOfNotNull("button", "btn-secundario", claseExtra))
-            anchoMax?.let { maxWidth = it }
-        }
-
-    /**
-     * Instancia una etiqueta de título con resplandor neón espacial.
-     */
-    fun crearTitulo(texto: String = GameConfig.TITULO_APP): Label =
-        Label(texto).apply {
-            styleClass.add("titulo")
-        }
-
-    /**
-     * Instancia una etiqueta configurada con estilo, envoltorio de texto y ancho máximo opcionales.
-     */
-    fun crearEtiqueta(
-        texto: String = "",
-        clasesEstilo: List<String> = listOf("label"),
-        anchoMax: Double? = null,
-        wrap: Boolean = false,
-        alineacion: Pos? = null
-    ): Label =
-        Label(texto).apply {
-            styleClass.addAll(clasesEstilo)
-            isWrapText = wrap
-            anchoMax?.let { maxWidth = it }
-            alineacion?.let { alignment = it }
-        }
-
-    /**
-     * Instancia una etiqueta con estilo neón espacial para el marcador de puntuación (DRY).
-     */
-    fun crearEtiquetaPuntos(
-        texto: String = "PUNTAJE: 0000",
-        claseEstilo: String = "puntos-texto"
-    ): Label =
-        crearEtiqueta(
-            texto = texto,
-            clasesEstilo = listOf("label", claseEstilo),
-            alineacion = Pos.CENTER
-        )
-
-    /**
-     * Instancia un ícono visual de vida (corazón neón) con la clase CSS `.icono-vida` (DRY - Issue #18).
-     */
-    fun crearIconoVida(simbolo: String = "❤"): Label =
-        crearEtiqueta(
-            texto = simbolo,
-            clasesEstilo = listOf("label", "icono-vida"),
-            alineacion = Pos.CENTER
-        )
-
-    /**
-     * Instancia un campo de entrada [TextField] con bordes redondeados y foco estilizado.
-     */
-    fun crearCampoTexto(prompt: String = "", anchoMax: Double = 220.0): TextField =
-        TextField().apply {
-            styleClass.add("text-field")
-            promptText = prompt
-            maxWidth = anchoMax
-        }
-
-    /**
-     * Instancia un [ToggleButton] para el selector de dificultad.
-     * Soporta activación programática controlada para pruebas y desacoplamiento.
-     */
-    fun crearBotonDificultad(
-        texto: String,
-        grupo: ToggleGroup,
-        datos: Any,
-        anchoPref: Double = 120.0
-    ): ToggleButton =
-        object : ToggleButton(texto) {
-            override fun fire() {
-                if (!isDisable) {
-                    super.fire()
-                } else {
-                    // Permite disparo programático controlado en pruebas unitarias
-                    isSelected = true
-                }
-            }
-        }.apply {
-            styleClass.addAll("button", "btn-dificultad")
-            toggleGroup = grupo
-            userData = datos
-            prefWidth = anchoPref
-        }
-
-    /**
-     * Instancia un contenedor [VBox] con alineación centrada y estilo.
-     */
-    fun crearPanelVertical(espaciado: Double, claseEstilo: String? = null, anchoMax: Double? = null): VBox =
-        VBox(espaciado).apply {
-            alignment = Pos.CENTER
-            claseEstilo?.let { styleClass.add(it) }
-            anchoMax?.let { maxWidth = it }
-        }
-
-    /**
-     * Instancia un contenedor [HBox] con alineación centrada y estilo.
-     */
-    fun crearPanelHorizontal(espaciado: Double, claseEstilo: String? = null): HBox =
-        HBox(espaciado).apply {
-            alignment = Pos.CENTER
-            claseEstilo?.let { styleClass.add(it) }
-        }
-
-    /**
-     * Instancia un título especializado para las pantallas finales ("Game Over" o "¡Nivel Completado!")
-     * aplicando la clase CSS específica (`.titulo-gameover` o `.titulo-victoria`) (Issue #20).
-     */
-    fun crearTituloFinal(texto: String, claseEstilo: String): Label =
-        Label(texto).apply {
-            styleClass.addAll("titulo", claseEstilo)
-            alignment = Pos.CENTER
-            isWrapText = true
-        }
-
-    /**
-     * Instancia un botón de acción para las pantallas finales con la clase `.boton-accion-final` (Issue #20).
-     */
-    fun crearBotonAccionFinal(
-        texto: String,
-        esPrimario: Boolean = true,
-        claseExtra: String? = null,
-        anchoMax: Double? = 240.0
-    ): Button =
-        (if (esPrimario) crearBotonPrimario(texto, anchoMax) else crearBotonSecundario(texto, claseExtra, anchoMax)).apply {
-            if (!styleClass.contains("boton-accion-final")) {
-                styleClass.add("boton-accion-final")
-            }
-            claseExtra?.let {
-                if (!styleClass.contains(it)) {
-                    styleClass.add(it)
-                }
-            }
-        }
-
-    /**
-     * Instancia el botón principal "Reintentar Nivel" para la pantalla de Game Over (DRY - Issue #20).
-     */
-    fun crearBotonReintentar(texto: String = "🔄 Reintentar Nivel", anchoMax: Double? = 240.0): Button =
-        crearBotonAccionFinal(texto = texto, esPrimario = true, claseExtra = "btn-reintentar", anchoMax = anchoMax)
-
-    /**
-     * Instancia el botón principal "Siguiente Nivel" para la pantalla de Victoria (DRY - Issue #20).
-     */
-    fun crearBotonSiguienteNivel(texto: String = "🚀 Siguiente Nivel", anchoMax: Double? = 240.0): Button =
-        crearBotonAccionFinal(texto = texto, esPrimario = true, claseExtra = "btn-siguiente-nivel", anchoMax = anchoMax)
-
-    /**
-     * Instancia el botón secundario "Menú Principal" para las pantallas finales (DRY - Issue #20).
-     */
-    fun crearBotonMenuPrincipal(texto: String = "🏠 Menú Principal", anchoMax: Double? = 240.0): Button =
-        crearBotonAccionFinal(texto = texto, esPrimario = false, claseExtra = "btn-menu-principal", anchoMax = anchoMax)
-
-    /**
-     * Instancia una tarjeta modular de estadística ([TarjetaEstadisticaView]) a partir de un [DatoEstadistica] (DRY / OCP).
-     */
-    fun crearTarjetaEstadistica(dato: DatoEstadistica): TarjetaEstadisticaView =
-        TarjetaEstadisticaView(dato)
-
-    /**
-     * Instancia una tarjeta modular de estadística ([TarjetaEstadisticaView]) con sus atributos descriptivos (DRY / OCP).
-     */
-    fun crearTarjetaEstadistica(
-        titulo: String,
-        valor: String,
-        icono: String = "📊",
-        detalle: String = "",
-        claseEstiloExtra: String? = null
-    ): TarjetaEstadisticaView =
-        TarjetaEstadisticaView(DatoEstadistica(titulo, valor, icono, detalle, claseEstiloExtra))
-
-    /**
-     * Parsea una cadena de texto admitiendo coma o punto como separador decimal.
-     * Encapsulado en [UIFactory] delegando en [CalculosAuxiliares] (SRP).
-     */
-    fun parsearNumeroDecimal(texto: String?): Double? =
-        CalculosAuxiliares.parsearNumeroDecimal(texto)
-
-    /**
-     * Obtiene y parsea de forma segura el valor numérico decimal contenido en un [TextField],
-     * manejando entradas vacías o caracteres inválidos sin lanzar excepciones no controladas (Issue #21).
-     */
-    fun obtenerValorDecimal(campo: TextField): Double? =
-        parsearNumeroDecimal(campo.text)
-
-    /**
-     * Aplica un feedback visual suave de error sobre un [TextField] (borde rojo neón `.input-error`
-     * y vibración corta) cuando se detecta una entrada vacía o numéricamente inválida (Issue #21).
-     */
-    fun marcarErrorCampo(campo: TextField) {
-        campo.styleClass.remove("input-exito")
-        if (!campo.styleClass.contains("input-error")) {
-            campo.styleClass.add("input-error")
-        }
-        if (!campo.styleClass.contains("text-field-error")) {
-            campo.styleClass.add("text-field-error")
-        }
-        FxAnimationUtils.animarVibracion(campo, desplazamiento = 5.0, duracionMs = 40.0) {
-            campo.translateX = 0.0
-        }
+open class BaseUIFactoryTextos : IUIFactoryTextos {
+    override fun crearTitulo(texto: IString, claseExtra: IString): ILabel {
+        return ConstructorTarjetaHolografica.configurarEtiqueta(texto, "title-label", claseExtra)
     }
 
-    /**
-     * Aplica un estado visual de validación exitosa sobre un [TextField] eliminando clases de error.
-     */
-    fun marcarExitoCampo(campo: TextField) {
-        campo.styleClass.removeAll("input-error", "text-field-error")
-        if (!campo.styleClass.contains("input-exito")) {
-            campo.styleClass.add("input-exito")
-        }
-        campo.translateX = 0.0
+    override fun crearSubtitulo(texto: IString, claseExtra: IString): ILabel {
+        return ConstructorTarjetaHolografica.configurarEtiqueta(texto, "subtitle-label", claseExtra)
     }
 
-    /**
-     * Limpia las clases de estado de validación (`.input-error`, `.text-field-error`, `.input-exito`)
-     * sobre el [TextField] restableciendo su estilo original.
-     */
-    fun limpiarEstadoCampo(campo: TextField) {
-        campo.styleClass.removeAll("input-error", "text-field-error", "input-exito")
-        campo.translateX = 0.0
+    override fun crearEtiqueta(texto: IString, claseExtra: IString): ILabel {
+        return ConstructorTarjetaHolografica.configurarEtiqueta(texto, "body-label", claseExtra)
+    }
+
+    override fun crearCampoNumerico(placeholder: IString, anchoPref: IDouble): ITextField {
+        val campo = ctorTextField()
+        campo.promptText = placeholder
+        campo.prefWidth = anchoPref
+        campo.styleClass.add("numeric-input")
+        return campo
+    }
+
+    override fun crearMargen(vertical: IDouble, horizontal: IDouble): IInsets {
+        return ctorInsets(vertical, horizontal, vertical, horizontal)
+    }
+
+    override fun crearFila(espaciado: IDouble, alineacion: IPos): IHBox {
+        val fila = ctorHBox(espaciado)
+        fila.alignment = alineacion
+        return fila
+    }
+
+    override fun crearColumna(espaciado: IDouble, alineacion: IPos): IVBox {
+        val col = ctorVBox(espaciado)
+        col.alignment = alineacion
+        return col
     }
 }
 
-/**
- * Gestor de animaciones visuales seguras (tolerante a entornos headless o pruebas automatizadas).
- */
-object FxAnimationUtils {
+object InteractorBotonNeon {
+    fun configurar(btn: IButton, colorHex: IString = "#00F5D4") {
+        btn.onMouseEntered = EventHandler { aplicarEstado(btn, 1.05 to -2.0, colorHex) }
+        btn.onMouseExited = EventHandler { aplicarEstado(btn, 1.0 to 0.0, "") }
+        btn.onMousePressed = EventHandler { aplicarEstado(btn, 0.96 to 1.0, colorHex) }
+        btn.onMouseReleased = EventHandler { aplicarEstado(btn, 1.05 to -1.0, colorHex) }
+    }
 
-    inline fun ejecutarSeguro(accion: () -> Unit) {
-        try {
-            accion()
-        } catch (_: Exception) {
-            // Protección ante entornos de pruebas headless sin subsistema de display
+    fun configurarTarjetaHolografica(tarjeta: IVBox, colorHex: IString, desbloqueado: IBoolean) {
+        if (!desbloqueado) return
+        tarjeta.onMouseEntered = EventHandler {
+            aplicarBrilloNeon(tarjeta, true, colorHex)
+            AnimadorUI.animarEscalaBoton(tarjeta, 1.03, -5.0)
+        }
+        tarjeta.onMouseExited = EventHandler {
+            aplicarBrilloNeon(tarjeta, false, colorHex)
+            AnimadorUI.animarEscalaBoton(tarjeta, 1.0, 0.0)
         }
     }
 
-    fun animarPulso(nodo: Node, escala: Double = 1.15, duracionMs: Double = 200.0, alFinalizar: () -> Unit = {}) {
-        ejecutarSeguro {
-            ScaleTransition(Duration.millis(duracionMs), nodo).apply {
-                fromX = 1.0
-                fromY = 1.0
-                toX = escala
-                toY = escala
-                cycleCount = 2
-                isAutoReverse = true
-                setOnFinished { alFinalizar() }
-                play()
-            }
+    fun aplicarBrilloNeon(nodo: INode, activo: IBoolean, colorHex: IString = "#00F5D4") {
+        if (!activo || colorHex.isEmpty()) {
+            nodo.effect = null
+            return
         }
+        val sombra = ctorDropShadow()
+        sombra.radius = 22.0
+        sombra.spread = 0.32
+        sombra.color = Color.web(colorHex, 0.78)
+        nodo.effect = sombra
     }
 
-    /**
-     * Ejecuta una animación de celebración triunfal (escala rítmica y aparición) para la pantalla
-     * de "¡Nivel Completado!" (Issue #20).
-     */
-    fun animarCelebracion(
-        nodo: Node,
-        escalaMaxima: Double = 1.18,
-        duracionMs: Double = 260.0,
-        alFinalizar: () -> Unit = {}
+    private fun aplicarEstado(btn: IButton, escalaYOffset: IPunto2D, colorHex: IString) {
+        if (btn.isDisable) return
+        aplicarBrilloNeon(btn, colorHex.isNotEmpty(), colorHex)
+        AnimadorUI.animarEscalaBoton(btn, escalaYOffset.first, escalaYOffset.second)
+    }
+}
+
+internal object ConstructorTarjetaHolografica {
+    fun configurarEtiqueta(texto: IString, claseBase: IString, claseExtra: IString): ILabel {
+        val lbl = ctorLabel(texto)
+        lbl.isWrapText = true
+        lbl.styleClass.add(claseBase)
+        if (claseExtra.isNotBlank()) lbl.styleClass.add(claseExtra)
+        return lbl
+    }
+
+    fun construir(
+        dificultad: Dificultad,
+        desbloqueado: IBoolean,
+        alSeleccionar: (Dificultad) -> IUnit
+    ): IParTarjetaBoton {
+        val clave = dificultad.name.lowercase()
+        val estado = if (desbloqueado) "nivel-desbloqueado" else "nivel-bloqueado"
+        val tarjeta = UIFactory.crearColumna(10.0, Pos.CENTER)
+        tarjeta.prefWidth = 280.0
+        tarjeta.padding = UIFactory.crearMargen(22.0, 20.0)
+        tarjeta.styleClass.addAll("card-panel", "difficulty-card", "difficulty-card-$clave", estado)
+        val boton = crearBotonMision(dificultad to desbloqueado, alSeleccionar)
+        poblarNodosTarjeta(tarjeta, dificultad, boton)
+        InteractorBotonNeon.configurarTarjetaHolografica(tarjeta, dificultad.colorHex, desbloqueado)
+        return tarjeta to boton
+    }
+
+    private fun poblarNodosTarjeta(tarjeta: IVBox, dif: Dificultad, boton: IButton) {
+        val clave = dif.name.lowercase()
+        val sector = UIFactory.crearEtiqueta(dif.subtituloSector(), "difficulty-sector-$clave")
+        val icono = UIFactory.crearTitulo(dif.icono, "difficulty-icon")
+        val nombre = UIFactory.crearSubtitulo(dif.nombreMostrar.uppercase(), "difficulty-title-$clave")
+        val desc = UIFactory.crearEtiqueta(dif.descripcion, "difficulty-desc")
+        val mult = UIFactory.crearEtiqueta("\u25C8 \u0042ONO: x${dif.multiplicadorPuntos} PTS \u25C8", "difficulty-badge-$clave")
+        tarjeta.children.addAll(sector, icono, nombre, desc, mult, boton)
+    }
+
+    private fun crearBotonMision(
+        par: IParNivelFlag,
+        alSeleccionar: (Dificultad) -> IUnit
+    ): IButton {
+        val dif = par.first
+        val activo = par.second
+        val clave = dif.name.lowercase()
+        val texto = if (activo) "\uD83D\uDE80 \u004dISI\u00d3N ${dif.nombreMostrar.uppercase()}" else "\uD83D\uDD12 \u0042LOQUEADO"
+        val btn = UIFactory.crearBotonPrimario(texto, "btn-difficulty-$clave") { alSeleccionar.invoke(dif) }
+        InteractorBotonNeon.configurar(btn, dif.colorHex)
+        if (!activo) btn.styleClass.add("nivel-bloqueado")
+        btn.isDisable = !activo
+        return btn
+    }
+}
+
+object UIFactory : BaseUIFactoryTextos() {
+
+    fun crearBotonPrimario(
+        texto: IString,
+        claseExtra: IString = "",
+        accion: (() -> IUnit)? = null
+    ): IButton {
+        return armarBoton(texto, "btn-primary" to claseExtra, accion)
+    }
+
+    fun crearBotonSecundario(
+        texto: IString,
+        claseExtra: IString = "",
+        accion: (() -> IUnit)? = null
+    ): IButton {
+        return armarBoton(texto, "btn-secondary" to claseExtra, accion)
+    }
+
+    fun crearTarjetaMisionFuturista(
+        dificultad: Dificultad,
+        desbloqueado: IBoolean,
+        alSeleccionar: (Dificultad) -> IUnit
+    ): IParTarjetaBoton {
+        return ConstructorTarjetaHolografica.construir(dificultad, desbloqueado, alSeleccionar)
+    }
+
+    private fun armarBoton(
+        texto: IString,
+        clases: IParTextos,
+        accion: (() -> IUnit)?
+    ): IButton {
+        val btn = ctorButton(texto)
+        btn.styleClass.addAll("game-button", clases.first)
+        if (clases.second.isNotBlank()) btn.styleClass.add(clases.second)
+        if (accion != null) btn.onAction = EventHandler { accion.invoke() }
+        InteractorBotonNeon.configurar(btn)
+        return btn
+    }
+}
+
+open class BaseAnimadorUI {
+
+    fun animarEntrada(nodo: INode, duracionMs: IDouble = 320.0, retrasoMs: IDouble = 0.0) {
+        nodo.opacity = 0.0
+        nodo.translateY = 14.0
+        val fade = ctorFade(Duration.millis(duracionMs), nodo)
+        if (retrasoMs > 0.0) fade.delay = Duration.millis(retrasoMs)
+        fade.fromValue = 0.0
+        fade.toValue = 1.0
+        fade.play()
+        deslizarVertical(nodo, duracionMs, retrasoMs)
+    }
+
+    private fun deslizarVertical(nodo: INode, duracionMs: IDouble, retrasoMs: IDouble) {
+        val mov = ctorTranslate(Duration.millis(duracionMs), nodo)
+        if (retrasoMs > 0.0) mov.delay = Duration.millis(retrasoMs)
+        mov.fromY = 14.0
+        mov.toY = 0.0
+        mov.play()
+    }
+
+    fun animarPulso(nodo: INode, escalaMaxima: IDouble = 1.12, duracionMs: IDouble = 180.0) {
+        val pulso = ctorScale(Duration.millis(duracionMs), nodo)
+        pulso.fromX = 1.0
+        pulso.fromY = 1.0
+        pulso.toX = escalaMaxima
+        pulso.toY = escalaMaxima
+        pulso.cycleCount = 2
+        pulso.isAutoReverse = true
+        pulso.play()
+    }
+
+    fun animarSacudidaHorizontal(nodo: INode, amplitudPx: IDouble = 8.0, ciclos: IInt = 4) {
+        val sacudida = ctorTranslate(Duration.millis(55.0), nodo)
+        sacudida.fromX = -amplitudPx
+        sacudida.toX = amplitudPx
+        sacudida.cycleCount = if (ciclos > 0) ciclos else 4
+        sacudida.isAutoReverse = true
+        sacudida.onFinished = EventHandler { nodo.translateX = 0.0 }
+        sacudida.play()
+    }
+
+    fun animarIncrementoFlotante(
+        nodo: INode,
+        desplazamientoY: IDouble = -18.0,
+        alFinalizar: (() -> IUnit)? = null
     ) {
-        ejecutarSeguro {
-            ScaleTransition(Duration.millis(duracionMs), nodo).apply {
-                fromX = 0.92
-                fromY = 0.92
-                toX = escalaMaxima
-                toY = escalaMaxima
-                cycleCount = 4
-                isAutoReverse = true
-                setOnFinished {
-                    nodo.scaleX = 1.0
-                    nodo.scaleY = 1.0
-                    alFinalizar()
-                }
-                play()
-            }
+        nodo.opacity = 1.0
+        nodo.translateY = 0.0
+        val mov = ctorTranslate(Duration.millis(520.0), nodo)
+        mov.fromY = 0.0
+        mov.toY = desplazamientoY
+        mov.onFinished = EventHandler {
+            nodo.opacity = 0.0
+            nodo.translateY = 0.0
+            alFinalizar?.invoke()
         }
+        mov.play()
+    }
+}
+
+object AnimadorUI : BaseAnimadorUI() {
+
+    fun animarDesbloqueoNeon(nodo: INode, colorHex: IString = "#00F5D4") {
+        InteractorBotonNeon.aplicarBrilloNeon(nodo, true, colorHex)
+        animarPulso(nodo, escalaMaxima = 1.06, duracionMs = 240.0)
     }
 
-    fun animarVibracion(nodo: Node, desplazamiento: Double = 8.0, duracionMs: Double = 50.0, alFinalizar: () -> Unit = {}) {
-        ejecutarSeguro {
-            TranslateTransition(Duration.millis(duracionMs), nodo).apply {
-                fromX = -desplazamiento
-                toX = desplazamiento
-                cycleCount = 6
-                isAutoReverse = true
-                setOnFinished { alFinalizar() }
-                play()
-            }
-        }
+    fun animarEscalaBoton(nodo: INode, escala: IDouble, desplazamientoY: IDouble = 0.0) {
+        nodo.translateY = desplazamientoY
+        val trans = ctorScale(Duration.millis(120.0), nodo)
+        trans.toX = escala
+        trans.toY = escala
+        trans.play()
     }
 
-    /**
-     * Aplica una transición combinada de escala y desvanecimiento sobre un indicador de puntos.
-     */
-    fun animarDesvanecimiento(nodo: Node, duracionMs: Double = 650.0, alFinalizar: () -> Unit = {}) {
-        ejecutarSeguro {
-            FadeTransition(Duration.millis(duracionMs), nodo).apply {
-                fromValue = 1.0
-                toValue = 0.0
-                setOnFinished { alFinalizar() }
-                play()
-            }
-        }
-    }
-
-    /**
-     * Anima la pérdida de un ícono de corazón combinando encogimiento/palpitar ([ScaleTransition])
-     * y parpadeo/desvanecimiento ([FadeTransition]) (Issue #18).
-     */
-    fun animarPerdidaVida(
-        nodo: Node,
-        opacidadFinal: Double = 0.28,
-        duracionMs: Double = 220.0,
-        alFinalizar: () -> Unit = {}
-    ) {
-        ejecutarSeguro {
-            ScaleTransition(Duration.millis(duracionMs), nodo).apply {
-                fromX = 1.18
-                fromY = 1.18
-                toX = 0.85
-                toY = 0.85
-                cycleCount = 2
-                isAutoReverse = true
-                setOnFinished {
-                    nodo.scaleX = 0.90
-                    nodo.scaleY = 0.90
-                }
-                play()
-            }
-            FadeTransition(Duration.millis(duracionMs), nodo).apply {
-                fromValue = 1.0
-                toValue = opacidadFinal
-                cycleCount = 3
-                isAutoReverse = true
-                setOnFinished {
-                    nodo.opacity = opacidadFinal
-                    alFinalizar()
-                }
-                play()
-            }
-        }
-    }
-
-    /**
-     * Anima suavemente la restauración de un corazón lleno al reiniciar las 3 vidas (Issue #18).
-     */
-    fun animarRecuperacionVida(
-        nodo: Node,
-        duracionMs: Double = 200.0,
-        alFinalizar: () -> Unit = {}
-    ) {
-        ejecutarSeguro {
-            FadeTransition(Duration.millis(duracionMs), nodo).apply {
-                fromValue = 0.35
-                toValue = 1.0
-                setOnFinished { nodo.opacity = 1.0 }
-                play()
-            }
-            ScaleTransition(Duration.millis(duracionMs), nodo).apply {
-                fromX = 0.85
-                fromY = 0.85
-                toX = 1.08
-                toY = 1.08
-                cycleCount = 2
-                isAutoReverse = true
-                setOnFinished {
-                    nodo.scaleX = 1.0
-                    nodo.scaleY = 1.0
-                    alFinalizar()
-                }
-                play()
-            }
-        }
+    fun animarPulsoContinuo(nodo: INode, escala: IDouble = 1.03) {
+        val pulso = ctorScale(Duration.millis(1400.0), nodo)
+        pulso.fromX = 1.0
+        pulso.fromY = 1.0
+        pulso.toX = escala
+        pulso.toY = escala
+        pulso.cycleCount = -1
+        pulso.isAutoReverse = true
+        pulso.play()
     }
 }

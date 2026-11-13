@@ -1,259 +1,241 @@
 package gravityquest
+import gravityquest.models.Dificultad; import javafx.geometry.*; import javafx.scene.Node; import javafx.scene.control.Label; import javafx.scene.layout.*; import kotlin.math.max
+typealias INode = Node; typealias ILabel = Label; typealias IHBox = HBox; typealias IVBox = VBox
+typealias IPos = Pos; typealias IInsets = Insets; typealias IPriority = Priority
 
-import gravityquest.models.Dificultad
-import javafx.geometry.Insets
-import javafx.geometry.Pos
-import javafx.scene.Parent
-import javafx.scene.control.Button
-import javafx.scene.control.Label
-import javafx.scene.layout.FlowPane
-import javafx.scene.layout.HBox
-import javafx.scene.layout.VBox
-import java.util.Locale
-
-/**
- * ============================================================================
- * GravityQuest - Modelos de Estadísticas y Componentes de Pantallas Finales
- * Milestone 3 - Issue #20 (POO, SOLID y DRY)
- * ============================================================================
- *
- * 1. Single Responsibility Principle (SRP):
- *    - [EstadisticasPartida] es un objeto de valor (Value Object) estrictamente
- *      inmutable que encapsula las métricas de desempeño de una partida o intento
- *      de nivel (puntos totales, racha máxima, ejercicios resueltos, tiempo usado,
- *      vidas restantes y desglose de bonificaciones).
- *    - [DatoEstadistica] modela la información inmutable de una métrica individual.
- *    - [TarjetaEstadisticaView] encapsula la representación visual modular de una
- *      tarjeta de estadística reutilizable.
- *    - [VistaFinalBase] abstrae la estructura común de las pantallas de cierre
- *      ([VistaGameOver] y [VistaNivelCompletado]).
- *
- * 2. Open/Closed Principle (OCP) y DRY:
- *    - Nuevas métricas o pantallas finales pueden añadirse componiendo instancias
- *      de [TarjetaEstadisticaView] sin duplicar código de layout ni estilos CSS.
- *
- * 3. Dependency Inversion Principle (DIP):
- *    - Las vistas finales dependen únicamente de las abstracciones [INavegadorEscenas]
- *      e [IGestorProgreso].
- */
-
-/**
- * Objeto de valor inmutable (Value Object) que representa las estadísticas y recompensas
- * de una partida o intento de nivel en GravityQuest.
- *
- * @property puntosTotales Puntaje total acumulado por el jugador en la sesión.
- * @property rachaMaxima Racha máxima de ejercicios resueltos de forma consecutiva.
- * @property ejerciciosResueltos Cantidad total de ejercicios completados con éxito.
- * @property tiempoUsadoSegundos Tiempo empleado en el intento o nivel actual (en segundos).
- * @property vidasRestantes Cantidad de vidas conservadas al concluir el nivel (`0..3`).
- * @property puntosSumadosNivel Puntos base obtenidos al resolver el ejercicio del nivel.
- * @property bonoPorRacha Bonificación otorgada por mantener una racha activa de aciertos.
- * @property bonificacionVidas Bonificación otorgada por las vidas conservadas al superar el nivel.
- * @property rachaActual Racha vigente al momento de finalizar el intento.
- * @property dificultad Nivel de dificultad jugado en la partida.
- */
-data class EstadisticasPartida(
-    val puntosTotales: Int = 0,
-    val rachaMaxima: Int = 0,
-    val ejerciciosResueltos: Int = 0,
-    val tiempoUsadoSegundos: Double = 0.0,
-    val vidasRestantes: Int = GestorVidas.MAX_VIDAS_DEFAULT,
-    val puntosSumadosNivel: Int = 0,
-    val bonoPorRacha: Int = 0,
-    val bonificacionVidas: Int = 0,
-    val rachaActual: Int = 0,
-    val dificultad: Dificultad = Dificultad.FACIL
-) {
-    init {
-        require(puntosTotales >= 0) { "Los puntos totales no pueden ser negativos: $puntosTotales" }
-        require(rachaMaxima >= 0) { "La racha máxima no puede ser negativa: $rachaMaxima" }
-        require(ejerciciosResueltos >= 0) { "Los ejercicios resueltos no pueden ser negativos: $ejerciciosResueltos" }
-        require(tiempoUsadoSegundos >= 0.0 && !tiempoUsadoSegundos.isNaN() && !tiempoUsadoSegundos.isInfinite()) {
-            "El tiempo usado debe ser un número finito no negativo: $tiempoUsadoSegundos"
-        }
-        require(vidasRestantes >= 0) { "Las vidas restantes no pueden ser negativas: $vidasRestantes" }
-        require(puntosSumadosNivel >= 0) { "Los puntos sumados del nivel no pueden ser negativos: $puntosSumadosNivel" }
-        require(bonoPorRacha >= 0) { "El bono por racha no puede ser negativo: $bonoPorRacha" }
-        require(bonificacionVidas >= 0) { "La bonificación por vidas no puede ser negativa: $bonificacionVidas" }
-        require(rachaActual >= 0) { "La racha actual no puede ser negativa: $rachaActual" }
-    }
-
-    /**
-     * Calcula el total de puntos y bonificaciones generados en el nivel completado.
-     */
-    fun totalRecompensasNivel(): Int = puntosSumadosNivel + bonoPorRacha + bonificacionVidas
-
-    /**
-     * Formatea el tiempo empleado en formato legible (`MM:SS` o segundos con decimal).
-     */
-    fun tiempoFormateado(): String {
-        val totalSegundos = tiempoUsadoSegundos.toInt()
-        val minutos = totalSegundos / 60
-        val segundos = totalSegundos % 60
-        return if (minutos > 0) {
-            String.format(Locale.US, "%02d:%02d min", minutos, segundos)
-        } else {
-            String.format(Locale.US, "%.1f s", tiempoUsadoSegundos)
-        }
-    }
-
-    /**
-     * Formatea el puntaje total con relleno de 4 dígitos acorde a la estética arcade espacial.
-     */
-    fun puntajeTotalFormateado(): String =
-        String.format(Locale.US, "%04d PTS", puntosTotales)
+interface IEstadisticasBase {
+    val puntosTotales: IInt
+    val rachaMaxima: IInt
+    val ejerciciosResueltos: IInt
+    val tiempoUsadoSegundos: ILong
+    val vidasRestantes: IInt
+    fun tiempoFormateado(): IString
+    fun fueVictoria(): IBoolean
 }
 
-/**
- * Modelo inmutable para describir el contenido de una tarjeta de estadística individual (DRY / OCP).
- *
- * @property titulo Etiqueta descriptiva superior de la estadística (ej. "PUNTAJE OBTENIDO").
- * @property valor Valor destacado principal (ej. "0250 PTS").
- * @property icono Símbolo o emoji temático espacial/neón.
- * @property detalle Subtexto explicativo opcional para aportar contexto.
- * @property claseEstiloExtra Clase CSS adicional opcional para especializar la tarjeta.
- */
-data class DatoEstadistica(
-    val titulo: String,
-    val valor: String,
-    val icono: String = "📊",
-    val detalle: String = "",
-    val claseEstiloExtra: String? = null
-) {
+interface IEstadisticasPartida : IEstadisticasBase {
+    val puntosSumadosNivel: IInt
+    val bonoPorRacha: IInt
+    val bonificacionVidas: IInt
+    val rachaActual: IInt
+    val dificultad: Dificultad
+    fun porcentajePrecision(totalProblemas: IInt = GameConfig.TOTAL_PROBLEMAS_POR_NIVEL): IInt
+    fun construirTarjetasResumen(): IList<DatoEstadistica>
+}
+
+open class BaseEstadisticasPartida(
+    override val puntosTotales: IInt,
+    override val rachaMaxima: IInt,
+    override val ejerciciosResueltos: IInt,
+    override val tiempoUsadoSegundos: ILong,
+    override val vidasRestantes: IInt
+) : IEstadisticasBase {
+
     init {
-        require(titulo.isNotBlank()) { "El título de la tarjeta de estadística no puede estar vacío" }
-        require(valor.isNotBlank()) { "El valor de la tarjeta de estadística no puede estar vacío" }
+        require(puntosTotales >= 0 && rachaMaxima >= 0)
+        require(ejerciciosResueltos >= 0 && tiempoUsadoSegundos >= 0L)
+        require(vidasRestantes >= 0)
+    }
+
+    override fun tiempoFormateado(): IString {
+        val min = tiempoUsadoSegundos / 60L
+        val seg = tiempoUsadoSegundos % 60L
+        return "%02d:%02d".format(min, seg)
+    }
+
+    override fun fueVictoria(): IBoolean {
+        return vidasRestantes > 0 && ejerciciosResueltos >= GameConfig.MINIMO_PARA_DESBLOQUEAR
     }
 }
 
-/**
- * Componente UI modular, inmutable y reutilizable que representa una tarjeta de estadística
- * individual tanto en la pantalla de victoria como en la de derrota (OCP & DRY).
- */
-class TarjetaEstadisticaView(
-    val dato: DatoEstadistica
-) : VBox(6.0) {
+class EstadisticasPartida(
+    puntosTotales: IInt,
+    rachaMaxima: IInt,
+    ejerciciosResueltos: IInt,
+    tiempoUsadoSegundos: ILong,
+    vidasRestantes: IInt,
+    override val puntosSumadosNivel: IInt = 0,
+    override val bonoPorRacha: IInt = 0,
+    override val bonificacionVidas: IInt = 0,
+    override val rachaActual: IInt = 0,
+    override val dificultad: Dificultad = Dificultad.FACIL
+) : BaseEstadisticasPartida(puntosTotales, rachaMaxima, ejerciciosResueltos, tiempoUsadoSegundos, vidasRestantes),
+    IEstadisticasPartida {
 
-    constructor(
-        titulo: String,
-        valor: String,
-        icono: String = "📊",
-        detalle: String = "",
-        claseEstiloExtra: String? = null
-    ) : this(DatoEstadistica(titulo, valor, icono, detalle, claseEstiloExtra))
+    override fun porcentajePrecision(totalProblemas: IInt): IInt {
+        val divisor = max(1, totalProblemas)
+        return ((ejerciciosResueltos.toDouble() / divisor.toDouble()) * 100.0).toInt().coerceIn(0, 100)
+    }
 
-    val lblIcono: Label = UIFactory.crearEtiqueta(
-        texto = dato.icono,
-        clasesEstilo = listOf("label", "tarjeta-estadistica-icono"),
-        alineacion = Pos.CENTER
-    )
-
-    val lblTitulo: Label = UIFactory.crearEtiqueta(
-        texto = dato.titulo.uppercase(),
-        clasesEstilo = listOf("label", "tarjeta-estadistica-titulo"),
-        alineacion = Pos.CENTER,
-        wrap = true
-    )
-
-    val lblValor: Label = UIFactory.crearEtiqueta(
-        texto = dato.valor,
-        clasesEstilo = listOf("label", "tarjeta-estadistica-valor"),
-        alineacion = Pos.CENTER
-    )
-
-    val lblDetalle: Label = UIFactory.crearEtiqueta(
-        texto = dato.detalle,
-        clasesEstilo = listOf("label", "tarjeta-estadistica-detalle"),
-        alineacion = Pos.CENTER,
-        wrap = true
-    )
-
-    init {
-        alignment = Pos.CENTER
-        padding = Insets(14.0, 18.0, 14.0, 18.0)
-        prefWidth = 175.0
-        minWidth = 155.0
-        styleClass.add("tarjeta-estadistica")
-        dato.claseEstiloExtra?.let { styleClass.add(it) }
-
-        children.addAll(lblIcono, lblTitulo, lblValor)
-        if (dato.detalle.isNotBlank()) {
-            children.add(lblDetalle)
-        }
+    override fun construirTarjetasResumen(): IList<DatoEstadistica> {
+        return ArmadorTarjetasResumen.armar(this)
     }
 }
 
-/**
- * Clase base abstracta para las pantallas finales de resumen ([VistaGameOver] y [VistaNivelCompletado]).
- *
- * Aplica el Patrón Template Method y el principio DRY centralizando la disposición gráfica,
- * el contenedor `.pantalla-final`, la grilla de [TarjetaEstadisticaView] y la barra de acciones,
- * delegando a las subclases únicamente la definición de sus datos y acciones específicas (SRP / OCP).
- */
-abstract class VistaFinalBase(
-    val dificultad: Dificultad,
-    val estadisticas: EstadisticasPartida,
-    protected val navegador: INavegadorEscenas,
-    protected val gestorProgreso: IGestorProgreso? = null
-) : VBox(20.0) {
-
-    /** Nodo raíz de la vista final para su montaje en [INavegadorEscenas]. */
-    val root: Parent get() = this
-
-    /** Etiqueta del título principal (configurada con `.titulo-gameover` o `.titulo-victoria`). */
-    abstract val lblTitulo: Label
-
-    /** Subtítulo descriptivo del resultado de la misión. */
-    abstract val lblSubtitulo: Label
-
-    /** Lista inmutable de tarjetas de estadísticas renderizadas en la vista. */
-    abstract val tarjetasEstadisticas: List<TarjetaEstadisticaView>
-
-    /** Contenedor de las tarjetas modulares de estadísticas. */
-    val panelEstadisticas: FlowPane = FlowPane(14.0, 14.0).apply {
-        alignment = Pos.CENTER
-        prefWrapLength = 580.0
-        styleClass.add("panel-estadisticas-final")
-    }
-
-    /** Contenedor horizontal para los botones de acción principales. */
-    val panelBotones: HBox = UIFactory.crearPanelHorizontal(16.0, "panel-botones-final")
-
-    /** Contenedor tipo tarjeta central con la clase CSS `.pantalla-final`. */
-    val contenedorPrincipal: VBox = VBox(22.0).apply {
-        alignment = Pos.CENTER
-        padding = Insets(32.0, 38.0, 32.0, 38.0)
-        maxWidth = 660.0
-        styleClass.add("pantalla-final")
-    }
-
-    /**
-     * Ensambla la estructura común de la pantalla final e invoca las animaciones de entrada.
-     * Debe llamarse al final del bloque `init` de cada subclase concreta.
-     */
-    protected fun inicializarEstructuraVistaFinal(botonesAccion: List<Button>) {
-        alignment = Pos.CENTER
-        padding = Insets(24.0)
-        styleClass.addAll("root", "pantalla-final")
-
-        panelEstadisticas.children.setAll(tarjetasEstadisticas)
-        panelBotones.children.setAll(botonesAccion)
-
-        contenedorPrincipal.children.setAll(
-            lblTitulo,
-            lblSubtitulo,
-            panelEstadisticas,
-            panelBotones
+internal object ArmadorTarjetasResumen {
+    fun armar(est: EstadisticasPartida): IList<DatoEstadistica> {
+        return listOf(
+            crearTarjetaPuntos(est),
+            crearTarjetaRacha(est),
+            crearTarjetaEjercicios(est),
+            crearTarjetaTiempo(est)
         )
-
-        children.setAll(contenedorPrincipal)
-        ejecutarAnimacionEntrada()
     }
 
-    /**
-     * Gancho polimórfico (Hook Method) para que las subclases ejecuten efectos visuales al desplegarse.
-     */
-    protected open fun ejecutarAnimacionEntrada() {
-        FxAnimationUtils.animarPulso(lblTitulo, escala = 1.08, duracionMs = 260.0)
+    private fun crearTarjetaPuntos(est: EstadisticasPartida): DatoEstadistica {
+        return DatoEstadistica(
+            titulo = "\u0050untos \u0054otales",
+            valor = "${est.puntosTotales} pts",
+            icono = "\uD83C\uDFC6",
+            detalle = "+${est.puntosSumadosNivel} en este nivel",
+            claseEstiloExtra = "stat-card-gold"
+        )
+    }
+
+    private fun crearTarjetaRacha(est: EstadisticasPartida): DatoEstadistica {
+        return DatoEstadistica(
+            titulo = "\u0052acha \u004d\u00e1xima",
+            valor = "${est.rachaMaxima}x",
+            icono = "\uD83D\uDD25",
+            detalle = "\u0042ono racha: +${est.bonoPorRacha} pts",
+            claseEstiloExtra = "stat-card-fire"
+        )
+    }
+
+    private fun crearTarjetaEjercicios(est: EstadisticasPartida): DatoEstadistica {
+        val meta = est.dificultad.ejerciciosRequeridos
+        return DatoEstadistica(
+            titulo = "\u0045jercicios \u0052esueltos",
+            valor = "${est.ejerciciosResueltos} / $meta",
+            icono = "\u2705",
+            detalle = "\u0050recisi\u00f3n: ${est.porcentajePrecision(meta)}%",
+            claseEstiloExtra = "stat-card-green"
+        )
+    }
+
+    private fun crearTarjetaTiempo(est: EstadisticasPartida): DatoEstadistica {
+        return DatoEstadistica(
+            titulo = "\u0054iempo \u0045mpleado",
+            valor = est.tiempoFormateado(),
+            icono = "\u23F1",
+            detalle = "\u0056idas restantes: ${est.vidasRestantes}",
+            claseEstiloExtra = "stat-card-blue"
+        )
+    }
+}
+
+interface IDatoEstadistica {
+    val titulo: IString
+    val valor: IString
+    val icono: IString
+    val detalle: IString
+    val claseEstiloExtra: IString
+    fun tieneDetalle(): IBoolean
+}
+
+class DatoEstadistica(
+    override val titulo: IString,
+    override val valor: IString,
+    override val icono: IString,
+    override val detalle: IString = "",
+    override val claseEstiloExtra: IString = ""
+) : IDatoEstadistica {
+    override fun tieneDetalle(): IBoolean {
+        return detalle.isNotBlank()
+    }
+}
+
+interface ITarjetaEstadisticaView {
+    val dato: DatoEstadistica
+    val lblIcono: ILabel
+    val lblTitulo: ILabel
+    val lblValor: ILabel
+    val lblDetalle: ILabel
+    fun obtenerTextoResumen(): IString
+}
+
+class TarjetaEstadisticaView(
+    override val dato: DatoEstadistica
+) : IVBox(6.0), ITarjetaEstadisticaView {
+
+    override val lblIcono: ILabel = UIFactory.crearEtiqueta(dato.icono, "stat-card-icon")
+    override val lblTitulo: ILabel = UIFactory.crearEtiqueta(dato.titulo, "stat-card-title")
+    override val lblValor: ILabel = UIFactory.crearEtiqueta(dato.valor, "stat-card-value")
+    override val lblDetalle: ILabel = UIFactory.crearEtiqueta(dato.detalle, "stat-card-detail")
+
+    init {
+        configurarTarjeta()
+    }
+
+    private fun configurarTarjeta() {
+        alignment = Pos.CENTER
+        padding = UIFactory.crearMargen(16.0, 20.0)
+        prefWidth = 210.0
+        styleClass.add("stat-card")
+        if (dato.claseEstiloExtra.isNotBlank()) {
+            styleClass.add(dato.claseEstiloExtra)
+        }
+        children.addAll(lblIcono, lblTitulo, lblValor, lblDetalle)
+    }
+
+    override fun obtenerTextoResumen(): IString {
+        return "${lblTitulo.text}: ${lblValor.text}"
+    }
+}
+
+interface IPanelResumenFinal {
+    val lblTitulo: ILabel
+    val lblSubtitulo: ILabel
+    val tarjetasEstadisticas: IList<TarjetaEstadisticaView>
+    val panelEstadisticas: IHBox
+    val panelBotones: IHBox
+    fun configurarEnContenedor(raiz: IVBox, nodoExtra: INode?)
+}
+
+class PanelResumenFinal(
+    dificultad: Dificultad,
+    estadisticas: EstadisticasPartida,
+    tituloTexto: IString,
+    subtituloTexto: IString,
+    claseEstiloRaiz: IString
+) : IPanelResumenFinal {
+
+    private val estiloRaiz: IString = claseEstiloRaiz
+    override val lblTitulo: ILabel = UIFactory.crearTitulo(tituloTexto, "end-screen-title")
+    override val lblSubtitulo: ILabel = UIFactory.crearSubtitulo(
+        "${dificultad.icono} \u004eivel ${dificultad.nombreMostrar} \u2014 $subtituloTexto",
+        "end-screen-subtitle"
+    )
+    override val tarjetasEstadisticas: IList<TarjetaEstadisticaView> =
+        estadisticas.construirTarjetasResumen().map { crearVistaTarjeta(it) }
+    override val panelEstadisticas: IHBox = UIFactory.crearFila(16.0, Pos.CENTER)
+    override val panelBotones: IHBox = UIFactory.crearFila(18.0, Pos.CENTER)
+
+    override fun configurarEnContenedor(raiz: IVBox, nodoExtra: INode?) {
+        raiz.alignment = Pos.CENTER
+        raiz.padding = UIFactory.crearMargen(36.0, 48.0)
+        raiz.styleClass.addAll("root-pane", "end-screen-root", estiloRaiz)
+        panelEstadisticas.children.setAll(tarjetasEstadisticas)
+        val tarjetaCentral = armarTarjetaCentral(nodoExtra)
+        raiz.children.setAll(tarjetaCentral)
+        AnimadorUI.animarPulsoContinuo(lblTitulo)
+        AnimadorUI.animarEntrada(tarjetaCentral, duracionMs = 360.0)
+    }
+
+    private fun armarTarjetaCentral(nodoExtra: INode?): IVBox {
+        val caja = UIFactory.crearColumna(22.0, Pos.CENTER)
+        caja.styleClass.addAll("card-panel", "end-screen-card")
+        caja.maxWidth = 920.0
+        caja.padding = UIFactory.crearMargen(32.0, 40.0)
+        caja.children.addAll(lblTitulo, lblSubtitulo)
+        if (nodoExtra != null) caja.children.add(nodoExtra)
+        caja.children.addAll(panelEstadisticas, panelBotones)
+        return caja
+    }
+
+    companion object {
+        private fun crearVistaTarjeta(dato: DatoEstadistica): TarjetaEstadisticaView {
+            return TarjetaEstadisticaView(dato)
+        }
     }
 }

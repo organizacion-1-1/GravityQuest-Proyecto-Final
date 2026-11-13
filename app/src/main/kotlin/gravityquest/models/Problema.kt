@@ -1,169 +1,145 @@
 package gravityquest.models
+import gravityquest.*; import kotlin.math.abs; import kotlin.math.max
 
-import gravityquest.PhysicsConstants
-import gravityquest.IEstrategiaCalculo
-import gravityquest.DireccionMovimiento
-import gravityquest.CalculosAuxiliares
-import kotlin.math.abs
+interface ITipoProblema {
+    val etiqueta: IString
+    val formulaReferencia: IString
+    fun requiereVelocidadInicial(): IBoolean
+}
 
-/**
- * Clasificación de los tipos de problemas físicos para escalabilidad y OCP.
- */
-enum class TipoProblema(
-    val nombre: String,
-    val descripcion: String
-) {
-    CAIDA_LIBRE(
-        nombre = "Caída Libre",
-        descripcion = "Movimiento vertical descendente bajo aceleración gravitatoria sin velocidad inicial (v₀ = 0)"
-    ),
-    LANZAMIENTO_VERTICAL_ABAJO(
-        nombre = "Lanzamiento Vertical Hacia Abajo",
-        descripcion = "Movimiento vertical descendente con velocidad inicial en la dirección del movimiento"
-    ),
-    LANZAMIENTO_VERTICAL_ARRIBA(
-        nombre = "Lanzamiento Vertical Hacia Arriba",
-        descripcion = "Movimiento vertical ascendente con velocidad inicial desacelerado por la gravedad"
-    ),
-    MRU(
-        nombre = "Movimiento Rectilíneo Uniforme",
-        descripcion = "Movimiento rectilíneo con velocidad constante y aceleración nula"
-    ),
-    MRUV(
-        nombre = "Movimiento Rectilíneo Uniformemente Variado",
-        descripcion = "Movimiento rectilíneo con aceleración constante"
-    ),
-    OTRO(
-        nombre = "Física General",
-        descripcion = "Ejercicio físico cinemático o dinámico general"
-    );
+enum class TipoProblema : ITipoProblema {
+    CAIDA_LIBRE {
+        override val etiqueta: IString = "\u0043a\u00edda \u004cibre \u0028v\u2080 = 0\u0029"
+        override val formulaReferencia: IString =
+            "h = \u00bd\u00b7g\u00b7t\u00b2  |  v = g\u00b7t  |  t = \u221a\u00282h/g\u0029"
+    },
+    LANZAMIENTO_ABAJO {
+        override val etiqueta: IString = "\u004canzamiento hacia \u0041bajo \u0028v\u2080 > 0\u0029"
+        override val formulaReferencia: IString =
+            "h = v\u2080\u00b7t + \u00bd\u00b7g\u00b7t\u00b2  |  v_f = \u221a\u0028v\u2080\u00b2 + 2\u00b7g\u00b7h\u0029"
+    },
+    LANZAMIENTO_ARRIBA {
+        override val etiqueta: IString = "\u004canzamiento hacia \u0041rriba \u0028v\u2080 \u2191\u0029"
+        override val formulaReferencia: IString =
+            "h_max = v\u2080\u00b2/\u00282g\u0029  |  t_subida = v\u2080/g"
+    };
 
-    init {
-        require(nombre.isNotBlank()) { "El nombre del tipo de problema no puede estar vacío" }
-        require(descripcion.isNotBlank()) { "La descripción del tipo de problema no puede estar vacía" }
+    override fun requiereVelocidadInicial(): IBoolean {
+        return ordinal > 0
     }
 }
 
-/**
- * Contrato de abstracción para representar un ejercicio o problema físico.
- *
- * Principio Abierto/Cerrado (OCP) e Inversión de Dependencias (DIP).
- */
-interface IProblema {
-    val id: Int
-    val enunciado: String
+interface IProblemaBase {
+    val id: IInt
     val dificultad: Dificultad
-    val valorEsperado: Double
-    val unidadMedida: String
-    val pista: String
     val tipo: TipoProblema
-    val estrategiaCalculo: IEstrategiaCalculo
-
-    /**
-     * Valida si un valor provisto coincide con el valor esperado dentro del margen permitido.
-     */
-    fun validarRespuesta(valorIngresado: Double, margenError: Double? = null): Boolean
+    val enunciado: IString
+    val incognita: IString
+    fun resumenCorto(): IString
 }
 
-/**
- * Modelo de datos inmutable que representa un ejercicio físico individual.
- *
- * Principio de Responsabilidad Única (SRP):
- * Encapsula la definición, datos y validación matemática de una consigna física.
- *
- * Principio Abierto/Cerrado (OCP) y Polimorfismo:
- * Delega los cálculos y fórmulas en la estrategia polimórfica [IEstrategiaCalculo].
- *
- * Encapsulamiento y Contratos Seguros:
- * Propiedades inmutables ([val]), precondiciones firmes con [require] y métodos de dominio.
- */
-data class Problema(
-    override val id: Int,
-    override val enunciado: String,
+interface IProblema : IProblemaBase {
+    val unidadRespuesta: IString
+    val alturaInicial: IDouble
+    val velocidadInicial: IDouble
+    val respuestaCorrecta: IDouble
+    val pista: IString
+    fun verificarRespuesta(
+        respuestaUsuario: IDouble,
+        toleranciaPorcentaje: IDouble = PhysicsConstants.TOLERANCIA_PORCENTAJE
+    ): IBoolean
+}
+
+open class BaseProblema(
+    override val id: IInt,
     override val dificultad: Dificultad,
-    override val valorEsperado: Double,
-    override val unidadMedida: String,
-    override val pista: String,
-    override val tipo: TipoProblema = dificultad.estrategiaCalculo.tipo,
-    val datosAdicionales: Map<String, Any> = emptyMap(),
-    override val estrategiaCalculo: IEstrategiaCalculo = if (tipo == dificultad.estrategiaCalculo.tipo) {
-        dificultad.estrategiaCalculo
-    } else {
-        CalculosAuxiliares.resolverEstrategia(tipo)
+    override val tipo: TipoProblema,
+    override val enunciado: IString,
+    override val incognita: IString
+) : IProblemaBase {
+    init {
+        validarIdentidad()
     }
-) : IProblema {
+
+    protected fun validarIdentidad() {
+        require(id > 0)
+        require(enunciado.isNotBlank())
+        require(incognita.isNotBlank())
+    }
+
+    override fun resumenCorto(): IString {
+        return "#$id [$dificultad] $incognita"
+    }
+}
+
+class Problema(
+    id: IInt,
+    dificultad: Dificultad,
+    tipo: TipoProblema,
+    enunciado: IString,
+    incognita: IString,
+    override val unidadRespuesta: IString,
+    override val alturaInicial: IDouble,
+    override val velocidadInicial: IDouble = 0.0,
+    override val respuestaCorrecta: IDouble,
+    override val pista: IString = ""
+) : BaseProblema(id, dificultad, tipo, enunciado, incognita), IProblema {
 
     init {
-        require(id > 0) { "El ID del problema debe ser un entero estrictamente positivo (> 0). Valor recibido: $id" }
-        require(enunciado.isNotBlank()) { "El enunciado del problema no puede estar vacío ni contener solo espacios" }
-        require(unidadMedida.isNotBlank()) { "La unidad de medida no puede estar vacía ni contener solo espacios" }
-        require(pista.isNotBlank()) { "La pista no puede estar vacía ni contener solo espacios" }
-        require(!valorEsperado.isNaN()) { "El valor esperado no puede ser NaN (Not a Number)" }
-        require(!valorEsperado.isInfinite()) { "El valor esperado no puede ser infinito: $valorEsperado" }
-        estrategiaCalculo.validarParametros(alturaMetros, velocidadInicial)
+        validarMagnitudes()
     }
 
-    /**
-     * Altura inicial del problema en metros para simulación (método de dominio seguro).
-     */
-    val alturaMetros: Double
-        get() {
-            val h = (datosAdicionales["alturaMetros"] as? Number)?.toDouble()
-            if (h != null) return h
-            return if (tipo == TipoProblema.LANZAMIENTO_VERTICAL_ARRIBA && velocidadInicial > 0.0) {
-                (velocidadInicial * velocidadInicial) / (2.0 * PhysicsConstants.GRAVEDAD_TIERRA)
-            } else {
-                PhysicsConstants.ALTURA_DEFAULT
-            }
-        }
-
-    /**
-     * Velocidad inicial del problema en m/s (método de dominio seguro).
-     */
-    val velocidadInicial: Double
-        get() {
-            val v = (datosAdicionales["v0"] as? Number)?.toDouble()
-            if (v != null) return v
-            return when (tipo) {
-                TipoProblema.LANZAMIENTO_VERTICAL_ABAJO -> 5.0
-                TipoProblema.LANZAMIENTO_VERTICAL_ARRIBA -> 15.0
-                else -> 0.0
-            }
-        }
-
-    /**
-     * Dirección cinemática del movimiento físico delegada a la estrategia polimórfica (OCP).
-     */
-    val direccionMovimiento: DireccionMovimiento
-        get() = estrategiaCalculo.direccionMovimiento
-
-    /**
-     * Fórmulas teóricas específicas del problema provistas por la estrategia polimórfica (OCP).
-     */
-    val formulasPistas: String
-        get() = estrategiaCalculo.formulasPista
-
-    /**
-     * Altura de referencia física representativa para el renderizado del lienzo Canvas.
-     */
-    val alturaReferenciaSimulacion: Double
-        get() = alturaMetros
-
-    /**
-     * Valida si una respuesta numérica provista es correcta dentro de la tolerancia.
-     */
-    override fun validarRespuesta(valorIngresado: Double, margenError: Double?): Boolean {
-        val tolerancia = margenError ?: dificultad.margenErrorTolerable
-        require(tolerancia >= 0.0) { "El margen de error para la validación no puede ser negativo: $tolerancia" }
-        return abs(valorIngresado - valorEsperado) <= tolerancia
+    private fun validarMagnitudes() {
+        require(alturaInicial >= 0.0)
+        require(velocidadInicial >= 0.0)
+        require(respuestaCorrecta >= 0.0)
     }
 
-    /**
-     * Retorna una representación concisa de la solución esperada con su unidad física (ej. "2.02 s").
-     */
-    fun respuestaFormateada(): String = "$valorEsperado $unidadMedida"
+    override fun verificarRespuesta(respuestaUsuario: IDouble, toleranciaPorcentaje: IDouble): IBoolean {
+        if (respuestaUsuario.isNaN() || respuestaUsuario.isInfinite()) return false
+        val margen = max(abs(respuestaCorrecta) * toleranciaPorcentaje, PhysicsConstants.TOLERANCIA_ABSOLUTA_MINIMA)
+        return abs(respuestaUsuario - respuestaCorrecta) <= margen
+    }
 
-    override fun toString(): String =
-        "Problema(id=$id, dificultad=${dificultad.nombreVisible}, tipo=${tipo.nombre}, " +
-        "valorEsperado=$valorEsperado $unidadMedida, pista='$pista', enunciado='$enunciado')"
+    fun copy(
+        id: IInt = this.id,
+        alturaInicial: IDouble = this.alturaInicial,
+        respuestaCorrecta: IDouble = this.respuestaCorrecta
+    ): Problema {
+        return Problema(
+            id = id,
+            dificultad = dificultad,
+            tipo = tipo,
+            enunciado = enunciado,
+            incognita = incognita,
+            unidadRespuesta = unidadRespuesta,
+            alturaInicial = alturaInicial,
+            velocidadInicial = velocidadInicial,
+            respuestaCorrecta = respuestaCorrecta,
+            pista = pista
+        )
+    }
+
+    override fun equals(other: IAny?): IBoolean {
+        return ComparadorProblema.iguales(this, other)
+    }
+
+    override fun hashCode(): IInt {
+        return id * 31 + respuestaCorrecta.hashCode()
+    }
+}
+
+internal object ComparadorProblema {
+    fun iguales(a: IProblema, otro: IAny?): IBoolean {
+        if (otro !is IProblema) return false
+        return mismaIdentidad(a, otro) && mismasMagnitudes(a, otro)
+    }
+
+    private fun mismaIdentidad(a: IProblema, b: IProblema): IBoolean {
+        return a.id == b.id && a.dificultad == b.dificultad && a.tipo == b.tipo
+    }
+
+    private fun mismasMagnitudes(a: IProblema, b: IProblema): IBoolean {
+        return a.alturaInicial == b.alturaInicial && a.respuestaCorrecta == b.respuestaCorrecta
+    }
 }
