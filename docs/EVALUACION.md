@@ -3,7 +3,7 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación II (RepoSense + análisis de calidad POO/SOLID). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-11-14.
+> Generado: 2026-11-16.
 
 ## 1. Veredicto
 
@@ -199,14 +199,14 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 ## 5. Evolución por commit
 
-Métricas calculadas sobre el estado de `main` en **cada commit** (25 commits con trabajo), del primero al último. La calidad usa el perfil `exigente`; el aporte de código lo mide RepoSense. El índice puede **bajar** al crecer el proyecto: se acumulan señales.
+Métricas calculadas sobre el estado de `main` en **cada commit** (26 commits con trabajo), del primero al último. La calidad usa el perfil `exigente`; el aporte de código lo mide RepoSense. El índice puede **bajar** al crecer el proyecto: se acumulan señales.
 
 ```mermaid
 xychart-beta
     title "Índice POO/SOLID a lo largo de los commits"
-    x-axis ["052883a", "f27feb0", "52dd827", "9a37451", "6f47bc8", "9f0b68b", "42dbe3e", "6cb23a6", "f662fcc", "967a698", "8501235", "62f0ff0", "aaddf8e", "652075e", "1e2658f", "a3a2de3", "471f067", "f8ab0c3", "61da5f8", "8c32766", "7743f06", "a10333f", "1bb2cf0", "90f7847", "d63d1fb"]
+    x-axis ["052883a", "f27feb0", "52dd827", "9a37451", "6f47bc8", "9f0b68b", "42dbe3e", "6cb23a6", "f662fcc", "967a698", "8501235", "62f0ff0", "aaddf8e", "652075e", "1e2658f", "a3a2de3", "471f067", "f8ab0c3", "61da5f8", "8c32766", "7743f06", "a10333f", "1bb2cf0", "90f7847", "d63d1fb", "fc7f50c"]
     y-axis "Índice" 0 --> 100
-    line [0, 0, 50, 50, 58, 58, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 83]
+    line [0, 0, 50, 50, 58, 58, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 83, 83]
 ```
 
 | # | Fecha | Commit | Autor | LOC | Índice | %POO | Duplic. | Sueltas |
@@ -236,53 +236,7 @@ xychart-beta
 | 23 | 2026-11-07 | `1bb2cf0` | dqmdz-etec | 19,842 | 0 | 99% | 72.1% | 0 |
 | 24 | 2026-11-13 | `90f7847` | ciro | 4,026 | 83 | 98% | 1.4% | 0 |
 | 25 | 2026-11-13 | `d63d1fb` | dqmdz-etec | 4,026 | 83 | 98% | 1.4% | 0 |
-
-<!-- actividad-clases:inicio -->
-## Actividad en días de clase
-
-> Período evaluado **2026-08-14 → 2026-11-14** · **21 clases** (lunes, viernes) · días de clase del calendario, extendidos hasta la fecha de corte.
->
-> `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**. El cuadro principal usa sólo las fechas de clase del calendario oficial.
->
-> **Aportes fuera del calendario:** cada alumno tiene un cuadro aparte con las fechas no lectivas con actividad, desde **2026-08-14** hasta **2026-11-14** (ventana de aportes). Esas fechas no forman parte del cuadro principal, pero se muestran para no perder trabajo hecho en fines de semana, feriados o después del período.
->
-> Se recorre `git log --all` sobre un mirror (todas las ramas y `refs/pull/*`), con deduplicación por commit. Fecha = fecha de autor en UTC-3. Los commits locales no pusheados no se ven. Si el trabajo fue en pareja y el commit es de otra persona, figura a nombre del autor del commit; para reflejarlo, usar `Co-authored-by` o una nota manual.
->
-> Sección informativa: no modifica el semáforo de aprobación.
-
-### colombati-creator
-
-**14/21 clases con actividad** · 22 commits · 18 merges
-
-| Fecha | Marca | Repositorios | Commits / merges |
-|---|:--:|---|--:|
-| 2026-08-14 | No | sin actividad | 0 / 0 |
-| 2026-08-21 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-| 2026-08-24 | No | sin actividad | 0 / 0 |
-| 2026-08-28 | **Sí** | GravityQuest-Proyecto-Final | 2 / 2 |
-| 2026-08-31 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-| 2026-09-04 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
-| 2026-09-07 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-09-14 | No | sin actividad | 0 / 0 |
-| 2026-09-25 | No | sin actividad | 0 / 0 |
-| 2026-09-28 | No | sin actividad | 0 / 0 |
-| 2026-10-02 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
-| 2026-10-05 | **Sí** | GravityQuest-Proyecto-Final | 2 / 3 |
-| 2026-10-09 | **Sí** | GravityQuest-Proyecto-Final | 3 / 3 |
-| 2026-10-16 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-10-19 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-10-23 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-| 2026-10-26 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
-| 2026-10-30 | **Sí** | GravityQuest-Proyecto-Final | 2 / 3 |
-| 2026-11-02 | No | sin actividad | 0 / 0 |
-| 2026-11-06 | No | sin actividad | 0 / 0 |
-| 2026-11-13 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-
-#### Aportes fuera del calendario de clases — colombati-creator
-
-_Sin aportes fuera del calendario de clases para colombati-creator._
-
-<!-- actividad-clases:fin -->
+| 26 | 2026-11-14 | `fc7f50c` | dqmdz-etec | 4,026 | 83 | 98% | 1.4% | 0 |
 
 ---
 _Informe generado por la cátedra. Los criterios y umbrales de medición corresponden al perfil `exigente` de `calidad.py`; el semáforo de aprobación, a `CRITERIOS-CALIDAD.md` (ver `README.md`). Ante dudas, revisá el archivo señalado._
