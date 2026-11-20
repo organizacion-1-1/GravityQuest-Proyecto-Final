@@ -1,57 +1,62 @@
 package gravityquest
-import gravityquest.models.*; import javafx.geometry.Pos; import org.example.Juego.*; import kotlin.math.max
-internal typealias ctorCanvas = ICanvas; internal typealias ctorMarcadorPuntos = MarcadorPuntosView; internal typealias ctorPanelVidas = PanelVidasView
+import gravityquest.models.Dificultad; import gravityquest.models.Problema; import javafx.geometry.Pos
+import javafx.scene.canvas.Canvas; import javafx.scene.control.Button; import javafx.scene.control.Label; import javafx.scene.control.TextField
+import javafx.scene.layout.HBox; import javafx.scene.layout.StackPane; import javafx.scene.layout.VBox; import javafx.stage.Window
+import org.example.Juego.DireccionMovimiento; import org.example.Juego.ICalculadoraFisica; import kotlin.math.max
+internal typealias ctorMarcadorPuntos = MarcadorPuntosView; internal typealias ctorPanelVidas = PanelVidasView
 internal typealias ctorSimulacionCanvasView = SimulacionCanvasView; internal typealias ctorMotorSimulacion = MotorSimulacionCanvas
+internal typealias ctorBarraHud = BarraEstadoHud; internal typealias ctorControlesPregunta = ControlesPreguntaJuego
+internal typealias ctorCoordinadorHud = CoordinadorHudSimulacion; internal typealias ctorNucleoJuego = NucleoVistaJuego
 
 interface ISimulacionCanvasView {
-    val canvas: ICanvas
-    fun redimensionarLienzo(nuevoAncho: IDouble, nuevoAlto: IDouble)
+    val canvas: Canvas
+    fun redimensionarLienzo(nuevoAncho: Double, nuevoAlto: Double)
 }
 
 class SimulacionCanvasView(
-    anchoInicial: IDouble = 460.0,
-    altoInicial: IDouble = 380.0
-) : IStackPane(), ISimulacionCanvasView {
+    anchoInicial: Double = 460.0,
+    altoInicial: Double = 380.0
+) : StackPane(), ISimulacionCanvasView {
 
-    override val canvas: ICanvas = ctorCanvas(anchoInicial, altoInicial)
+    override val canvas: Canvas = Canvas(anchoInicial, altoInicial)
 
     init {
         configurarContenedor(anchoInicial, altoInicial)
     }
 
-    private fun configurarContenedor(ancho: IDouble, alto: IDouble) {
+    private fun configurarContenedor(ancho: Double, alto: Double) {
         styleClass.addAll("card-panel", "simulation-canvas-container")
         padding = UIFactory.crearMargen(10.0)
         setPrefSize(ancho + 20.0, alto + 20.0)
         children.add(canvas)
     }
 
-    override fun redimensionarLienzo(nuevoAncho: IDouble, nuevoAlto: IDouble) {
+    override fun redimensionarLienzo(nuevoAncho: Double, nuevoAlto: Double) {
         canvas.width = max(160.0, nuevoAncho)
         canvas.height = max(160.0, nuevoAlto)
     }
 }
 
 interface IControlesPreguntaJuego {
-    val lblProgresoPregunta: ILabel
-    val lblEnunciado: ILabel
-    val txtRespuesta: ITextField
-    val lblFeedback: ILabel
-    val botonesAccion: Array<IButton>
+    val lblProgresoPregunta: Label
+    val lblEnunciado: Label
+    val txtRespuesta: TextField
+    val lblFeedback: Label
+    val botonesAccion: Array<Button>
 }
 
 class ControlesPreguntaJuego : IControlesPreguntaJuego {
-    override val lblProgresoPregunta: ILabel = UIFactory.crearEtiqueta("", "question-progress-label")
-    override val lblEnunciado: ILabel = UIFactory.crearEtiqueta("", "question-statement-label")
-    override val txtRespuesta: ITextField = UIFactory.crearCampoNumerico("\u0049ngresa tu respuesta...")
-    override val lblFeedback: ILabel = UIFactory.crearEtiqueta("", "feedback-message-label")
-    override val botonesAccion: Array<IButton> = arrayOf(
+    override val lblProgresoPregunta: Label = UIFactory.crearEtiqueta("", "question-progress-label")
+    override val lblEnunciado: Label = UIFactory.crearEtiqueta("", "question-statement-label")
+    override val txtRespuesta: TextField = UIFactory.crearCampoNumerico("\u0049ngresa tu respuesta...")
+    override val lblFeedback: Label = UIFactory.crearEtiqueta("", "feedback-message-label")
+    override val botonesAccion: Array<Button> = arrayOf(
         UIFactory.crearBotonPrimario("\u2714 \u0056alidar", "btn-validate"),
         UIFactory.crearBotonSecundario("\u27A1 \u0053iguiente", "btn-next-question"),
         UIFactory.crearBotonSecundario("\uD83D\uDCA1 \u0050ista", "btn-hint")
     )
 
-    fun mostrarProblema(problema: Problema, aciertos: IInt, meta: IInt) {
+    fun mostrarProblema(problema: Problema, aciertos: Int, meta: Int) {
         lblProgresoPregunta.text = "\u0050rogreso: $aciertos/$meta  \u2022  ${problema.tipo.etiqueta}"
         lblEnunciado.text = problema.enunciado
         txtRespuesta.clear()
@@ -64,7 +69,7 @@ class ControlesPreguntaJuego : IControlesPreguntaJuego {
         botonesAccion[1].isDisable = true
     }
 
-    fun mostrarResultadoValidacion(esCorrecta: IBoolean, problema: Problema) {
+    fun mostrarResultadoValidacion(esCorrecta: Boolean, problema: Problema) {
         if (esCorrecta) {
             txtRespuesta.styleClass.remove("input-error")
             lblFeedback.text = "\u2705 \u00A1\u0043orrecto\u0021 \u0052espuesta: ${"%.2f".format(problema.respuestaCorrecta)} ${problema.unidadRespuesta}"
@@ -86,31 +91,28 @@ class ControlesPreguntaJuego : IControlesPreguntaJuego {
             AnimadorUI.animarSacudidaHorizontal(txtRespuesta)
         }
     }
+
+    fun animarPanelPregunta(panel: VBox) {
+        if (botonesAccion.isNotEmpty()) {
+            AnimadorUI.animarEntrada(panel, 280.0, 50.0)
+        }
+    }
 }
 
-internal typealias ctorControlesPregunta = ControlesPreguntaJuego
-internal typealias ctorCoordinadorHud = CoordinadorHudSimulacion
-internal typealias ctorNucleoJuego = NucleoVistaJuego
-
-interface ICoordinadorHudSimulacion {
-    val gestorProgreso: IGestorProgreso
+interface IBarraEstadoHud {
     val marcadorPuntos: ctorMarcadorPuntos
     val panelVidas: ctorPanelVidas
-    val canvasView: ctorSimulacionCanvasView
-    val motor: ctorMotorSimulacion
+    fun liberar()
 }
 
-class CoordinadorHudSimulacion(
-    override val gestorProgreso: IGestorProgreso,
-    calculadora: ICalculadoraFisica
-) : ICoordinadorHudSimulacion {
+class BarraEstadoHud(
+    private val gestorProgreso: IGestorProgreso
+) : IBarraEstadoHud {
     override val marcadorPuntos: ctorMarcadorPuntos = ctorMarcadorPuntos(gestorProgreso.puntajeTotalProperty)
     override val panelVidas: ctorPanelVidas =
         ctorPanelVidas(gestorProgreso.gestorVidas.vidasProperty, gestorProgreso.gestorVidas.maxVidas)
-    override val canvasView: ctorSimulacionCanvasView = ctorSimulacionCanvasView(460.0, 360.0)
-    override val motor: ctorMotorSimulacion = ctorMotorSimulacion(canvas = canvasView.canvas, calculadora = calculadora)
     private val listenerPuntaje: IPuntajeListener = object : IPuntajeListener {
-        override fun alCambiarPuntaje(puntajeTotal: IInt, puntosGanados: IInt, rachaActual: IInt) {
+        override fun alCambiarPuntaje(puntajeTotal: Int, puntosGanados: Int, rachaActual: Int) {
             if (puntosGanados > 0) {
                 marcadorPuntos.mostrarIncremento(puntosGanados, rachaActual)
             }
@@ -121,21 +123,46 @@ class CoordinadorHudSimulacion(
         gestorProgreso.agregarListenerPuntaje(listenerPuntaje)
     }
 
-    fun sincronizarConProblema(problema: Problema, dificultad: Dificultad) {
-        val dir = mapearDireccion(problema.tipo)
-        motor.configurarEscenarioPorDificultad(dificultad)
-        motor.configurarCondiciones(problema.alturaInicial, problema.velocidadInicial, dir)
-    }
-
-    fun liberar() {
-        motor.detener()
+    override fun liberar() {
         marcadorPuntos.desvincular()
         panelVidas.desvincular()
         gestorProgreso.eliminarListenerPuntaje(listenerPuntaje)
     }
+}
 
-    private fun mapearDireccion(tipo: TipoProblema): DireccionMovimiento {
-        return DireccionMovimiento.entries.getOrElse(tipo.ordinal) { DireccionMovimiento.CAIDA_LIBRE }
+internal object AdaptadorSimulacionProblema {
+    fun sincronizar(motor: IMotorSimulacionCanvas, problema: Problema, dificultad: Dificultad) {
+        val dir = DireccionMovimiento.entries.getOrElse(problema.tipo.ordinal) { DireccionMovimiento.CAIDA_LIBRE }
+        motor.configurarEscenarioPorDificultad(dificultad)
+        motor.configurarCondiciones(problema.alturaInicial, problema.velocidadInicial, dir)
+    }
+}
+
+internal object LanzadorPistaJuego {
+    fun mostrarPista(problema: Problema?, propietario: Window?) {
+        if (problema != null) {
+            VentanaPista.mostrar(problema, propietario)
+        }
+    }
+}
+
+interface ICoordinadorHudSimulacion {
+    val barraHud: ctorBarraHud
+    val canvasView: ctorSimulacionCanvasView
+    val motor: IMotorSimulacionCanvas
+}
+
+class CoordinadorHudSimulacion(
+    gestorProgreso: IGestorProgreso,
+    calculadora: ICalculadoraFisica
+) : ICoordinadorHudSimulacion {
+    override val barraHud: ctorBarraHud = ctorBarraHud(gestorProgreso)
+    override val canvasView: ctorSimulacionCanvasView = ctorSimulacionCanvasView(460.0, 360.0)
+    override val motor: IMotorSimulacionCanvas = ctorMotorSimulacion(canvas = canvasView.canvas, calculadora = calculadora)
+
+    fun liberar() {
+        motor.detener()
+        barraHud.liberar()
     }
 }
 
@@ -143,23 +170,42 @@ interface INucleoVistaJuego {
     val dificultad: Dificultad
     val navegador: INavegadorEscenas
     val gestorProgreso: IGestorProgreso
-    var problemaActual: Problema?
+        get() = navegador.gestorProgreso
+    val problemaActual: Problema?
+
+    fun abrirPista(propietario: Window?) {
+        LanzadorPistaJuego.mostrarPista(problemaActual, propietario)
+    }
 }
 
 interface INucleoVistaJuegoInterno : INucleoVistaJuego {
-    val controles: ControlesPreguntaJuego
-    val hud: CoordinadorHudSimulacion
+    val controles: ctorControlesPregunta
+    val hud: ctorCoordinadorHud
+
+    fun sincronizarSimulacion(problema: Problema) {
+        AdaptadorSimulacionProblema.sincronizar(hud.motor, problema, dificultad)
+    }
+
+    fun evaluarCierreDeNivel() {
+        hud.motor.detener()
+        if (gestorProgreso.gestorVidas.sinVidas) {
+            navegador.mostrarGameOver(dificultad, gestorProgreso.generarEstadisticasFinales())
+        } else {
+            val desbloqueo = gestorProgreso.finalizarNivel()
+            navegador.mostrarNivelCompletado(dificultad, gestorProgreso.generarEstadisticasFinales(), desbloqueo)
+        }
+    }
 }
 
 class NucleoVistaJuego(
     override val dificultad: Dificultad,
-    override val navegador: INavegadorEscenas,
-    override val gestorProgreso: IGestorProgreso
+    override val navegador: INavegadorEscenas
 ) : INucleoVistaJuegoInterno {
-    override val controles: ControlesPreguntaJuego = ctorControlesPregunta()
-    override val hud: CoordinadorHudSimulacion = ctorCoordinadorHud(gestorProgreso, navegador.calculadora)
+    override val controles: ctorControlesPregunta = ctorControlesPregunta()
+    override val hud: ctorCoordinadorHud = ctorCoordinadorHud(gestorProgreso, navegador.calculadora)
     override var problemaActual: Problema? = null
-    private var respondidoActual: IBoolean = false
+        private set
+    private var respondidoActual: Boolean = false
 
     fun cargarPreguntaActual() {
         val prob = gestorProgreso.obtenerProblemaActual()
@@ -170,10 +216,10 @@ class NucleoVistaJuego(
             return
         }
         controles.mostrarProblema(prob, gestorProgreso.aciertosNivelActual, gestorProgreso.totalProblemasNivelActual())
-        hud.sincronizarConProblema(prob, dificultad)
+        sincronizarSimulacion(prob)
     }
 
-    fun procesarRespuestaUsuario(): IBoolean {
+    fun procesarRespuestaUsuario(): Boolean {
         val prob = problemaActual ?: return false
         if (respondidoActual) return false
         val texto = controles.txtRespuesta.text.trim().replace(',', '.')
@@ -185,7 +231,7 @@ class NucleoVistaJuego(
         return registrarIntentoValido(prob, valor)
     }
 
-    private fun registrarIntentoValido(prob: Problema, valor: IDouble): IBoolean {
+    private fun registrarIntentoValido(prob: Problema, valor: Double): Boolean {
         respondidoActual = true
         val tSim = hud.motor.objetoSimulado.tiempoTranscurrido.toLong().coerceAtLeast(1L)
         val acierto = gestorProgreso.registrarIntento(valor, tSim)
@@ -195,17 +241,13 @@ class NucleoVistaJuego(
             evaluarCierreDeNivel()
             return acierto
         }
-        procesarContinuacionIntento(acierto, prob)
-        return acierto
-    }
-
-    private fun procesarContinuacionIntento(acierto: IBoolean, prob: Problema) {
         if (acierto) {
             gestorProgreso.avanzarSiguienteProblema()
             cargarPreguntaActual()
         }
         controles.mostrarResultadoValidacion(acierto, prob)
         hud.motor.iniciar()
+        return acierto
     }
 
     fun avanzarPregunta() {
@@ -217,37 +259,26 @@ class NucleoVistaJuego(
             cargarPreguntaActual()
         }
     }
-
-    private fun evaluarCierreDeNivel() {
-        hud.motor.detener()
-        if (gestorProgreso.gestorVidas.sinVidas) {
-            navegador.mostrarGameOver(dificultad, gestorProgreso.generarEstadisticasFinales())
-        } else {
-            val desbloqueo = gestorProgreso.finalizarNivel()
-            navegador.mostrarNivelCompletado(dificultad, gestorProgreso.generarEstadisticasFinales(), desbloqueo)
-        }
-    }
 }
 
 interface IVistaJuegoControles {
-    val nucleo: NucleoVistaJuego
-    val lblEnunciado: ILabel
+    val nucleo: ctorNucleoJuego
+    val lblEnunciado: Label
         get() = nucleo.controles.lblEnunciado
-    val lblProgresoPregunta: ILabel
+    val lblProgresoPregunta: Label
         get() = nucleo.controles.lblProgresoPregunta
-    val txtRespuesta: ITextField
+    val txtRespuesta: TextField
         get() = nucleo.controles.txtRespuesta
-    val lblFeedback: ILabel
+    val lblFeedback: Label
         get() = nucleo.controles.lblFeedback
 }
 
-interface IVistaJuegoSimulacion : IEscenaConCicloDeVida {
-    val nucleo: NucleoVistaJuego
+interface IVistaJuegoSimulacion : IVistaJuegoControles, IEscenaConCicloDeVida {
     val problemaActual: Problema?
         get() = nucleo.problemaActual
-    val simulacionEnCurso: IBoolean
+    val simulacionEnCurso: Boolean
         get() = nucleo.hud.motor.enEjecucion
-    val motorSimulacion: MotorSimulacionCanvas
+    val motorSimulacion: IMotorSimulacionCanvas
         get() = nucleo.hud.motor
 
     fun iniciarSimulacion() {
@@ -264,7 +295,7 @@ interface IVistaJuegoSimulacion : IEscenaConCicloDeVida {
 }
 
 internal object EnsambladorLayoutJuego {
-    fun ensamblar(vista: VistaJuego, nucleo: NucleoVistaJuego) {
+    fun ensamblar(vista: VistaJuego, nucleo: ctorNucleoJuego) {
         vista.padding = UIFactory.crearMargen(18.0, 24.0)
         vista.styleClass.addAll("root-pane", "game-view-root")
         val barraSuperior = construirBarraSuperior(vista, nucleo)
@@ -276,7 +307,7 @@ internal object EnsambladorLayoutJuego {
         vista.children.setAll(barraSuperior, filaCentral)
     }
 
-    private fun construirBarraSuperior(vista: VistaJuego, nucleo: NucleoVistaJuego): IHBox {
+    private fun construirBarraSuperior(vista: VistaJuego, nucleo: ctorNucleoJuego): HBox {
         val barra = UIFactory.crearFila(16.0, Pos.CENTER_LEFT)
         barra.styleClass.add("game-top-bar")
         val btnMenu = UIFactory.crearBotonSecundario("\u2B05 \u004den\u00fa") { vista.volverAlMenu() }
@@ -284,11 +315,11 @@ internal object EnsambladorLayoutJuego {
             "${nucleo.dificultad.icono} \u004eivel ${nucleo.dificultad.nombreMostrar}",
             "game-level-badge"
         )
-        barra.children.addAll(btnMenu, tituloNivel, nucleo.hud.marcadorPuntos, nucleo.hud.panelVidas)
+        barra.children.addAll(btnMenu, tituloNivel, nucleo.hud.barraHud.marcadorPuntos, nucleo.hud.barraHud.panelVidas)
         return barra
     }
 
-    private fun construirColumnaSimulacion(vista: VistaJuego, nucleo: NucleoVistaJuego): IVBox {
+    private fun construirColumnaSimulacion(vista: VistaJuego, nucleo: ctorNucleoJuego): VBox {
         val col = UIFactory.crearColumna(10.0, Pos.CENTER)
         val btnPlay = UIFactory.crearBotonPrimario("\u25B6 \u0053imular") { vista.iniciarSimulacion() }
         val btnPause = UIFactory.crearBotonSecundario("\u23F8 \u0050ausar") { vista.pausarSimulacion() }
@@ -299,7 +330,7 @@ internal object EnsambladorLayoutJuego {
         return col
     }
 
-    private fun construirColumnaPregunta(vista: VistaJuego, c: ControlesPreguntaJuego): IVBox {
+    private fun construirColumnaPregunta(vista: VistaJuego, c: ctorControlesPregunta): VBox {
         val panel = UIFactory.crearColumna(14.0, Pos.CENTER_LEFT)
         panel.prefWidth = 440.0
         panel.padding = UIFactory.crearMargen(22.0, 24.0)
@@ -312,7 +343,7 @@ internal object EnsambladorLayoutJuego {
         val filaBotones = UIFactory.crearFila(10.0, Pos.CENTER_LEFT)
         filaBotones.children.setAll(b.toList())
         panel.children.addAll(c.lblProgresoPregunta, c.lblEnunciado, c.txtRespuesta, filaBotones, c.lblFeedback)
-        AnimadorUI.animarEntrada(panel, 280.0, 50.0)
+        c.animarPanelPregunta(panel)
         return panel
     }
 }
@@ -320,15 +351,13 @@ internal object EnsambladorLayoutJuego {
 class VistaJuego(
     dificultad: Dificultad,
     navegador: INavegadorEscenas,
-    gestorProgreso: IGestorProgreso = navegador.gestorProgreso,
-    repositorio: IRepositorioProblemas = navegador.repositorio,
-    calculadora: ICalculadoraFisica = navegador.calculadora
-) : IVBox(14.0), IVistaJuegoControles, IVistaJuegoSimulacion {
+    gestorProgreso: IGestorProgreso = navegador.gestorProgreso
+) : VBox(14.0), IVistaJuegoSimulacion {
 
-    override val nucleo: NucleoVistaJuego = NucleoVistaJuego(dificultad, navegador, gestorProgreso)
+    override val nucleo: ctorNucleoJuego = ctorNucleoJuego(dificultad, navegador)
 
     init {
-        if (repositorio.contarPorDificultad(dificultad) >= 0 && calculadora.gravedadPorDefecto > 0.0) {
+        if (gestorProgreso.puntajeTotal >= 0) {
             inicializarVistaJuego()
         }
     }
@@ -343,7 +372,7 @@ class VistaJuego(
         nucleo.cargarPreguntaActual()
     }
 
-    fun validarRespuestaUsuario(): IBoolean {
+    fun validarRespuestaUsuario(): Boolean {
         return nucleo.procesarRespuestaUsuario()
     }
 
@@ -352,8 +381,7 @@ class VistaJuego(
     }
 
     fun abrirVentanaPista() {
-        val prob = nucleo.problemaActual ?: return
-        VentanaPista.mostrar(prob, scene?.window)
+        nucleo.abrirPista(scene?.window)
     }
 
     fun volverAlMenu() {

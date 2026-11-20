@@ -1,22 +1,26 @@
 package gravityquest
-import gravityquest.models.*; import org.example.Juego.ICalculadoraFisica; import org.junit.jupiter.api.Assertions.*; import org.junit.jupiter.api.BeforeAll; import org.junit.jupiter.api.Test
-internal typealias ctorStageNavTest = IStage; internal typealias ctorNavEscenasTest = NavegadorEscenas
+import gravityquest.models.Dificultad; import gravityquest.models.IRepositorioProblemas
+import javafx.stage.Stage; import org.example.Juego.ICalculadoraFisica
+import org.junit.jupiter.api.Assertions.assertEquals; import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull; import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll; import org.junit.jupiter.api.Test
+internal typealias ctorNavEscenasTest = NavegadorEscenas
 internal typealias ctorVistaMenuTest = VistaMenu; internal typealias ctorVistaJuegoTest = VistaJuego; internal typealias ctorStatsTest = EstadisticasPartida
 
 interface INavegadorEspia : INavegadorEscenas {
-    var menuInvocado: IBoolean
-    var dificultadJuegoInvocada: Dificultad?
+    val menuInvocado: Boolean
+    val dificultadJuegoInvocada: Dificultad?
 }
 
 class NavegadorEspia(
-    override val stage: IStage,
-    override val repositorio: IRepositorioProblemas = ctorGeneradorTest(),
-    override val calculadora: ICalculadoraFisica = ctorCalcTest(),
-    override val gestorProgreso: IGestorProgreso = ctorGestorProgresoTest(repositorio)
-) : BaseNavegadorEscenas(stage, repositorio, calculadora, gestorProgreso), INavegadorEspia {
+    stage: Stage
+) : BaseNavegadorEscenas(stage), INavegadorEspia {
 
-    override var menuInvocado: IBoolean = false
+    override val gestorProgreso: IGestorProgreso = ProveedorGestorNavegador.crearGestor(repositorio)
+    override var menuInvocado: Boolean = false
+        private set
     override var dificultadJuegoInvocada: Dificultad? = null
+        private set
 
     override fun mostrarMenu() {
         menuInvocado = true
@@ -26,14 +30,14 @@ class NavegadorEspia(
         dificultadJuegoInvocada = dificultad
     }
 
-    override fun mostrarGameOver(dificultad: Dificultad, estadisticas: EstadisticasPartida) {
+    override fun mostrarGameOver(dificultad: Dificultad, estadisticas: IEstadisticasPartida) {
         if (estadisticas.puntosTotales >= 0) dificultadJuegoInvocada = dificultad
     }
 
     override fun mostrarNivelCompletado(
         dificultad: Dificultad,
-        estadisticas: EstadisticasPartida,
-        desbloqueoSiguienteNivel: IBoolean
+        estadisticas: IEstadisticasPartida,
+        desbloqueoSiguienteNivel: Boolean
     ) {
         if (desbloqueoSiguienteNivel || estadisticas.puntosTotales >= 0) {
             dificultadJuegoInvocada = dificultad
@@ -44,7 +48,7 @@ class NavegadorEspia(
 internal typealias ctorNavEspia = NavegadorEspia
 
 open class BaseFxNavegacionTest {
-    protected fun verificarEntornoFx(): IBoolean {
+    protected fun verificarEntornoFx(): Boolean {
         FxTestSupport.inicializarToolkit()
         return true
     }
@@ -63,7 +67,7 @@ class NavegacionEscenasTest : BaseFxNavegacionTest() {
     @Test
     fun testNavegadorMuestraMenuYJuego() {
         FxTestSupport.ejecutarEnFx {
-            val stage = ctorStageNavTest()
+            val stage = Stage()
             val nav = ctorNavEscenasTest(stage)
             nav.mostrarMenu()
             assertNotNull(stage.scene)
@@ -76,22 +80,9 @@ class NavegacionEscenasTest : BaseFxNavegacionTest() {
     }
 
     @Test
-    fun testNavegadorMuestraPantallasFinales() {
-        FxTestSupport.ejecutarEnFx {
-            val stage = ctorStageNavTest()
-            val nav = ctorNavEscenasTest(stage)
-            val stats = ctorStatsTest(350, 4, 12, 65L, 2)
-            nav.mostrarGameOver(Dificultad.MEDIO, stats)
-            assertTrue(IVistaGameOver::class.isInstance(stage.scene.root))
-            nav.mostrarNivelCompletado(Dificultad.FACIL, stats, desbloqueoSiguienteNivel = true)
-            assertTrue(IVistaNivelCompletado::class.isInstance(stage.scene.root))
-        }
-    }
-
-    @Test
     fun testVistaMenuSeleccionaDificultadDesbloqueada() {
         FxTestSupport.ejecutarEnFx {
-            val espia = ctorNavEspia(ctorStageNavTest())
+            val espia = ctorNavEspia(Stage())
             val menu = ctorVistaMenuTest(espia, espia.gestorProgreso)
             assertEquals(3, menu.botonesDificultad.size)
             assertFalse(menu.seleccionarDificultad(Dificultad.DIFICIL))
@@ -101,12 +92,28 @@ class NavegacionEscenasTest : BaseFxNavegacionTest() {
     }
 }
 
+class NavegacionPantallasFinalesTest : BaseFxNavegacionTest() {
+
+    @Test
+    fun testNavegadorMuestraPantallasFinales() {
+        FxTestSupport.ejecutarEnFx {
+            val stage = Stage()
+            val nav = ctorNavEscenasTest(stage)
+            val stats = ctorStatsTest(350, 4, 12, 65L, 2)
+            nav.mostrarGameOver(Dificultad.MEDIO, stats)
+            assertTrue(IVistaGameOver::class.isInstance(stage.scene.root))
+            nav.mostrarNivelCompletado(Dificultad.FACIL, stats, desbloqueoSiguienteNivel = true)
+            assertTrue(IVistaNivelCompletado::class.isInstance(stage.scene.root))
+        }
+    }
+}
+
 class VistaJuegoInteraccionTest : BaseFxNavegacionTest() {
 
     @Test
     fun testCargaPreguntaYValidacionRespuesta() {
         FxTestSupport.ejecutarEnFx {
-            val espia = ctorNavEspia(ctorStageNavTest())
+            val espia = ctorNavEspia(Stage())
             val vista = ctorVistaJuegoTest(Dificultad.FACIL, espia)
             val prob = vista.problemaActual
             assertNotNull(prob)
@@ -125,7 +132,7 @@ class VistaJuegoInteraccionTest : BaseFxNavegacionTest() {
     @Test
     fun testAvancePreguntaYPista() {
         FxTestSupport.ejecutarEnFx {
-            val espia = ctorNavEspia(ctorStageNavTest())
+            val espia = ctorNavEspia(Stage())
             val vista = ctorVistaJuegoTest(Dificultad.FACIL, espia)
             val idInicial = vista.problemaActual?.id
             val panelPista = VentanaPista.construirContenidoPista(vista.problemaActual!!)

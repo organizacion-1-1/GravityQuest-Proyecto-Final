@@ -1,36 +1,32 @@
 package gravityquest
-
-import javafx.beans.value.ChangeListener
-import javafx.geometry.Pos
-
-typealias IChangeListener<T> = ChangeListener<T>
+import javafx.beans.property.IntegerProperty; import javafx.beans.value.ChangeListener; import javafx.geometry.Pos; import javafx.scene.control.Label; import javafx.scene.layout.HBox
 
 interface IMarcadorPuntosLectura {
-    val puntajeMostrado: IInt
-    fun obtenerTextoPuntos(): IString
-    fun obtenerTextoRacha(): IString
+    val puntajeMostrado: Int
+    fun obtenerTextoPuntos(): String
+    fun obtenerTextoRacha(): String
 }
 
 interface IMarcadorPuntosView : IMarcadorPuntosLectura {
-    fun actualizarVista(nuevoPuntaje: IInt, animar: IBoolean = true)
-    fun mostrarIncremento(puntosGanados: IInt, rachaActual: IInt = 1)
+    fun actualizarVista(nuevoPuntaje: Int, animar: Boolean = true)
+    fun mostrarIncremento(puntosGanados: Int, rachaActual: Int = 1)
     fun desvincular()
 }
 
 class MarcadorPuntosView(
-    private val puntajeProperty: IIntegerProperty? = null
-) : IHBox(12.0), IMarcadorPuntosView {
+    private val puntajeProperty: IntegerProperty? = null
+) : HBox(12.0), IMarcadorPuntosView {
 
-    private val etiquetas: Array<ILabel> = arrayOf(
+    private val etiquetas: Array<Label> = arrayOf(
         UIFactory.crearEtiqueta("0 pts", "score-value-label"),
         UIFactory.crearEtiqueta("", "score-delta-label"),
         UIFactory.crearEtiqueta("", "streak-badge-label")
     )
 
-    override var puntajeMostrado: IInt = puntajeProperty?.get() ?: 0
+    override var puntajeMostrado: Int = puntajeProperty?.get() ?: 0
         private set
 
-    private val listener: IChangeListener<Number> = ChangeListener { _, _, nuevo ->
+    private val listener: ChangeListener<Number> = ChangeListener { _, _, nuevo ->
         actualizarVista(nuevo.toInt(), animar = true)
     }
 
@@ -50,35 +46,35 @@ class MarcadorPuntosView(
         puntajeProperty?.addListener(listener)
     }
 
-    override fun actualizarVista(nuevoPuntaje: IInt, animar: IBoolean) {
+    override fun actualizarVista(nuevoPuntaje: Int, animar: Boolean) {
         val delta = nuevoPuntaje - puntajeMostrado
         puntajeMostrado = nuevoPuntaje
         etiquetas[0].text = "$puntajeMostrado pts"
         if (animar && delta != 0) {
-            FxAnimationUtils.animarPulso(etiquetas[0], escalaMaxima = 1.15, duracionMs = 150.0)
+            AnimadorUI.animarPulso(etiquetas[0], escalaMaxima = 1.15, duracionMs = 150.0)
         }
     }
 
-    override fun mostrarIncremento(puntosGanados: IInt, rachaActual: IInt) {
+    override fun mostrarIncremento(puntosGanados: Int, rachaActual: Int) {
         if (puntosGanados > 0 && puntajeMostrado >= 0) {
             etiquetas[1].text = "+$puntosGanados"
             etiquetas[1].isVisible = true
-            FxAnimationUtils.animarIncrementoFlotante(etiquetas[1]) { etiquetas[1].isVisible = false }
+            AnimadorUI.animarIncrementoFlotante(etiquetas[1]) { etiquetas[1].isVisible = false }
         }
         actualizarInsigniaRacha(rachaActual)
     }
 
-    private fun actualizarInsigniaRacha(rachaActual: IInt) {
+    private fun actualizarInsigniaRacha(rachaActual: Int) {
         val mostrar = rachaActual > 1 && puntajeMostrado >= 0
         etiquetas[2].isVisible = mostrar
         etiquetas[2].text = if (mostrar) "\uD83D\uDD25 ${rachaActual}x" else ""
     }
 
-    override fun obtenerTextoPuntos(): IString {
+    override fun obtenerTextoPuntos(): String {
         return if (puntajeMostrado >= 0) etiquetas[0].text else ""
     }
 
-    override fun obtenerTextoRacha(): IString {
+    override fun obtenerTextoRacha(): String {
         return if (puntajeMostrado >= 0) etiquetas[2].text else ""
     }
 

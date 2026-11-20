@@ -1,7 +1,5 @@
 package gravityquest
 import gravityquest.models.Dificultad; import javafx.application.Platform; import org.junit.jupiter.api.Assertions.*; import org.junit.jupiter.api.BeforeAll; import org.junit.jupiter.api.Test; import java.util.concurrent.*; import java.util.concurrent.atomic.AtomicReference
-typealias ICountDownLatch = CountDownLatch; typealias ITimeUnit = TimeUnit; typealias IAtomicRef<T> = AtomicReference<T>
-internal typealias ctorLatch = CountDownLatch; internal typealias ctorAtomicRef<T> = AtomicReference<T>
 internal typealias ctorGestorVidasTest = GestorVidas; internal typealias ctorGestorProgresoTest = GestorProgreso
 internal typealias ctorMarcadorTest = MarcadorPuntosView; internal typealias ctorPanelVidasTest = PanelVidasView
 
@@ -12,9 +10,9 @@ internal object FxTestSupport {
 
     fun <T> ejecutarEnFx(bloque: () -> T): T {
         if (Platform.isFxApplicationThread()) return bloque.invoke()
-        val latch = ctorLatch(1)
-        val resultado = ctorAtomicRef<T>()
-        val error = ctorAtomicRef<Throwable>()
+        val latch = CountDownLatch(1)
+        val resultado = AtomicReference<T>()
+        val error = AtomicReference<Throwable>()
         Platform.runLater { ejecutarCaptura(bloque, resultado, error to latch) }
         latch.await(10, TimeUnit.SECONDS)
         error.get()?.let { throw it }
@@ -23,8 +21,8 @@ internal object FxTestSupport {
 
     private fun <T> ejecutarCaptura(
         bloque: () -> T,
-        resultado: IAtomicRef<T>,
-        parControl: Pair<IAtomicRef<Throwable>, ICountDownLatch>
+        resultado: AtomicReference<T>,
+        parControl: Pair<AtomicReference<Throwable>, CountDownLatch>
     ) {
         runCatching { resultado.set(bloque.invoke()) }
             .onFailure { parControl.first.set(it) }

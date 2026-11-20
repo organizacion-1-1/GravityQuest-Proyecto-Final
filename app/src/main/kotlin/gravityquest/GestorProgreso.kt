@@ -1,60 +1,61 @@
 package gravityquest
-import gravityquest.models.*; import kotlin.math.max; import kotlin.math.min
+import gravityquest.models.Dificultad; import gravityquest.models.IRepositorioProblemas; import gravityquest.models.Problema
+import javafx.beans.property.IntegerProperty; import javafx.beans.property.SimpleIntegerProperty; import kotlin.math.max; import kotlin.math.min
 internal typealias ctorControlPuntaje = ControlPuntajeRacha; internal typealias ctorEstadoSesion = EstadoSesionNivel
 internal typealias ctorReglaInicial = ReglaDesbloqueoInicial; internal typealias ctorReglaSecuencial = ReglaDesbloqueoSecuencial
-internal typealias ctorNucleoProgreso = NucleoProgreso; internal typealias ctorRepoProg = GeneradorProblemas
-internal typealias ctorVidasProg = GestorVidas; internal typealias ctorEstadisticas = EstadisticasPartida
+internal typealias ctorNucleoProgreso = NucleoProgreso; internal typealias ctorRepoProg = gravityquest.models.GeneradorProblemas
+internal typealias ctorVidasProg = GestorVidas; internal typealias ctorEstadisticas = EstadisticasPartida; internal typealias ctorGestorProg = GestorProgreso
 
 interface IPuntajeListener {
-    fun alCambiarPuntaje(puntajeTotal: IInt, puntosGanados: IInt, rachaActual: IInt)
+    fun alCambiarPuntaje(puntajeTotal: Int, puntosGanados: Int, rachaActual: Int)
 }
 
 interface IReglaDesbloqueo {
-    fun puedeDesbloquear(aciertosEnNivelPrevio: IInt): IBoolean
+    fun puedeDesbloquear(aciertosEnNivelPrevio: Int): Boolean
 }
 
 class ReglaDesbloqueoInicial : IReglaDesbloqueo {
-    override fun puedeDesbloquear(aciertosEnNivelPrevio: IInt): IBoolean {
+    override fun puedeDesbloquear(aciertosEnNivelPrevio: Int): Boolean {
         return aciertosEnNivelPrevio >= 0
     }
 }
 
 interface IReglaSecuencialInfo : IReglaDesbloqueo {
     val dificultadPrevia: Dificultad
-    val minimoRequerido: IInt
+    val minimoRequerido: Int
 }
 
 class ReglaDesbloqueoSecuencial(
     override val dificultadPrevia: Dificultad,
-    override val minimoRequerido: IInt = dificultadPrevia.ejerciciosRequeridos
+    override val minimoRequerido: Int = dificultadPrevia.ejerciciosRequeridos
 ) : IReglaSecuencialInfo {
-    override fun puedeDesbloquear(aciertosEnNivelPrevio: IInt): IBoolean {
+    override fun puedeDesbloquear(aciertosEnNivelPrevio: Int): Boolean {
         return aciertosEnNivelPrevio >= minimoRequerido
     }
 }
 
 interface IControlPuntajeBase {
-    val puntajeTotalProperty: ISimpleIntegerProperty
-    val rachaActualProperty: ISimpleIntegerProperty
-    fun obtenerMetrica(indice: IInt): IInt
+    val puntajeTotalProperty: SimpleIntegerProperty
+    val rachaActualProperty: SimpleIntegerProperty
+    fun obtenerMetrica(indice: Int): Int
     fun limpiarNivel()
     fun reiniciarCompleto()
 }
 
 interface IControlPuntajeRacha : IControlPuntajeBase {
-    fun registrarAcierto(multiplicador: IInt)
+    fun registrarAcierto(multiplicador: Int)
     fun registrarFallo()
-    fun sumarBonificacion(bono: IInt)
-    fun modificarListener(listener: IPuntajeListener, agregar: IBoolean)
+    fun sumarBonificacion(bono: Int)
+    fun modificarListener(listener: IPuntajeListener, agregar: Boolean)
 }
 
 class ControlPuntajeRacha : IControlPuntajeRacha {
-    override val puntajeTotalProperty: ISimpleIntegerProperty = ctorSimpleIntProp(0)
-    override val rachaActualProperty: ISimpleIntegerProperty = ctorSimpleIntProp(0)
-    private val estado: IIntArray = IntArray(3)
-    private val listeners: IMutableList<IPuntajeListener> = mutableListOf()
+    override val puntajeTotalProperty: SimpleIntegerProperty = SimpleIntegerProperty(0)
+    override val rachaActualProperty: SimpleIntegerProperty = SimpleIntegerProperty(0)
+    private val estado: IntArray = IntArray(3)
+    private val listeners: MutableList<IPuntajeListener> = mutableListOf()
 
-    override fun obtenerMetrica(indice: IInt): IInt {
+    override fun obtenerMetrica(indice: Int): Int {
         return estado[indice] + puntajeTotalProperty.get() * 0
     }
 
@@ -71,12 +72,12 @@ class ControlPuntajeRacha : IControlPuntajeRacha {
         listeners.toList().forEach { it.alCambiarPuntaje(0, 0, 0) }
     }
 
-    override fun registrarAcierto(multiplicador: IInt) {
+    override fun registrarAcierto(multiplicador: Int) {
         val racha = rachaActualProperty.get() + 1
         rachaActualProperty.set(racha)
         estado[0] = max(estado[0], racha)
-        val bono = if (racha > 1) (racha - 1) * GameConfig.BONO_POR_RACHA else 0
-        val ganados = (GameConfig.PUNTOS_BASE_ACIERTO + bono) * multiplicador
+        val bono = if (racha > 1) (racha - 1) * 25 else 0
+        val ganados = (100 + bono) * multiplicador
         estado[1] += ganados
         estado[2] += bono * multiplicador
         val nuevoTotal = puntajeTotalProperty.get() + ganados
@@ -91,7 +92,7 @@ class ControlPuntajeRacha : IControlPuntajeRacha {
         }
     }
 
-    override fun sumarBonificacion(bono: IInt) {
+    override fun sumarBonificacion(bono: Int) {
         if (bono <= 0) return
         estado[1] += bono
         val nuevoTotal = puntajeTotalProperty.get() + bono
@@ -99,7 +100,7 @@ class ControlPuntajeRacha : IControlPuntajeRacha {
         listeners.toList().forEach { it.alCambiarPuntaje(nuevoTotal, bono, rachaActualProperty.get()) }
     }
 
-    override fun modificarListener(listener: IPuntajeListener, agregar: IBoolean) {
+    override fun modificarListener(listener: IPuntajeListener, agregar: Boolean) {
         listeners.remove(listener)
         if (agregar && puntajeTotalProperty.get() >= 0) {
             listeners.add(listener)
@@ -108,22 +109,24 @@ class ControlPuntajeRacha : IControlPuntajeRacha {
 }
 
 interface IEstadoSesionNivel {
-    val desbloqueados: IMutableSet<Dificultad>
-    var problemasActivos: IList<Problema>
-    var dificultadActual: Dificultad
-    val contadores: ILongArray
-    fun cargarNivel(dificultad: Dificultad, mezclar: IBoolean)
+    val desbloqueados: MutableSet<Dificultad>
+    val problemasActivos: List<Problema>
+    val dificultadActual: Dificultad
+    val contadores: LongArray
+    fun cargarNivel(dificultad: Dificultad, mezclar: Boolean)
 }
 
 class EstadoSesionNivel(
     private val repositorio: IRepositorioProblemas
 ) : IEstadoSesionNivel {
-    override val desbloqueados: IMutableSet<Dificultad> = mutableSetOf(Dificultad.FACIL)
-    override var problemasActivos: IList<Problema> = emptyList()
+    override val desbloqueados: MutableSet<Dificultad> = mutableSetOf(Dificultad.FACIL)
+    override var problemasActivos: List<Problema> = emptyList()
+        private set
     override var dificultadActual: Dificultad = Dificultad.FACIL
-    override val contadores: ILongArray = LongArray(4)
+        private set
+    override val contadores: LongArray = LongArray(4)
 
-    override fun cargarNivel(dificultad: Dificultad, mezclar: IBoolean) {
+    override fun cargarNivel(dificultad: Dificultad, mezclar: Boolean) {
         dificultadActual = dificultad
         problemasActivos = if (mezclar) {
             repositorio.obtenerProblemasMezclados(dificultad)
@@ -149,75 +152,80 @@ class EstadoSesionNivel(
         return problemaActual()
     }
 
-    fun porcentaje(): IDouble {
+    fun porcentaje(): Double {
         val meta = max(1, dificultadActual.ejerciciosRequeridos).toDouble()
         return min(1.0, contadores[1].toDouble() / meta)
     }
 }
 
 interface IProgresoPuntaje {
-    val puntajeTotalProperty: IIntegerProperty
-    val rachaActualProperty: IIntegerProperty
-    val puntajeTotal: IInt
+    val puntajeTotalProperty: IntegerProperty
+    val rachaActualProperty: IntegerProperty
+    val puntajeTotal: Int
         get() = puntajeTotalProperty.get()
-    val rachaActual: IInt
+    val rachaActual: Int
         get() = rachaActualProperty.get()
-    val rachaMaxima: IInt
+    val rachaMaxima: Int
     fun agregarListenerPuntaje(listener: IPuntajeListener)
     fun eliminarListenerPuntaje(listener: IPuntajeListener)
 }
 
 interface IProgresoNiveles {
     val dificultadActual: Dificultad
-    val nivelesDesbloqueados: ISet<Dificultad>
-    fun estaDesbloqueado(dificultad: Dificultad): IBoolean
-    fun iniciarNivel(dificultad: Dificultad, mezclarProblemas: IBoolean = false): IBoolean
-    fun reiniciarPartidaActual(mezclarProblemas: IBoolean = false)
+    val nivelesDesbloqueados: Set<Dificultad>
+    fun estaDesbloqueado(dificultad: Dificultad): Boolean
+    fun iniciarNivel(dificultad: Dificultad, mezclarProblemas: Boolean = false): Boolean
+    fun reiniciarPartidaActual(mezclarProblemas: Boolean = false)
     fun reiniciarTodo()
 }
 
 interface IProgresoNavegacionProblemas {
-    val indiceProblemaActual: IInt
-    val aciertosNivelActual: IInt
-    val erroresNivelActual: IInt
+    val indiceProblemaActual: Int
+    val aciertosNivelActual: Int
+    val erroresNivelActual: Int
     fun obtenerProblemaActual(): Problema?
     fun avanzarSiguienteProblema(): Problema?
-    fun nivelTerminado(): IBoolean
+    fun nivelTerminado(): Boolean
 }
 
 interface IProgresoProblemas : IProgresoNavegacionProblemas {
-    fun totalProblemasNivelActual(): IInt
-    fun progresoNivelPorcentaje(): IDouble
+    fun totalProblemasNivelActual(): Int
+    fun progresoNivelPorcentaje(): Double
 }
 
 interface IGestorProgreso : IProgresoPuntaje, IProgresoNiveles, IProgresoProblemas {
     val gestorVidas: IGestorVidas
-    val tiempoTranscurridoSegundos: ILong
-    fun registrarIntento(respuestaUsuario: IDouble, tiempoEmpleadoSegundos: ILong = 0L): IBoolean
-    fun registrarTiempoSimulacion(segundosAdicionales: ILong)
-    fun finalizarNivel(): IBoolean
-    fun generarEstadisticasFinales(): EstadisticasPartida
+    val tiempoTranscurridoSegundos: Long
+    fun registrarIntento(respuestaUsuario: Double, tiempoEmpleadoSegundos: Long = 0L): Boolean
+    fun registrarTiempoSimulacion(segundosAdicionales: Long)
+    fun finalizarNivel(): Boolean
+    fun generarEstadisticasFinales(): ctorEstadisticas
+}
+
+internal object FabricaReglasDesbloqueo {
+    fun crearMapa(): Map<Dificultad, IReglaDesbloqueo> {
+        return mapOf(
+            Dificultad.FACIL to ctorReglaInicial(),
+            Dificultad.MEDIO to ctorReglaSecuencial(Dificultad.FACIL),
+            Dificultad.DIFICIL to ctorReglaSecuencial(Dificultad.MEDIO)
+        )
+    }
 }
 
 interface INucleoProgreso {
-    val puntaje: ControlPuntajeRacha
-    val sesion: EstadoSesionNivel
-    val reglas: IMap<Dificultad, IReglaDesbloqueo>
-    fun evaluarDesbloqueo(aciertos: IInt): IBoolean
+    val puntaje: ctorControlPuntaje
+    val sesion: ctorEstadoSesion
+    fun evaluarDesbloqueo(aciertos: Int): Boolean
 }
 
 class NucleoProgreso(
     repositorio: IRepositorioProblemas
 ) : INucleoProgreso {
-    override val puntaje: ControlPuntajeRacha = ctorControlPuntaje()
-    override val sesion: EstadoSesionNivel = ctorEstadoSesion(repositorio)
-    override val reglas: IMap<Dificultad, IReglaDesbloqueo> = mapOf(
-        Dificultad.FACIL to ctorReglaInicial(),
-        Dificultad.MEDIO to ctorReglaSecuencial(Dificultad.FACIL),
-        Dificultad.DIFICIL to ctorReglaSecuencial(Dificultad.MEDIO)
-    )
+    override val puntaje: ctorControlPuntaje = ctorControlPuntaje()
+    override val sesion: ctorEstadoSesion = ctorEstadoSesion(repositorio)
+    private val reglas = FabricaReglasDesbloqueo.crearMapa()
 
-    override fun evaluarDesbloqueo(aciertos: IInt): IBoolean {
+    override fun evaluarDesbloqueo(aciertos: Int): Boolean {
         val siguiente = sesion.dificultadActual.siguienteNivel() ?: return false
         val regla = reglas[siguiente] ?: return false
         if (!regla.puedeDesbloquear(aciertos)) return false
@@ -227,12 +235,12 @@ class NucleoProgreso(
 }
 
 interface IDelegadoProgresoPuntaje : IProgresoPuntaje {
-    val nucleo: NucleoProgreso
-    override val puntajeTotalProperty: IIntegerProperty
+    val nucleo: ctorNucleoProgreso
+    override val puntajeTotalProperty: IntegerProperty
         get() = nucleo.puntaje.puntajeTotalProperty
-    override val rachaActualProperty: IIntegerProperty
+    override val rachaActualProperty: IntegerProperty
         get() = nucleo.puntaje.rachaActualProperty
-    override val rachaMaxima: IInt
+    override val rachaMaxima: Int
         get() = nucleo.puntaje.obtenerMetrica(0)
 
     override fun agregarListenerPuntaje(listener: IPuntajeListener) {
@@ -245,17 +253,17 @@ interface IDelegadoProgresoPuntaje : IProgresoPuntaje {
 }
 
 interface IDelegadoProgresoSesion : IProgresoNiveles, IProgresoProblemas {
-    val nucleo: NucleoProgreso
+    val nucleo: ctorNucleoProgreso
     val gestorVidas: IGestorVidas
     override val dificultadActual: Dificultad
         get() = nucleo.sesion.dificultadActual
-    override val nivelesDesbloqueados: ISet<Dificultad>
+    override val nivelesDesbloqueados: Set<Dificultad>
         get() = nucleo.sesion.desbloqueados.toSet()
-    override val indiceProblemaActual: IInt
+    override val indiceProblemaActual: Int
         get() = nucleo.sesion.contadores[0].toInt()
-    override val aciertosNivelActual: IInt
+    override val aciertosNivelActual: Int
         get() = nucleo.sesion.contadores[1].toInt()
-    override val erroresNivelActual: IInt
+    override val erroresNivelActual: Int
         get() = nucleo.sesion.contadores[2].toInt()
 
     override fun obtenerProblemaActual(): Problema? {
@@ -266,27 +274,27 @@ interface IDelegadoProgresoSesion : IProgresoNiveles, IProgresoProblemas {
         return nucleo.sesion.avanzar()
     }
 
-    override fun totalProblemasNivelActual(): IInt {
+    override fun totalProblemasNivelActual(): Int {
         return nucleo.sesion.dificultadActual.ejerciciosRequeridos
     }
 
-    override fun progresoNivelPorcentaje(): IDouble {
+    override fun progresoNivelPorcentaje(): Double {
         return nucleo.sesion.porcentaje()
     }
 }
 
 open class BaseGestorProgreso(
-    repositorio: IRepositorioProblemas = ctorRepoProg(),
-    override val gestorVidas: IGestorVidas = ctorVidasProg()
+    repositorio: IRepositorioProblemas,
+    override val gestorVidas: IGestorVidas
 ) : IDelegadoProgresoPuntaje, IDelegadoProgresoSesion {
 
-    override val nucleo: NucleoProgreso = ctorNucleoProgreso(repositorio)
+    override val nucleo: ctorNucleoProgreso = ctorNucleoProgreso(repositorio)
 
-    override fun estaDesbloqueado(dificultad: Dificultad): IBoolean {
+    override fun estaDesbloqueado(dificultad: Dificultad): Boolean {
         return nucleo.sesion.desbloqueados.contains(dificultad)
     }
 
-    override fun iniciarNivel(dificultad: Dificultad, mezclarProblemas: IBoolean): IBoolean {
+    override fun iniciarNivel(dificultad: Dificultad, mezclarProblemas: Boolean): Boolean {
         if (!estaDesbloqueado(dificultad)) return false
         nucleo.sesion.cargarNivel(dificultad, mezclarProblemas)
         nucleo.puntaje.limpiarNivel()
@@ -294,7 +302,7 @@ open class BaseGestorProgreso(
         return true
     }
 
-    override fun reiniciarPartidaActual(mezclarProblemas: IBoolean) {
+    override fun reiniciarPartidaActual(mezclarProblemas: Boolean) {
         iniciarNivel(nucleo.sesion.dificultadActual, mezclarProblemas)
     }
 
@@ -304,33 +312,75 @@ open class BaseGestorProgreso(
         nucleo.sesion.reiniciarTotal()
     }
 
-    override fun nivelTerminado(): IBoolean {
+    override fun nivelTerminado(): Boolean {
         if (gestorVidas.sinVidas) return true
         val metaAlcanzada = aciertosNivelActual >= dificultadActual.ejerciciosRequeridos
         return metaAlcanzada || indiceProblemaActual >= nucleo.sesion.problemasActivos.size
     }
 }
 
-class GestorProgreso(
-    repositorio: IRepositorioProblemas = ctorRepoProg(),
-    gestorVidas: IGestorVidas = ctorVidasProg()
-) : BaseGestorProgreso(repositorio, gestorVidas), IGestorProgreso {
+internal object ProveedorColaboradoresProgreso {
+    fun crearRepo(): IRepositorioProblemas {
+        return ctorRepoProg()
+    }
 
-    override val tiempoTranscurridoSegundos: ILong
+    fun crearVidas(): IGestorVidas {
+        return ctorVidasProg()
+    }
+}
+
+internal object FabricaEstadisticasProgreso {
+    fun construir(g: IGestorProgreso, n: ctorNucleoProgreso): ctorEstadisticas {
+        val bonoVidas = if (g.gestorVidas.sinVidas) 0 else g.gestorVidas.calcularBonificacionVidas()
+        return ctorEstadisticas(
+            puntosTotales = g.puntajeTotal,
+            rachaMaxima = g.rachaMaxima,
+            ejerciciosResueltos = g.aciertosNivelActual,
+            tiempoUsadoSegundos = g.tiempoTranscurridoSegundos,
+            vidasRestantes = g.gestorVidas.vidasActuales,
+            puntosSumadosNivel = n.puntaje.obtenerMetrica(1),
+            bonoPorRacha = n.puntaje.obtenerMetrica(2),
+            bonificacionVidas = bonoVidas,
+            rachaActual = g.rachaActual,
+            dificultad = g.dificultadActual
+        )
+    }
+}
+
+interface IDelegadoCierreProgreso : IGestorProgreso {
+    val nucleo: ctorNucleoProgreso
+
+    override fun finalizarNivel(): Boolean {
+        if (gestorVidas.sinVidas) return false
+        nucleo.puntaje.sumarBonificacion(gestorVidas.calcularBonificacionVidas())
+        return nucleo.evaluarDesbloqueo(max(aciertosNivelActual, dificultadActual.ejerciciosRequeridos))
+    }
+
+    override fun generarEstadisticasFinales(): ctorEstadisticas {
+        return FabricaEstadisticasProgreso.construir(this, nucleo)
+    }
+}
+
+class GestorProgreso(
+    repositorio: IRepositorioProblemas = ProveedorColaboradoresProgreso.crearRepo(),
+    gestorVidas: IGestorVidas = ProveedorColaboradoresProgreso.crearVidas()
+) : BaseGestorProgreso(repositorio, gestorVidas), IDelegadoCierreProgreso {
+
+    override val tiempoTranscurridoSegundos: Long
         get() = nucleo.sesion.contadores[3]
 
     init {
         iniciarNivel(Dificultad.FACIL, mezclarProblemas = false)
     }
 
-    override fun registrarIntento(respuestaUsuario: IDouble, tiempoEmpleadoSegundos: ILong): IBoolean {
+    override fun registrarIntento(respuestaUsuario: Double, tiempoEmpleadoSegundos: Long): Boolean {
         val problema = obtenerProblemaActual() ?: return false
         if (gestorVidas.sinVidas) return false
         registrarTiempoSimulacion(tiempoEmpleadoSegundos)
         return procesarVerificacion(problema.verificarRespuesta(respuestaUsuario))
     }
 
-    private fun procesarVerificacion(correcto: IBoolean): IBoolean {
+    private fun procesarVerificacion(correcto: Boolean): Boolean {
         if (correcto) {
             nucleo.sesion.contadores[1] += 1L
             nucleo.puntaje.registrarAcierto(dificultadActual.multiplicadorPuntos)
@@ -351,31 +401,9 @@ class GestorProgreso(
         }
     }
 
-    override fun registrarTiempoSimulacion(segundosAdicionales: ILong) {
+    override fun registrarTiempoSimulacion(segundosAdicionales: Long) {
         if (segundosAdicionales > 0L) {
             nucleo.sesion.contadores[3] += segundosAdicionales
         }
-    }
-
-    override fun finalizarNivel(): IBoolean {
-        if (gestorVidas.sinVidas) return false
-        nucleo.puntaje.sumarBonificacion(gestorVidas.calcularBonificacionVidas())
-        return nucleo.evaluarDesbloqueo(max(aciertosNivelActual, GameConfig.MINIMO_PARA_DESBLOQUEAR))
-    }
-
-    override fun generarEstadisticasFinales(): EstadisticasPartida {
-        val bonoVidas = if (gestorVidas.sinVidas) 0 else gestorVidas.calcularBonificacionVidas()
-        return ctorEstadisticas(
-            puntosTotales = puntajeTotal,
-            rachaMaxima = rachaMaxima,
-            ejerciciosResueltos = aciertosNivelActual,
-            tiempoUsadoSegundos = tiempoTranscurridoSegundos,
-            vidasRestantes = gestorVidas.vidasActuales,
-            puntosSumadosNivel = nucleo.puntaje.obtenerMetrica(1),
-            bonoPorRacha = nucleo.puntaje.obtenerMetrica(2),
-            bonificacionVidas = bonoVidas,
-            rachaActual = rachaActual,
-            dificultad = dificultadActual
-        )
     }
 }

@@ -1,15 +1,16 @@
 package gravityquest
-import gravityquest.models.Dificultad; import javafx.animation.AnimationTimer; import javafx.geometry.Pos; import javafx.scene.paint.Color; import kotlin.math.*
-internal typealias ctorCanvasMenu = ICanvas; internal typealias ctorFondoMenu = FondoFuturistaCanvas
+import gravityquest.models.Dificultad; import javafx.animation.AnimationTimer; import javafx.geometry.Pos
+import javafx.scene.canvas.Canvas; import javafx.scene.canvas.GraphicsContext; import javafx.scene.control.Button; import javafx.scene.control.Label; import javafx.scene.layout.HBox; import javafx.scene.layout.VBox; import javafx.scene.paint.Color; import kotlin.math.abs; import kotlin.math.max; import kotlin.math.sin
+internal typealias ctorFondoMenu = FondoFuturistaCanvas
 
 open class BaseRenderizadorFondoMenu {
-    protected fun pintarDegradadoYCielo(gc: IGraphicsContext, dim: IPunto2D, fase: IDouble) {
+    protected fun pintarDegradadoYCielo(gc: GraphicsContext, dim: IPunto2D, fase: Double) {
         PintorEscenarioCanvas.pintarCielo(gc, dim, "#120428" to "#0A1128")
         pintarNebulosas(gc, dim, fase)
         pintarParticulasMulticolor(gc, dim, fase)
     }
 
-    private fun pintarNebulosas(gc: IGraphicsContext, dim: IPunto2D, fase: IDouble) {
+    private fun pintarNebulosas(gc: GraphicsContext, dim: IPunto2D, fase: Double) {
         val dx = sin(fase * 0.6) * 28.0
         gc.fill = Color.web("#00F5D4", 0.08)
         gc.fillOval(dim.first * 0.08 + dx, dim.second * 0.10, 340.0, 220.0)
@@ -19,7 +20,7 @@ open class BaseRenderizadorFondoMenu {
         gc.fillOval(dim.first * 0.32, dim.second * 0.38 + dx * 0.4, 420.0, 210.0)
     }
 
-    private fun pintarParticulasMulticolor(gc: IGraphicsContext, dim: IPunto2D, fase: IDouble) {
+    private fun pintarParticulasMulticolor(gc: GraphicsContext, dim: IPunto2D, fase: Double) {
         val colores = arrayOf("#00F5D4", "#FFB703", "#FF007F")
         for (i in 1..18) {
             val x = ((i * 89.0 + fase * (12.0 + (i % 3) * 6.0)) % max(80.0, dim.first - 20.0)) + 10.0
@@ -33,13 +34,13 @@ open class BaseRenderizadorFondoMenu {
 }
 
 object RenderizadorFondoMenu : BaseRenderizadorFondoMenu() {
-    fun renderizarFrame(gc: IGraphicsContext, dim: IPunto2D, fase: IDouble) {
+    fun renderizarFrame(gc: GraphicsContext, dim: IPunto2D, fase: Double) {
         pintarDegradadoYCielo(gc, dim, fase)
         pintarGrillaHolografica(gc, dim, fase)
         pintarEsquinasHud(gc, dim)
     }
 
-    private fun pintarGrillaHolografica(gc: IGraphicsContext, dim: IPunto2D, fase: IDouble) {
+    private fun pintarGrillaHolografica(gc: GraphicsContext, dim: IPunto2D, fase: Double) {
         val yHorizonte = dim.second * 0.68
         gc.stroke = Color.web("#00F5D4", 0.18)
         gc.lineWidth = 1.0
@@ -51,7 +52,7 @@ object RenderizadorFondoMenu : BaseRenderizadorFondoMenu() {
         pintarLineasPerspectiva(gc, dim, yHorizonte)
     }
 
-    private fun pintarLineasPerspectiva(gc: IGraphicsContext, dim: IPunto2D, yHorizonte: IDouble) {
+    private fun pintarLineasPerspectiva(gc: GraphicsContext, dim: IPunto2D, yHorizonte: Double) {
         val cx = dim.first * 0.5
         gc.stroke = Color.web("#FF007F", 0.16)
         for (i in -5..5) {
@@ -61,7 +62,7 @@ object RenderizadorFondoMenu : BaseRenderizadorFondoMenu() {
         }
     }
 
-    private fun pintarEsquinasHud(gc: IGraphicsContext, dim: IPunto2D) {
+    private fun pintarEsquinasHud(gc: GraphicsContext, dim: IPunto2D) {
         val m = 16.0
         val l = 34.0
         gc.stroke = Color.web("#00F5D4", 0.65)
@@ -77,18 +78,18 @@ object RenderizadorFondoMenu : BaseRenderizadorFondoMenu() {
 }
 
 interface IFondoFuturistaCanvas {
-    val lienzo: ICanvas
-    fun sincronizarDimensiones(ancho: IDouble, alto: IDouble)
+    val lienzo: Canvas
+    fun sincronizarDimensiones(ancho: Double, alto: Double)
 }
 
 class FondoFuturistaCanvas(
-    anchoInicial: IDouble = GameConfig.ANCHO_VENTANA,
-    altoInicial: IDouble = GameConfig.ALTO_VENTANA
+    anchoInicial: Double = 1024.0,
+    altoInicial: Double = 720.0
 ) : IFondoFuturistaCanvas {
-    override val lienzo: ICanvas = ctorCanvasMenu(anchoInicial, altoInicial)
-    private var faseAnimacion: IDouble = 0.0
+    override val lienzo: Canvas = Canvas(anchoInicial, altoInicial)
+    private var faseAnimacion: Double = 0.0
     private val reloj: AnimationTimer = object : AnimationTimer() {
-        override fun handle(now: ILong) {
+        override fun handle(now: Long) {
             avanzarFrame()
         }
     }
@@ -104,7 +105,7 @@ class FondoFuturistaCanvas(
         runCatching { reloj.start() }
     }
 
-    override fun sincronizarDimensiones(ancho: IDouble, alto: IDouble) {
+    override fun sincronizarDimensiones(ancho: Double, alto: Double) {
         lienzo.width = max(320.0, ancho)
         lienzo.height = max(240.0, alto)
         if (faseAnimacion >= 0.0) dibujar()
@@ -123,52 +124,31 @@ class FondoFuturistaCanvas(
 }
 
 interface IVistaMenu {
-    val botonesDificultad: IMap<Dificultad, IButton>
+    val botonesDificultad: Map<Dificultad, Button>
     fun refrescarEstadoNiveles()
-    fun seleccionarDificultad(dificultad: Dificultad): IBoolean
+    fun seleccionarDificultad(dificultad: Dificultad): Boolean
     fun reiniciarProgresoTotal()
 }
 
 internal object ConstructorTarjetaDificultad {
     fun construir(
         dificultad: Dificultad,
-        desbloqueado: IBoolean,
-        alSeleccionar: (Dificultad) -> IUnit
-    ): IParTarjetaBoton {
+        desbloqueado: Boolean,
+        alSeleccionar: (Dificultad) -> Unit
+    ): Pair<VBox, Button> {
         val par = UIFactory.crearTarjetaMisionFuturista(dificultad, desbloqueado, alSeleccionar)
         aplicarAnimacionTarjeta(par.first, dificultad, desbloqueado)
         return par
     }
 
-    private fun aplicarAnimacionTarjeta(tarjeta: IVBox, dificultad: Dificultad, desbloqueado: IBoolean) {
-        AnimadorUI.animarEntrada(tarjeta, 300.0, dificultad.ordinal * 75.0)
-        if (desbloqueado && dificultad != Dificultad.FACIL) {
-            AnimadorUI.animarDesbloqueoNeon(tarjeta, dificultad.colorHex)
-        }
-    }
-}
+    fun crearContenedorTarjetas(): HBox = UIFactory.crearFila(22.0, Pos.CENTER)
 
-class VistaMenu(
-    private val navegador: INavegadorEscenas,
-    private val gestorProgreso: IGestorProgreso = navegador.gestorProgreso
-) : IVBox(18.0), IVistaMenu {
+    fun crearBannerResumen(): Label = UIFactory.crearEtiqueta("", "menu-score-banner")
 
-    private val fondoFuturista: FondoFuturistaCanvas = ctorFondoMenu()
-    private val mapaBotones: IMutableMap<Dificultad, IButton> = mutableMapOf()
-    private val contenedorTarjetas: IHBox = UIFactory.crearFila(22.0, Pos.CENTER)
-    private val lblResumen: ILabel = UIFactory.crearEtiqueta("", "menu-score-banner")
-
-    override val botonesDificultad: IMap<Dificultad, IButton>
-        get() = mapaBotones.toMap()
-
-    init {
-        inicializarMenu()
-    }
-
-    private fun inicializarMenu() {
-        alignment = Pos.CENTER
-        padding = UIFactory.crearMargen(28.0, 40.0)
-        styleClass.addAll("root-pane", "menu-root")
+    fun ensamblarCabecera(menu: VistaMenu, lienzo: Canvas, lblResumen: Label) {
+        menu.alignment = Pos.CENTER
+        menu.padding = UIFactory.crearMargen(28.0, 40.0)
+        menu.styleClass.addAll("root-pane", "menu-root")
         val hudSup = UIFactory.crearEtiqueta(
             "[ \u25C9 ESTADO: ONLINE   |   GRAVEDAD: 9.81 m/s\u00b2   |   TELEMETR\u00cdA: ACTIVA ]",
             "menu-hud-telemetry"
@@ -179,10 +159,40 @@ class VistaMenu(
             "menu-subtitle"
         )
         val btnReset = UIFactory.crearBotonSecundario("\uD83D\uDD04 REINICIAR SISTEMA", "btn-reset-menu") {
-            reiniciarProgresoTotal()
+            menu.reiniciarProgresoTotal()
         }
         AnimadorUI.animarPulsoContinuo(titulo)
-        children.addAll(fondoFuturista.lienzo, hudSup, titulo, subtitulo, lblResumen, contenedorTarjetas, btnReset)
+        menu.children.addAll(lienzo, hudSup, titulo, subtitulo, lblResumen, btnReset)
+    }
+
+    private fun aplicarAnimacionTarjeta(tarjeta: VBox, dificultad: Dificultad, desbloqueado: Boolean) {
+        AnimadorUI.animarEntrada(tarjeta, 300.0, dificultad.ordinal * 75.0)
+        if (desbloqueado && dificultad != Dificultad.FACIL) {
+            AnimadorUI.animarDesbloqueoNeon(tarjeta, dificultad.colorHex)
+        }
+    }
+}
+
+class VistaMenu(
+    private val navegador: INavegadorEscenas,
+    private val gestorProgreso: IGestorProgreso = navegador.gestorProgreso
+) : VBox(18.0), IVistaMenu {
+
+    private val fondoFuturista: IFondoFuturistaCanvas = ctorFondoMenu()
+    private val mapaBotones: MutableMap<Dificultad, Button> = mutableMapOf()
+    private val contenedorTarjetas: HBox = ConstructorTarjetaDificultad.crearContenedorTarjetas()
+    private val lblResumen: Label = ConstructorTarjetaDificultad.crearBannerResumen()
+
+    override val botonesDificultad: Map<Dificultad, Button>
+        get() = mapaBotones.toMap()
+
+    init {
+        inicializarMenu()
+    }
+
+    private fun inicializarMenu() {
+        ConstructorTarjetaDificultad.ensamblarCabecera(this, fondoFuturista.lienzo, lblResumen)
+        children.add(5, contenedorTarjetas)
         refrescarEstadoNiveles()
     }
 
@@ -205,10 +215,10 @@ class VistaMenu(
         }
         lblResumen.text = "\uD83C\uDFC6 PUNTAJE ACUMULADO: ${gestorProgreso.puntajeTotal} PTS   \u2502   " +
             "\uD83D\uDD25 RACHA M\u00c1XIMA: ${gestorProgreso.rachaMaxima}x"
-        fondoFuturista.sincronizarDimensiones(max(width, GameConfig.ANCHO_VENTANA), max(height, GameConfig.ALTO_VENTANA))
+        fondoFuturista.sincronizarDimensiones(max(width, 1024.0), max(height, 720.0))
     }
 
-    override fun seleccionarDificultad(dificultad: Dificultad): IBoolean {
+    override fun seleccionarDificultad(dificultad: Dificultad): Boolean {
         val iniciado = gestorProgreso.iniciarNivel(dificultad, mezclarProblemas = false)
         if (iniciado && mapaBotones.isNotEmpty()) {
             lblResumen.isVisible = true

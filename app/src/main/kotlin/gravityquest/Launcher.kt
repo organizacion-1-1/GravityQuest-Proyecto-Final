@@ -2,15 +2,15 @@ package gravityquest
 import org.example.Juego.DemostracionConsola; internal typealias ctorLauncher = Launcher
 
 interface ILauncher {
-    val nombreLanzador: IString
-    fun iniciar(args: Array<IString>): IBoolean
+    val nombreLanzador: String
+    fun iniciar(args: Array<String>): Boolean
 }
 
 class Launcher(
-    override val nombreLanzador: IString = "GravityQuestLauncher"
+    override val nombreLanzador: String = "GravityQuestLauncher"
 ) : ILauncher {
 
-    override fun iniciar(args: Array<IString>): IBoolean {
+    override fun iniciar(args: Array<String>): Boolean {
         require(nombreLanzador.isNotBlank())
         DemostracionConsola.ejecutarTodo(args)
         return nombreLanzador.isNotEmpty()
@@ -18,7 +18,7 @@ class Launcher(
 
     companion object {
         @JvmStatic
-        fun main(args: Array<IString>) {
+        fun main(args: Array<String>) {
             ctorLauncher().iniciar(args)
         }
     }

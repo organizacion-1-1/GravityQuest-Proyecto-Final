@@ -1,6 +1,8 @@
 package gravityquest
-import gravityquest.models.*; import javafx.scene.Parent; import org.example.Juego.*
-typealias IParent = Parent; internal typealias ctorRepoNav = GeneradorProblemas; internal typealias ctorCalcNav = CalculadoraFisica
+import gravityquest.models.Dificultad; import gravityquest.models.GeneradorProblemas; import gravityquest.models.IRepositorioProblemas
+import javafx.scene.Parent; import javafx.scene.Scene; import javafx.stage.Stage
+import org.example.Juego.CalculadoraFisica; import org.example.Juego.ICalculadoraFisica
+internal typealias ctorRepoNav = GeneradorProblemas; internal typealias ctorCalcNav = CalculadoraFisica
 internal typealias ctorGestorNav = GestorProgreso; internal typealias ctorVistaMenu = VistaMenu; internal typealias ctorVistaJuego = VistaJuego
 internal typealias ctorVistaGameOver = VistaGameOver; internal typealias ctorVistaVictoria = VistaNivelCompletado
 
@@ -9,39 +11,60 @@ interface IEscenaConCicloDeVida {
     fun liberarRecursos()
 }
 
-interface INavegadorBase {
-    val stage: IStage
-    val repositorio: IRepositorioProblemas
-    val calculadora: ICalculadoraFisica
-    val gestorProgreso: IGestorProgreso
-    val limpiezasEjecutadas: IInt
+internal object ProveedorDominioNavegador {
+    fun crearRepo(): IRepositorioProblemas {
+        return ctorRepoNav()
+    }
+
+    fun crearCalc(): ICalculadoraFisica {
+        return ctorCalcNav()
+    }
+}
+
+internal object ProveedorGestorNavegador {
+    fun crearGestor(r: IRepositorioProblemas): IGestorProgreso {
+        return ctorGestorNav(r)
+    }
+}
+
+interface INavegadorCicloEscena {
+    val stage: Stage
+    val limpiezasEjecutadas: Int
     fun detenerRecursosEscenaActual()
     fun cambiarEscena(
-        raiz: IParent,
-        ancho: IDouble = GameConfig.ANCHO_VENTANA,
-        alto: IDouble = GameConfig.ALTO_VENTANA
+        raiz: Parent,
+        ancho: Double = 1024.0,
+        alto: Double = 720.0
     )
+}
+
+interface INavegadorDependencias : INavegadorCicloEscena {
+    val repositorio: IRepositorioProblemas
+    val calculadora: ICalculadoraFisica
+}
+
+interface INavegadorBase : INavegadorDependencias {
+    val gestorProgreso: IGestorProgreso
 }
 
 interface INavegadorEscenas : INavegadorBase {
     fun mostrarMenu()
     fun mostrarJuego(dificultad: Dificultad)
-    fun mostrarGameOver(dificultad: Dificultad, estadisticas: EstadisticasPartida)
+    fun mostrarGameOver(dificultad: Dificultad, estadisticas: IEstadisticasPartida)
     fun mostrarNivelCompletado(
         dificultad: Dificultad,
-        estadisticas: EstadisticasPartida,
-        desbloqueoSiguienteNivel: IBoolean = false
+        estadisticas: IEstadisticasPartida,
+        desbloqueoSiguienteNivel: Boolean = false
     )
 }
 
 open class BaseNavegadorEscenas(
-    override val stage: IStage,
-    override val repositorio: IRepositorioProblemas = ctorRepoNav(),
-    override val calculadora: ICalculadoraFisica = ctorCalcNav(),
-    override val gestorProgreso: IGestorProgreso = ctorGestorNav(repositorio)
-) : INavegadorBase {
+    override val stage: Stage,
+    override val repositorio: IRepositorioProblemas = ProveedorDominioNavegador.crearRepo(),
+    override val calculadora: ICalculadoraFisica = ProveedorDominioNavegador.crearCalc()
+) : INavegadorDependencias {
 
-    override var limpiezasEjecutadas: IInt = 0
+    override var limpiezasEjecutadas: Int = 0
         protected set
 
     override fun detenerRecursosEscenaActual() {
@@ -53,116 +76,126 @@ open class BaseNavegadorEscenas(
         }
     }
 
-    override fun cambiarEscena(raiz: IParent, ancho: IDouble, alto: IDouble) {
+    override fun cambiarEscena(raiz: Parent, ancho: Double, alto: Double) {
         detenerRecursosEscenaActual()
         val escenaActual = stage.scene
         if (escenaActual == null) {
-            val nueva = ctorScene(raiz, ancho, alto)
+            val nueva = Scene(raiz, ancho, alto)
             asegurarHojaEstilos(nueva)
             stage.scene = nueva
         } else {
             escenaActual.root = raiz
             asegurarHojaEstilos(escenaActual)
         }
-        FxAnimationUtils.animarEntrada(raiz, duracionMs = 260.0)
+        AnimadorUI.animarEntrada(raiz, duracionMs = 260.0)
     }
 
-    private fun asegurarHojaEstilos(escena: IScene) {
-        val url = BaseNavegadorEscenas::class.java.getResource(GameConfig.RUTA_ESTILOS_CSS)?.toExternalForm()
+    private fun asegurarHojaEstilos(escena: Scene) {
+        val url = BaseNavegadorEscenas::class.java.getResource("/assets/style.css")?.toExternalForm()
         if (url != null && !escena.stylesheets.contains(url)) {
             escena.stylesheets.add(url)
         }
     }
 }
 
-class NavegadorEscenas(
-    stage: IStage,
-    repositorio: IRepositorioProblemas = ctorRepoNav(),
-    calculadora: ICalculadoraFisica = ctorCalcNav(),
-    gestorProgreso: IGestorProgreso = ctorGestorNav(repositorio)
-) : BaseNavegadorEscenas(stage, repositorio, calculadora, gestorProgreso), INavegadorEscenas {
-
+interface IDelegadoVistasPrincipales : INavegadorEscenas {
     override fun mostrarMenu() {
-        val vista = FabricaVistasNavegacion.crearMenu(this, gestorProgreso)
+        val vista = FabricaVistasPrincipales.crearMenu(this)
         stage.title = "\u0047ravity\u0051uest \u2014 \u004den\u00fa \u0050rincipal"
         cambiarEscena(vista)
     }
 
     override fun mostrarJuego(dificultad: Dificultad) {
         if (!gestorProgreso.estaDesbloqueado(dificultad)) return
-        val vista = FabricaVistasNavegacion.crearJuego(dificultad, this)
+        val vista = FabricaVistasPrincipales.crearJuego(dificultad, this)
         stage.title = "\u0047ravity\u0051uest \u2014 \u004eivel ${dificultad.nombreMostrar}"
         cambiarEscena(vista)
     }
+}
 
-    override fun mostrarGameOver(dificultad: Dificultad, estadisticas: EstadisticasPartida) {
-        val vista = FabricaVistasNavegacion.crearGameOver(this, dificultad, estadisticas)
+interface IDelegadoVistasNavegacion : IDelegadoVistasPrincipales {
+    override fun mostrarGameOver(dificultad: Dificultad, estadisticas: IEstadisticasPartida) {
+        val vista = FabricaVistaDerrota.crear(this, dificultad, estadisticas)
         stage.title = "\u0047ravity\u0051uest \u2014 \u004d\u00edsi\u00f3n \u0046allida"
         cambiarEscena(vista)
     }
 
     override fun mostrarNivelCompletado(
         dificultad: Dificultad,
-        estadisticas: EstadisticasPartida,
-        desbloqueoSiguienteNivel: IBoolean
+        estadisticas: IEstadisticasPartida,
+        desbloqueoSiguienteNivel: Boolean
     ) {
-        val vista = FabricaVistasNavegacion.crearVictoria(this, dificultad to desbloqueoSiguienteNivel, estadisticas)
+        val vista = FabricaVistaVictoria.crear(this, estadisticas, desbloqueoSiguienteNivel)
         stage.title = "\u0047ravity\u0051uest \u2014 \u004eivel \u0043ompletado"
         cambiarEscena(vista)
     }
 }
 
-internal object FabricaVistasNavegacion {
-    fun crearMenu(nav: INavegadorEscenas, gestor: IGestorProgreso): VistaMenu {
-        return ctorVistaMenu(navegador = nav, gestorProgreso = gestor)
+class NavegadorEscenas(
+    stage: Stage,
+    repositorio: IRepositorioProblemas = ProveedorDominioNavegador.crearRepo(),
+    calculadora: ICalculadoraFisica = ProveedorDominioNavegador.crearCalc(),
+    override val gestorProgreso: IGestorProgreso = ProveedorGestorNavegador.crearGestor(repositorio)
+) : BaseNavegadorEscenas(stage, repositorio, calculadora), IDelegadoVistasNavegacion {
+    fun estaListo(): Boolean {
+        return limpiezasEjecutadas >= 0
+    }
+}
+
+internal object FabricaVistasPrincipales {
+    fun crearMenu(nav: INavegadorEscenas): Parent {
+        return ctorVistaMenu(navegador = nav, gestorProgreso = nav.gestorProgreso)
     }
 
-    fun crearJuego(dificultad: Dificultad, nav: INavegadorEscenas): VistaJuego {
+    fun crearJuego(dificultad: Dificultad, nav: INavegadorEscenas): Parent {
         return ctorVistaJuego(
             dificultad = dificultad,
             navegador = nav,
-            gestorProgreso = nav.gestorProgreso,
-            repositorio = nav.repositorio,
-            calculadora = nav.calculadora
+            gestorProgreso = nav.gestorProgreso
         )
     }
+}
 
-    fun crearGameOver(
+internal object FabricaVistaDerrota {
+    fun crear(
         nav: INavegadorEscenas,
         dificultad: Dificultad,
-        estadisticas: EstadisticasPartida
-    ): VistaGameOver {
+        estadisticas: IEstadisticasPartida
+    ): Parent {
         return ctorVistaGameOver(
             dificultad = dificultad,
             estadisticas = estadisticas,
-            alReintentar = {
-                val destino = if (nav.gestorProgreso.estaDesbloqueado(dificultad)) dificultad else Dificultad.FACIL
-                nav.gestorProgreso.iniciarNivel(destino, mezclarProblemas = false)
-                nav.mostrarJuego(destino)
-            },
+            alReintentar = { reintentarSegunEstado(nav, dificultad) },
             alVolverAlMenu = { nav.mostrarMenu() }
         )
     }
 
-    fun crearVictoria(
+    private fun reintentarSegunEstado(nav: INavegadorEscenas, dif: Dificultad) {
+        val destino = if (nav.gestorProgreso.estaDesbloqueado(dif)) dif else Dificultad.FACIL
+        nav.gestorProgreso.iniciarNivel(destino, mezclarProblemas = false)
+        nav.mostrarJuego(destino)
+    }
+}
+
+internal object FabricaVistaVictoria {
+    fun crear(
         nav: INavegadorEscenas,
-        parNivel: IParNivelFlag,
-        estadisticas: EstadisticasPartida
-    ): VistaNivelCompletado {
-        val dificultad = parNivel.first
+        estadisticas: IEstadisticasPartida,
+        desbloqueo: Boolean
+    ): Parent {
+        val dificultad = estadisticas.dificultad
         return ctorVistaVictoria(
             dificultad = dificultad,
             estadisticas = estadisticas,
-            desbloqueoSiguienteNivel = parNivel.second,
-            alSiguienteNivel = { sig ->
-                nav.gestorProgreso.iniciarNivel(sig, mezclarProblemas = false)
-                nav.mostrarJuego(sig)
-            },
-            alReintentar = {
-                nav.gestorProgreso.iniciarNivel(dificultad, mezclarProblemas = false)
-                nav.mostrarJuego(dificultad)
-            },
+            desbloqueoSiguienteNivel = desbloqueo,
+            alSiguienteNivel = { sig -> iniciarYMostrar(nav, sig) },
+            alReintentar = { iniciarYMostrar(nav, dificultad) },
             alVolverAlMenu = { nav.mostrarMenu() }
         )
+    }
+
+    private fun iniciarYMostrar(nav: INavegadorEscenas, dif: Dificultad) {
+        nav.gestorProgreso.iniciarNivel(dif, mezclarProblemas = false)
+        nav.mostrarJuego(dif)
     }
 }

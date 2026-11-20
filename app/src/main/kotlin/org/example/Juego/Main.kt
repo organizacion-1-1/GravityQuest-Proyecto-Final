@@ -1,154 +1,122 @@
 package org.example.Juego
-import gravityquest.*; import gravityquest.models.*; import javafx.application.Application
-typealias IApplication = Application; typealias MainApp = GravityQuestApp; typealias Main = GravityQuestApp
-internal typealias ctorNivelCaida = NivelCaidaLibre; internal typealias ctorNivelAbajo = NivelLanzamientoAbajo; internal typealias ctorNivelArriba = NivelLanzamientoArriba
-internal typealias ctorRepoJuego = GeneradorProblemas; internal typealias ctorCalcJuego = CalculadoraFisica; internal typealias ctorGestorJuego = GestorProgreso
-internal typealias ctorRenderConsola = RenderizadorConsola; internal typealias ctorControladorSim = ControladorSimulacion; internal typealias ctorNavegadorApp = NavegadorEscenas
-internal typealias ctorAppJuego = GravityQuestApp; internal typealias ctorDependenciasApp = DependenciasApp; internal typealias ctorSesionApp = SesionJuegoApp
+import gravityquest.ControladorSimulacion; import gravityquest.GestorProgreso; import gravityquest.IGestorProgreso
+import gravityquest.IMotorSimulacionCanvas; import gravityquest.INavegadorEscenas; import gravityquest.NavegadorEscenas
+import gravityquest.models.Dificultad; import gravityquest.models.GeneradorProblemas; import gravityquest.models.IRepositorioProblemas; import gravityquest.models.Problema
+import javafx.application.Application; import javafx.stage.Stage
+typealias MainApp = GravityQuestApp; typealias Main = GravityQuestApp
+internal typealias ctorNivelCaida = NivelCaidaLibre; internal typealias ctorRepoJuego = GeneradorProblemas
+internal typealias ctorCalcJuego = CalculadoraFisica; internal typealias ctorGestorJuego = GestorProgreso
+internal typealias ctorRenderConsola = RenderizadorConsola; internal typealias ctorControladorSim = ControladorSimulacion
+internal typealias ctorNavegadorApp = NavegadorEscenas; internal typealias ctorAppJuego = GravityQuestApp
+internal typealias ctorDependenciasApp = DependenciasApp; internal typealias ctorSesionApp = SesionJuegoApp
+internal typealias ctorObjSimMain = ObjetoSimulado
 
-interface INivelEjercicio {
-    val problema: Problema
-    val calculadora: ICalculadoraFisica
-    val nombreModalidad: IString
-    val formulaPrincipal: IString
-    fun calcularRespuestaTeorica(): IDouble
-    fun crearObjetoSimulado(): ObjetoSimulado
-    fun verificarRespuesta(respuestaUsuario: IDouble): IBoolean
-    fun resumenFormativo(): IString
-}
-
-abstract class NivelEjercicio(
-    override val problema: Problema,
-    override val calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada(),
-    override val nombreModalidad: IString,
-    override val formulaPrincipal: IString
-) : INivelEjercicio {
-
-    override fun crearObjetoSimulado(): ObjetoSimulado {
-        val dir = mapearDireccion(problema.tipo)
-        return ObjetoSimulado(
+internal object ProveedorObjetoNivel {
+    fun crearObjeto(problema: Problema, calculadora: ICalculadoraFisica): ctorObjSimMain {
+        val dir = DireccionMovimiento.entries.getOrElse(problema.tipo.ordinal) { DireccionMovimiento.CAIDA_LIBRE }
+        return ctorObjSimMain(
             alturaInicial = problema.alturaInicial,
             velocidadInicial = problema.velocidadInicial,
             direccion = dir,
             calculadora = calculadora
         )
     }
+}
 
-    private fun mapearDireccion(tipo: TipoProblema): DireccionMovimiento {
-        return DireccionMovimiento.entries.getOrElse(tipo.ordinal) { DireccionMovimiento.CAIDA_LIBRE }
+interface INivelEjercicio {
+    val problema: Problema
+    val calculadora: ICalculadoraFisica
+    val nombreModalidad: String
+    val formulaPrincipal: String
+    fun calcularRespuestaTeorica(): Double
+    fun crearObjetoSimulado(): IObjetoSimulado
+    fun verificarRespuesta(respuestaUsuario: Double): Boolean
+    fun resumenFormativo(): String
+}
+
+abstract class NivelEjercicio(
+    override val problema: Problema,
+    override val calculadora: ICalculadoraFisica = ICalculadoraFisica.porDefecto(),
+    override val nombreModalidad: String,
+    override val formulaPrincipal: String
+) : INivelEjercicio {
+
+    override fun crearObjetoSimulado(): IObjetoSimulado {
+        return ProveedorObjetoNivel.crearObjeto(problema, calculadora)
     }
 
-    override fun verificarRespuesta(respuestaUsuario: IDouble): IBoolean {
+    override fun verificarRespuesta(respuestaUsuario: Double): Boolean {
         return problema.verificarRespuesta(respuestaUsuario)
     }
 
-    override fun resumenFormativo(): IString {
+    override fun resumenFormativo(): String {
         return "[$nombreModalidad] #${problema.id} (${problema.dificultad.nombreMostrar}) -> $formulaPrincipal"
     }
 }
 
 class NivelCaidaLibre(
     problema: Problema,
-    calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada()
+    calculadora: ICalculadoraFisica = ICalculadoraFisica.porDefecto()
 ) : NivelEjercicio(
     problema = problema,
     calculadora = calculadora,
-    nombreModalidad = "\u0043a\u00edda \u004cibre \u0028g = 9.8 m/s\u00b2\u0029",
-    formulaPrincipal = "h = \u00bd\u00b7g\u00b7t\u00b2  |  v = \u221a\u00282\u00b7g\u00b7h\u0029  |  t = \u221a\u00282\u00b7h/g\u0029"
+    nombreModalidad = problema.tipo.etiqueta,
+    formulaPrincipal = problema.tipo.formulaReferencia
 ) {
-    override fun calcularRespuestaTeorica(): IDouble {
-        if (problema.unidadRespuesta == "s") {
-            return calculadora.calcularTiempoCaidaLibre(problema.alturaInicial)
-        }
-        return if (problema.unidadRespuesta == "m/s") {
-            calculadora.calcularVelocidadPorAltura(problema.alturaInicial)
-        } else {
-            problema.respuestaCorrecta
-        }
-    }
-}
-
-class NivelLanzamientoAbajo(
-    problema: Problema,
-    calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada()
-) : NivelEjercicio(
-    problema = problema,
-    calculadora = calculadora,
-    nombreModalidad = "\u004canzamiento \u0056ertical \u0041bajo \u0028g = 9.8 m/s\u00b2\u0029",
-    formulaPrincipal = "y\u0028t\u0029 = h\u2080 - \u0028v\u2080\u00b7t + \u00bd\u00b7g\u00b7t\u00b2\u0029  |  v_f = \u221a\u0028v\u2080\u00b2 + 2\u00b7g\u00b7h\u0029"
-) {
-    override fun calcularRespuestaTeorica(): IDouble {
-        if (problema.unidadRespuesta == "s") {
-            return calculadora.calcularTiempoConVelocidadInicial(problema.alturaInicial, problema.velocidadInicial)
-        }
-        return if (problema.unidadRespuesta == "m/s") {
-            val t = calculadora.calcularTiempoConVelocidadInicial(problema.alturaInicial, problema.velocidadInicial)
-            calculadora.calcularVelocidadConVelocidadInicial(problema.velocidadInicial, t)
-        } else {
-            problema.respuestaCorrecta
-        }
-    }
-}
-
-class NivelLanzamientoArriba(
-    problema: Problema,
-    calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada()
-) : NivelEjercicio(
-    problema = problema,
-    calculadora = calculadora,
-    nombreModalidad = "\u004canzamiento \u0056ertical \u0041rriba \u0028g = 9.8 m/s\u00b2\u0029",
-    formulaPrincipal = "h_max = v\u2080\u00b2 / \u00282\u00b7g\u0029  |  t_subida = v\u2080 / g"
-) {
-    override fun calcularRespuestaTeorica(): IDouble {
-        if (problema.unidadRespuesta == "m") {
-            return calcularAlturaMaximaOValor()
-        }
-        return if (problema.unidadRespuesta == "s") {
-            calculadora.calcularTiempoSubida(problema.velocidadInicial)
-        } else {
-            problema.respuestaCorrecta
-        }
+    override fun calcularRespuestaTeorica(): Double {
+        if (problema.tipo.ordinal == 0) return calcularCaidaLibre()
+        if (problema.tipo.ordinal == 1) return calcularLanzamientoAbajo()
+        return calcularLanzamientoArriba()
     }
 
-    private fun calcularAlturaMaximaOValor(): IDouble {
-        if (problema.alturaInicial <= 0.0) return problema.respuestaCorrecta
-        return calculadora.calcularAlturaMaximaLanzamientoArriba(problema.velocidadInicial)
+    private fun calcularCaidaLibre(): Double {
+        if (problema.unidadRespuesta == "s") return calculadora.calcularTiempoCaidaLibre(problema.alturaInicial)
+        if (problema.unidadRespuesta == "m/s") return calculadora.calcularVelocidadPorAltura(problema.alturaInicial)
+        return problema.respuestaCorrecta
+    }
+
+    private fun calcularLanzamientoAbajo(): Double {
+        val t = calculadora.calcularTiempoConVelocidadInicial(problema.alturaInicial, problema.velocidadInicial)
+        if (problema.unidadRespuesta == "s") return t
+        if (problema.unidadRespuesta == "m/s") return calculadora.calcularVelocidadConVelocidadInicial(problema.velocidadInicial, t)
+        return problema.respuestaCorrecta
+    }
+
+    private fun calcularLanzamientoArriba(): Double {
+        if (problema.unidadRespuesta == "m" && problema.alturaInicial > 0.0) {
+            return calculadora.calcularAlturaMaximaLanzamientoArriba(problema.velocidadInicial)
+        }
+        if (problema.unidadRespuesta == "s") return calculadora.calcularTiempoSubida(problema.velocidadInicial)
+        return problema.respuestaCorrecta
     }
 }
 
 object FabricaNivelEjercicio {
-    private val registro: IMap<TipoProblema, (Problema, ICalculadoraFisica) -> NivelEjercicio> = mapOf(
-        TipoProblema.CAIDA_LIBRE to { p, c -> ctorNivelCaida(p, c) },
-        TipoProblema.LANZAMIENTO_ABAJO to { p, c -> ctorNivelAbajo(p, c) },
-        TipoProblema.LANZAMIENTO_ARRIBA to { p, c -> ctorNivelArriba(p, c) }
-    )
-
     fun desdeProblema(
         problema: Problema,
-        calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada()
+        calculadora: ICalculadoraFisica = ICalculadoraFisica.porDefecto()
     ): NivelEjercicio {
-        val creador = registro[problema.tipo] ?: { p, c -> ctorNivelCaida(p, c) }
-        return creador.invoke(problema, calculadora)
+        return ctorNivelCaida(problema, calculadora)
     }
 }
 
 interface IRenderizadorVista {
-    val ultimoResumenRenderizado: IString
-    fun configurarMarcador(puntajeTotal: IInt, vidasActuales: IInt)
+    val ultimoResumenRenderizado: String
+    fun configurarMarcador(puntajeTotal: Int, vidasActuales: Int)
     fun renderizar(
         dificultadActiva: Dificultad,
         problemaActual: Problema?,
-        objetoSimulado: ObjetoSimulado? = null
-    ): IString
+        objetoSimulado: IObjetoSimulado? = null
+    ): String
 }
 
 class RenderizadorConsola : IRenderizadorVista {
-    override var ultimoResumenRenderizado: IString = ""
+    override var ultimoResumenRenderizado: String = ""
         private set
 
-    private val marcador: IIntArray = intArrayOf(0, 3)
+    private val marcador: IntArray = intArrayOf(0, 3)
 
-    override fun configurarMarcador(puntajeTotal: IInt, vidasActuales: IInt) {
+    override fun configurarMarcador(puntajeTotal: Int, vidasActuales: Int) {
         marcador[0] = puntajeTotal
         marcador[1] = vidasActuales
     }
@@ -156,8 +124,8 @@ class RenderizadorConsola : IRenderizadorVista {
     override fun renderizar(
         dificultadActiva: Dificultad,
         problemaActual: Problema?,
-        objetoSimulado: ObjetoSimulado?
-    ): IString {
+        objetoSimulado: IObjetoSimulado?
+    ): String {
         val probTxt = problemaActual?.let { "#${it.id} (${it.incognita})" } ?: "\u0053in problema"
         val objTxt = objetoSimulado?.let {
             "h=${"%.2f".format(it.alturaActual)}m, v=${"%.2f".format(it.velocidadActual)}m/s"
@@ -170,12 +138,12 @@ class RenderizadorConsola : IRenderizadorVista {
 }
 
 class RenderizadorJavaFx : IRenderizadorVista {
-    override var ultimoResumenRenderizado: IString = ""
+    override var ultimoResumenRenderizado: String = ""
         private set
 
-    private val delegado: RenderizadorConsola = ctorRenderConsola()
+    private val delegado: IRenderizadorVista = ctorRenderConsola()
 
-    override fun configurarMarcador(puntajeTotal: IInt, vidasActuales: IInt) {
+    override fun configurarMarcador(puntajeTotal: Int, vidasActuales: Int) {
         if (ultimoResumenRenderizado.length >= 0) {
             delegado.configurarMarcador(puntajeTotal, vidasActuales)
         }
@@ -184,8 +152,8 @@ class RenderizadorJavaFx : IRenderizadorVista {
     override fun renderizar(
         dificultadActiva: Dificultad,
         problemaActual: Problema?,
-        objetoSimulado: ObjetoSimulado?
-    ): IString {
+        objetoSimulado: IObjetoSimulado?
+    ): String {
         ultimoResumenRenderizado = "[\u004aavaFX] " + delegado.renderizar(dificultadActiva, problemaActual, objetoSimulado)
         return ultimoResumenRenderizado
     }
@@ -196,7 +164,7 @@ interface IDependenciasApp {
     val calculadora: ICalculadoraFisica
     val gestorProgreso: IGestorProgreso
     val renderizador: IRenderizadorVista
-    fun esConfiguracionValida(): IBoolean
+    fun esConfiguracionValida(): Boolean
 }
 
 class DependenciasApp(
@@ -205,35 +173,108 @@ class DependenciasApp(
     override val gestorProgreso: IGestorProgreso,
     override val renderizador: IRenderizadorVista
 ) : IDependenciasApp {
-    override fun esConfiguracionValida(): IBoolean {
+    override fun esConfiguracionValida(): Boolean {
         return calculadora.gravedadPorDefecto > 0.0
     }
 }
 
-interface ISesionJuegoApp {
-    val deps: DependenciasApp
-    var dificultadActiva: Dificultad
-    var nivelActual: NivelEjercicio?
-    var motorSimulacion: ControladorSimulacion?
-    var navegadorEscenas: INavegadorEscenas?
+internal object ProveedorServiciosApp {
+    fun crearRepo(): IRepositorioProblemas {
+        return ctorRepoJuego()
+    }
+
+    fun crearGestor(r: IRepositorioProblemas = crearRepo()): IGestorProgreso {
+        return ctorGestorJuego(r)
+    }
+}
+
+internal object ProveedorRenderApp {
+    fun crearRender(): IRenderizadorVista {
+        return ctorRenderConsola()
+    }
+}
+
+internal object CreadorMotorSesion {
+    fun crearMotor(nivel: NivelEjercicio, dificultad: Dificultad): ctorControladorSim {
+        val obj = nivel.crearObjetoSimulado()
+        val motor = ctorControladorSim(
+            alturaInicial = obj.alturaInicial,
+            velocidadInicial = obj.velocidadInicial,
+            direccion = obj.direccion,
+            calculadora = nivel.calculadora
+        )
+        motor.configurarEscenarioPorDificultad(dificultad)
+        return motor
+    }
+}
+
+internal object LanzadorVentanaApp {
+    fun abrir(sesion: ctorSesionApp, stage: Stage) {
+        val d = sesion.deps
+        val nav = ctorNavegadorApp(stage, d.repositorio, d.calculadora, d.gestorProgreso)
+        sesion.asignarNavegador(nav)
+        nav.mostrarMenu()
+        stage.show()
+    }
+}
+
+interface ISesionEstadoBase {
+    val deps: IDependenciasApp
+    val dificultadActiva: Dificultad
+    val nivelActual: NivelEjercicio?
+}
+
+interface ISesionJuegoApp : ISesionEstadoBase {
+    val motorSimulacion: IMotorSimulacionCanvas?
+    val navegadorEscenas: INavegadorEscenas?
+}
+
+open class BaseSesionJuegoApp(
+    override val deps: IDependenciasApp
+) : ISesionJuegoApp {
+    override var dificultadActiva: Dificultad = Dificultad.FACIL
+        protected set
+    override var nivelActual: NivelEjercicio? = null
+        protected set
+    override var motorSimulacion: IMotorSimulacionCanvas? = null
+        protected set
+    override var navegadorEscenas: INavegadorEscenas? = null
+        protected set
+
+    fun asignarNavegador(nav: INavegadorEscenas) {
+        navegadorEscenas = nav
+    }
+
+    fun detenerComponentes() {
+        navegadorEscenas?.detenerRecursosEscenaActual()
+        motorSimulacion?.detener()
+    }
+
+    fun renderizarResumen(): String {
+        deps.renderizador.configurarMarcador(
+            deps.gestorProgreso.puntajeTotal,
+            deps.gestorProgreso.gestorVidas.vidasActuales
+        )
+        return deps.renderizador.renderizar(dificultadActiva, nivelActual?.problema, motorSimulacion?.objetoSimulado)
+    }
 }
 
 class SesionJuegoApp(
-    override val deps: DependenciasApp
-) : ISesionJuegoApp {
-    override var dificultadActiva: Dificultad = Dificultad.FACIL
-    override var nivelActual: NivelEjercicio? = null
-    override var motorSimulacion: ControladorSimulacion? = null
-    override var navegadorEscenas: INavegadorEscenas? = null
+    deps: IDependenciasApp
+) : BaseSesionJuegoApp(deps) {
 
-    fun cambiarDificultad(dificultad: Dificultad): IBoolean {
+    init {
+        cambiarDificultad(Dificultad.FACIL)
+    }
+
+    fun cambiarDificultad(dificultad: Dificultad): Boolean {
         if (!deps.gestorProgreso.iniciarNivel(dificultad, mezclarProblemas = false)) return false
         dificultadActiva = dificultad
         sincronizarProblema(deps.gestorProgreso.obtenerProblemaActual())
         return true
     }
 
-    fun cargarPorId(id: IInt): Problema? {
+    fun cargarPorId(id: Int): Problema? {
         val encontrado = deps.repositorio.obtenerProblemaPorId(id) ?: return null
         dificultadActiva = encontrado.dificultad
         sincronizarProblema(encontrado)
@@ -248,109 +289,80 @@ class SesionJuegoApp(
         }
         val nivel = FabricaNivelEjercicio.desdeProblema(problema, deps.calculadora)
         nivelActual = nivel
-        val obj = nivel.crearObjetoSimulado()
-        val motor = ctorControladorSim(
-            alturaInicial = obj.alturaInicial,
-            velocidadInicial = obj.velocidadInicial,
-            direccion = obj.direccion,
-            calculadora = deps.calculadora
-        )
-        motor.configurarEscenarioPorDificultad(dificultadActiva)
-        motorSimulacion = motor
-    }
-
-    fun renderizarResumen(): IString {
-        deps.renderizador.configurarMarcador(
-            deps.gestorProgreso.puntajeTotal,
-            deps.gestorProgreso.gestorVidas.vidasActuales
-        )
-        return deps.renderizador.renderizar(dificultadActiva, nivelActual?.problema, motorSimulacion?.objetoSimulado)
-    }
-    companion object {
-        internal fun desdePares(parDominio: IParDominioApp, parEstado: IParEstadoApp): SesionJuegoApp {
-            val deps = ctorDependenciasApp(parDominio.first, parDominio.second, parEstado.first, parEstado.second)
-            return ctorSesionApp(deps)
-        }
+        motorSimulacion = CreadorMotorSesion.crearMotor(nivel, dificultadActiva)
     }
 }
 
 interface IAppDependencias {
-    val sesionApp: SesionJuegoApp
+    val sesionApp: ctorSesionApp
     val repositorio: IRepositorioProblemas
         get() = sesionApp.deps.repositorio
     val calculadora: ICalculadoraFisica
         get() = sesionApp.deps.calculadora
+}
+
+interface IAppServicios : IAppDependencias {
     val gestorProgreso: IGestorProgreso
         get() = sesionApp.deps.gestorProgreso
     val renderizador: IRenderizadorVista
         get() = sesionApp.deps.renderizador
+
+    fun seleccionarDificultad(dificultad: Dificultad): Boolean {
+        return sesionApp.cambiarDificultad(dificultad)
+    }
+
+    fun cargarProblemaPorId(id: Int): Problema? {
+        return sesionApp.cargarPorId(id)
+    }
 }
 
-interface IAppEstadoJuego : IAppDependencias {
+interface IAppEstadoJuego : IAppServicios {
     val dificultadActiva: Dificultad
         get() = sesionApp.dificultadActiva
     val nivelActual: NivelEjercicio?
         get() = sesionApp.nivelActual
-    val motorSimulacion: ControladorSimulacion?
+    val motorSimulacion: IMotorSimulacionCanvas?
         get() = sesionApp.motorSimulacion
     val navegadorEscenas: INavegadorEscenas?
         get() = sesionApp.navegadorEscenas
-}
 
-class GravityQuestApp(
-    repositorio: IRepositorioProblemas = ctorRepoJuego(),
-    calculadora: ICalculadoraFisica = BaseObjetoSimulado.crearCalculadoraPredeterminada(),
-    gestorProgreso: IGestorProgreso = ctorGestorJuego(repositorio),
-    renderizador: IRenderizadorVista = ctorRenderConsola()
-) : IApplication(), IAppEstadoJuego {
-
-    override val sesionApp: SesionJuegoApp =
-        SesionJuegoApp.desdePares(repositorio to calculadora, gestorProgreso to renderizador)
-
-    init {
-        seleccionarDificultad(Dificultad.FACIL)
-    }
-
-    fun seleccionarDificultad(dificultad: Dificultad): IBoolean {
-        return sesionApp.cambiarDificultad(dificultad)
-    }
-
-    fun cargarProblemaPorId(id: IInt): Problema? {
-        return sesionApp.cargarPorId(id)
-    }
-
-    fun responderProblemaActual(respuestaUsuario: IDouble, tiempoSegundos: ILong = 1L): IBoolean {
+    fun responderProblemaActual(respuestaUsuario: Double, tiempoSegundos: Long = 1L): Boolean {
         val exito = sesionApp.deps.gestorProgreso.registrarIntento(respuestaUsuario, tiempoSegundos)
         sesionApp.renderizarResumen()
         return exito
     }
 
-    fun renderizarEstadoActual(): IString {
+    fun renderizarEstadoActual(): String {
         return sesionApp.renderizarResumen()
     }
 
-    override fun start(primaryStage: IStage) {
-        val d = sesionApp.deps
-        val nav = ctorNavegadorApp(
-            stage = primaryStage,
-            repositorio = d.repositorio,
-            calculadora = d.calculadora,
-            gestorProgreso = d.gestorProgreso
-        )
-        sesionApp.navegadorEscenas = nav
-        nav.mostrarMenu()
-        primaryStage.show()
+    fun abrirVentanaPrincipal(stage: Stage) {
+        LanzadorVentanaApp.abrir(sesionApp, stage)
+    }
+}
+
+class GravityQuestApp(
+    repositorio: IRepositorioProblemas = ProveedorServiciosApp.crearRepo(),
+    calculadora: ICalculadoraFisica = ICalculadoraFisica.porDefecto(),
+    gestorProgreso: IGestorProgreso = ProveedorServiciosApp.crearGestor(repositorio),
+    renderizador: IRenderizadorVista = ProveedorRenderApp.crearRender()
+) : Application(), IAppEstadoJuego {
+
+    override val sesionApp: ctorSesionApp =
+        ctorSesionApp(ctorDependenciasApp(repositorio, calculadora, gestorProgreso, renderizador))
+
+    override fun start(primaryStage: Stage) {
+        abrirVentanaPrincipal(primaryStage)
     }
 
     override fun stop() {
-        sesionApp.navegadorEscenas?.detenerRecursosEscenaActual()
-        sesionApp.motorSimulacion?.detener()
+        sesionApp.detenerComponentes()
     }
 }
 
 open class BaseDemostracionDominio {
     fun demostrarModelosDominio(
-        repositorio: IRepositorioProblemas = ctorRepoJuego()
+        repositorio: IRepositorioProblemas = ProveedorServiciosApp.crearRepo()
     ): IRepositorioProblemas {
         for (dificultad in Dificultad.entries) {
             repositorio.contarPorDificultad(dificultad)
@@ -358,25 +370,8 @@ open class BaseDemostracionDominio {
         return repositorio
     }
 
-    fun demostrarMotorFisico(
-        calculadora: CalculadoraFisica = ctorCalcJuego()
-    ): CalculadoraFisica {
-        val motor = ctorControladorSim(alturaInicial = 19.6, calculadora = calculadora)
-        motor.iniciar()
-        motor.avanzarFrame(0.5)
-        motor.pausar()
-        return calculadora
-    }
-}
-
-object DemostracionConsola : BaseDemostracionDominio() {
-
-    fun demostrarNavegacion(): IBoolean {
-        return Dificultad.FACIL.siguiente() == Dificultad.MEDIO
-    }
-
     fun demostrarProgresoJugador(
-        gestor: IGestorProgreso = ctorGestorJuego()
+        gestor: IGestorProgreso = ProveedorServiciosApp.crearGestor()
     ): IGestorProgreso {
         gestor.iniciarNivel(Dificultad.FACIL, mezclarProblemas = false)
         val p = gestor.obtenerProblemaActual()
@@ -385,14 +380,31 @@ object DemostracionConsola : BaseDemostracionDominio() {
         }
         return gestor
     }
+}
 
-    fun ejecutarTodo(args: Array<IString> = emptyArray()) {
+object DemostracionConsola : BaseDemostracionDominio() {
+
+    fun demostrarNavegacion(): Boolean {
+        return Dificultad.FACIL.siguiente() == Dificultad.MEDIO
+    }
+
+    fun demostrarMotorFisico(
+        calculadora: ICalculadoraFisica = ICalculadoraFisica.porDefecto()
+    ): ICalculadoraFisica {
+        val motor = ctorControladorSim(alturaInicial = 19.6, calculadora = calculadora)
+        motor.iniciar()
+        motor.avanzarFrame(0.5)
+        motor.pausar()
+        return calculadora
+    }
+
+    fun ejecutarTodo(args: Array<String> = emptyArray()) {
         if (args.contains("--console") || args.contains("--headless-demo")) {
             correrFlujoConsola()
             return
         }
         runCatching {
-            Application.launch(GravityQuestApp::class.java, *args)
+            Application.launch(ctorAppJuego::class.java, *args)
         }.onFailure {
             correrFlujoConsola()
         }

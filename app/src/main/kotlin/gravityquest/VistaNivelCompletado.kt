@@ -1,11 +1,9 @@
 package gravityquest
-
-import gravityquest.models.Dificultad
-import javafx.geometry.Pos
+import gravityquest.models.Dificultad; import javafx.geometry.Pos; import javafx.scene.control.Button; import javafx.scene.control.Label; import javafx.scene.layout.VBox
 
 internal object TextosPantallaVictoria {
-    fun crearPanel(dificultad: Dificultad, estadisticas: EstadisticasPartida): PanelResumenFinal {
-        return PanelResumenFinal(
+    fun crearPanel(dificultad: Dificultad, estadisticas: IEstadisticasPartida): ctorPanelResumen {
+        return ctorPanelResumen(
             dificultad = dificultad,
             estadisticas = estadisticas,
             tituloTexto = "\uD83C\uDF1F \u00A1\u004eivel \u0043ompletado con \u00c9xito\u0021",
@@ -14,13 +12,13 @@ internal object TextosPantallaVictoria {
         )
     }
 
-    fun textoDesbloqueo(dificultad: Dificultad, desbloqueo: IBoolean): IString {
+    fun textoDesbloqueo(dificultad: Dificultad, desbloqueo: Boolean): String {
         val sig = dificultad.siguiente() ?: return "\uD83C\uDFC6 \u00A1\u0043ompletaste el nivel m\u00e1ximo\u0021"
         if (desbloqueo) return "\uD83D\uDD13 \u00A1\u004euevo nivel desbloqueado: ${sig.nombreMostrar}\u0021"
         return "\u2728 \u0050uedes continuar al nivel ${sig.nombreMostrar}."
     }
 
-    fun textoBotonSiguiente(dificultad: Dificultad): IString {
+    fun textoBotonSiguiente(dificultad: Dificultad): String {
         val sig = dificultad.siguiente() ?: return "\u004eivel \u004d\u00e1ximo"
         return "\u27A1 \u0053iguiente \u004eivel: ${sig.nombreMostrar}"
     }
@@ -28,12 +26,16 @@ internal object TextosPantallaVictoria {
     fun callbackNivelVacio(d: Dificultad) {
         d.esNivelValido()
     }
+
+    fun callbackSimpleVacio() {
+        return
+    }
 }
 
 interface IVistaNivelCompletado {
     val dificultad: Dificultad
-    val estadisticas: EstadisticasPartida
-    val desbloqueoSiguienteNivel: IBoolean
+    val estadisticas: IEstadisticasPartida
+    val desbloqueoSiguienteNivel: Boolean
     fun irASiguienteNivel()
     fun reintentarNivel()
     fun volverAlMenu()
@@ -41,15 +43,15 @@ interface IVistaNivelCompletado {
 
 class VistaNivelCompletado(
     override val dificultad: Dificultad,
-    override val estadisticas: EstadisticasPartida,
-    override val desbloqueoSiguienteNivel: IBoolean = false,
-    alSiguienteNivel: (Dificultad) -> IUnit = TextosPantallaVictoria::callbackNivelVacio,
-    alReintentar: () -> IUnit = RelojAnimacionMotor::callbackSimpleVacio,
-    alVolverAlMenu: () -> IUnit = RelojAnimacionMotor::callbackSimpleVacio
-) : IVBox(20.0), IVistaNivelCompletado {
+    override val estadisticas: IEstadisticasPartida,
+    override val desbloqueoSiguienteNivel: Boolean = false,
+    alSiguienteNivel: (Dificultad) -> Unit = TextosPantallaVictoria::callbackNivelVacio,
+    alReintentar: () -> Unit = TextosPantallaVictoria::callbackSimpleVacio,
+    alVolverAlMenu: () -> Unit = TextosPantallaVictoria::callbackSimpleVacio
+) : VBox(20.0), IVistaNivelCompletado {
 
-    private val accionSiguiente: (Dificultad) -> IUnit = alSiguienteNivel
-    private val callbacks: IParAcciones = alReintentar to alVolverAlMenu
+    private val accionSiguiente: (Dificultad) -> Unit = alSiguienteNivel
+    private val callbacks: Pair<() -> Unit, () -> Unit> = alReintentar to alVolverAlMenu
 
     init {
         inicializarVista()
@@ -69,7 +71,7 @@ class VistaNivelCompletado(
         resumen.configurarEnContenedor(this, lblDesbloqueo)
     }
 
-    private fun crearBannerDesbloqueo(): ILabel {
+    private fun crearBannerDesbloqueo(): Label {
         val estilo = if (desbloqueoSiguienteNivel) "unlock-banner-success" else "unlock-banner-info"
         val texto = TextosPantallaVictoria.textoDesbloqueo(dificultad, desbloqueoSiguienteNivel)
         val lbl = UIFactory.crearEtiqueta(texto, estilo)
@@ -77,7 +79,7 @@ class VistaNivelCompletado(
         return lbl
     }
 
-    private fun crearBotonSiguiente(): IButton {
+    private fun crearBotonSiguiente(): Button {
         val btn = UIFactory.crearBotonPrimario(
             texto = TextosPantallaVictoria.textoBotonSiguiente(dificultad),
             claseExtra = "btn-next-level",
