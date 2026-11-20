@@ -1,23 +1,21 @@
 package gravityquest
-
-import gravityquest.models.Dificultad
-import javafx.geometry.Pos
+import gravityquest.models.Dificultad; import javafx.geometry.Pos; import javafx.scene.layout.VBox
 
 interface IVistaGameOver {
     val dificultad: Dificultad
-    val estadisticas: EstadisticasPartida
+    val estadisticas: IEstadisticasPartida
     fun reintentarNivel()
     fun volverAlMenu()
 }
 
 class VistaGameOver(
     override val dificultad: Dificultad,
-    override val estadisticas: EstadisticasPartida,
-    alReintentar: () -> IUnit = ::accionVaciaGameOver,
-    alVolverAlMenu: () -> IUnit = ::accionVaciaGameOver
-) : IVBox(20.0), IVistaGameOver {
+    override val estadisticas: IEstadisticasPartida,
+    alReintentar: () -> Unit = ::accionVaciaGameOver,
+    alVolverAlMenu: () -> Unit = ::accionVaciaGameOver
+) : VBox(20.0), IVistaGameOver {
 
-    private val callbacks: Pair<() -> IUnit, () -> IUnit> = alReintentar to alVolverAlMenu
+    private val callbacks: Pair<() -> Unit, () -> Unit> = alReintentar to alVolverAlMenu
 
     init {
         inicializarVista()
@@ -49,8 +47,8 @@ class VistaGameOver(
             return
         }
 
-        private fun crearPanelGameOver(d: Dificultad, e: EstadisticasPartida): PanelResumenFinal {
-            return PanelResumenFinal(
+        private fun crearPanelGameOver(d: Dificultad, e: IEstadisticasPartida): ctorPanelResumen {
+            return ctorPanelResumen(
                 d,
                 e,
                 "\uD83D\uDCA5 \u00A1\u0053in \u0056idas\u0021 \u004d\u00edsi\u00f3n \u0049nterrumpida",

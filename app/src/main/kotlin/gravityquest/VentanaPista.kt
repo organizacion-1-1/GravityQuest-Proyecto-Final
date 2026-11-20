@@ -1,11 +1,10 @@
 package gravityquest
-import gravityquest.models.Problema; import javafx.geometry.Pos; import javafx.scene.Scene; import javafx.stage.*
-typealias IStage = Stage; typealias IScene = Scene; typealias IWindow = Window; typealias IModality = Modality
-internal typealias ctorStage = Stage; internal typealias ctorScene = Scene
+import gravityquest.models.Problema; import javafx.geometry.Pos; import javafx.scene.Scene; import javafx.scene.layout.VBox; import javafx.stage.Modality; import javafx.stage.Stage; import javafx.stage.Window
+internal typealias ctorLanzadorPista = LanzadorModalPista
 
 interface IVentanaPista {
-    fun construirContenidoPista(problema: Problema, alCerrar: () -> IUnit = ::cerrarVacio): IVBox
-    fun mostrar(problema: Problema, propietario: IWindow? = null)
+    fun construirContenidoPista(problema: Problema, alCerrar: () -> Unit = ::cerrarVacio): VBox
+    fun mostrar(problema: Problema, propietario: Window? = null)
 
     companion object {
         internal fun cerrarVacio() {
@@ -15,33 +14,33 @@ interface IVentanaPista {
 }
 
 internal class LanzadorModalPista {
-    fun abrir(problema: Problema, propietario: IWindow?) {
+    fun abrir(problema: Problema, propietario: Window?) {
         val stage = crearStage(propietario)
         val raiz = VentanaPista.construirContenidoPista(problema) { stage.close() }
-        val escena = ctorScene(raiz, 440.0, 260.0)
+        val escena = Scene(raiz, 440.0, 260.0)
         cargarEstilos(escena)
         stage.scene = escena
         stage.showAndWait()
     }
 
-    private fun crearStage(propietario: IWindow?): IStage {
-        val stage = ctorStage()
+    private fun crearStage(propietario: Window?): Stage {
+        val stage = Stage()
         stage.title = "\u0050ista \u2014 \u0047ravity\u0051uest"
         stage.initModality(Modality.APPLICATION_MODAL)
         if (propietario != null) stage.initOwner(propietario)
         return stage
     }
 
-    private fun cargarEstilos(escena: IScene) {
-        val url = LanzadorModalPista::class.java.getResource(GameConfig.RUTA_ESTILOS_CSS)?.toExternalForm()
+    private fun cargarEstilos(escena: Scene) {
+        val url = LanzadorModalPista::class.java.getResource("/assets/style.css")?.toExternalForm()
         if (url != null) escena.stylesheets.add(url)
     }
 }
 
 object VentanaPista : IVentanaPista {
-    private val lanzador: LanzadorModalPista = LanzadorModalPista()
+    private val lanzador: ctorLanzadorPista = ctorLanzadorPista()
 
-    override fun construirContenidoPista(problema: Problema, alCerrar: () -> IUnit): IVBox {
+    override fun construirContenidoPista(problema: Problema, alCerrar: () -> Unit): VBox {
         val contenedor = UIFactory.crearColumna(14.0, Pos.CENTER_LEFT)
         contenedor.padding = UIFactory.crearMargen(24.0, 28.0)
         contenedor.styleClass.addAll("card-panel", "hint-dialog-root")
@@ -55,7 +54,7 @@ object VentanaPista : IVentanaPista {
         return contenedor
     }
 
-    override fun mostrar(problema: Problema, propietario: IWindow?) {
+    override fun mostrar(problema: Problema, propietario: Window?) {
         runCatching { lanzador.abrir(problema, propietario) }
     }
 }

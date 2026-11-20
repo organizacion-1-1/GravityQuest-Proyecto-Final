@@ -1,14 +1,16 @@
 package gravityquest
-import gravityquest.models.Dificultad; import javafx.animation.AnimationTimer; import org.example.Juego.*; import kotlin.math.min
-typealias IAnimationTimer = AnimationTimer; typealias ControladorSimulacion = MotorSimulacionCanvas
-internal typealias ctorCalculadoraMotor = CalculadoraFisica; internal typealias ctorObjetoSimulado = ObjetoSimulado; internal typealias ctorRenderizadorCanvas = RenderizadorCanvas
+import gravityquest.models.Dificultad; import javafx.animation.AnimationTimer; import javafx.scene.canvas.Canvas
+import org.example.Juego.DireccionMovimiento; import org.example.Juego.ICalculadoraFisica; import org.example.Juego.IObjetoSimulado; import org.example.Juego.ObjetoSimulado; import kotlin.math.min
+typealias ControladorSimulacion = MotorSimulacionCanvas
+internal typealias ctorObjetoSimulado = ObjetoSimulado; internal typealias ctorRelojMotor = RelojAnimacionMotor
+internal typealias ctorRenderizadorMotor = RenderizadorCanvas
 
 internal class RelojAnimacionMotor(
-    private val alTick: (IDouble) -> IUnit
+    private val alTick: (Double) -> Unit
 ) : AnimationTimer() {
-    private var ultimoNs: ILong = 0L
+    private var ultimoNs: Long = 0L
 
-    override fun handle(ahoraNs: ILong) {
+    override fun handle(ahoraNs: Long) {
         if (ultimoNs == 0L) {
             ultimoNs = ahoraNs
             return
@@ -22,23 +24,11 @@ internal class RelojAnimacionMotor(
         ultimoNs = 0L
         super.stop()
     }
-
-    companion object {
-        internal fun callbackObjetoVacio(obj: ObjetoSimulado) {
-            if (obj.alturaInicial < 0.0) obj.reiniciar()
-        }
-
-        internal fun callbackSimpleVacio() {
-            PhysicsConstants.esGravedadValida()
-        }
-    }
 }
 
-internal typealias ctorRelojMotor = RelojAnimacionMotor
-
 interface IMotorCicloVida {
-    val objetoSimulado: ObjetoSimulado
-    val enEjecucion: IBoolean
+    val objetoSimulado: IObjetoSimulado
+    val enEjecucion: Boolean
     val escenarioActual: TipoEscenario
     fun iniciar()
     fun pausar()
@@ -48,43 +38,47 @@ interface IMotorCicloVida {
 interface IMotorSimulacionBase : IMotorCicloVida {
     fun configurarEscenarioPorDificultad(dificultad: Dificultad)
     fun reiniciar(
-        nuevaAltura: IDouble = objetoSimulado.alturaInicial,
-        nuevaVelocidad: IDouble = objetoSimulado.velocidadInicial,
+        nuevaAltura: Double = objetoSimulado.alturaInicial,
+        nuevaVelocidad: Double = objetoSimulado.velocidadInicial,
         nuevaDireccion: DireccionMovimiento = objetoSimulado.direccion
     )
 }
 
 interface IMotorSimulacionCanvas : IMotorSimulacionBase {
-    fun vincularCanvas(nuevoCanvas: ICanvas)
+    fun vincularCanvas(nuevoCanvas: Canvas)
     fun configurarCondiciones(
-        alturaInicial: IDouble,
-        velocidadInicial: IDouble = 0.0,
+        alturaInicial: Double,
+        velocidadInicial: Double = 0.0,
         direccion: DireccionMovimiento = DireccionMovimiento.CAIDA_LIBRE
     )
-    fun avanzarFrame(deltaSegundos: IDouble = PhysicsConstants.DELTA_TIEMPO_FRAME)
+    fun avanzarFrame(deltaSegundos: Double = 1.0 / 60.0)
     fun renderizarEstadoActual()
 }
 
 open class BaseMotorSimulacion(
-    alturaInicial: IDouble,
-    velocidadInicial: IDouble = 0.0,
+    alturaInicial: Double,
+    velocidadInicial: Double = 0.0,
     direccion: DireccionMovimiento = DireccionMovimiento.CAIDA_LIBRE,
-    protected val calculadora: ICalculadoraFisica = ctorCalculadoraMotor()
+    protected val calculadora: ICalculadoraFisica = ICalculadoraFisica.porDefecto()
 ) : IMotorSimulacionBase {
 
-    override var objetoSimulado: ObjetoSimulado =
-        crearObjeto(alturaInicial, velocidadInicial, direccion to calculadora)
+    override var objetoSimulado: IObjetoSimulado = ctorObjetoSimulado(alturaInicial, velocidadInicial, direccion, calculadora)
         protected set
 
-    override var enEjecucion: IBoolean = false
+    override var enEjecucion: Boolean = false
         protected set
 
     override var escenarioActual: TipoEscenario = TipoEscenario.CIELO_DESPEJADO
         protected set
 
-    protected var timerLoop: IAnimationTimer? = null
+    protected var timerLoop: AnimationTimer? = ctorRelojMotor { dt -> procesarTickReloj(dt) }
+
+    protected open fun procesarTickReloj(dt: Double) {
+        if (enEjecucion && dt < 0.0) pausar()
+    }
 
     override fun configurarEscenarioPorDificultad(dificultad: Dificultad) {
+        if (enEjecucion) pausar()
         escenarioActual = TipoEscenario.desdeDificultad(dificultad)
     }
 
@@ -107,53 +101,58 @@ open class BaseMotorSimulacion(
     }
 
     override fun reiniciar(
-        nuevaAltura: IDouble,
-        nuevaVelocidad: IDouble,
+        nuevaAltura: Double,
+        nuevaVelocidad: Double,
         nuevaDireccion: DireccionMovimiento
     ) {
-        pausar()
-        objetoSimulado = crearObjeto(nuevaAltura, nuevaVelocidad, nuevaDireccion to calculadora)
+        enEjecucion = false
+        runCatching { timerLoop?.stop() }
+        objetoSimulado = ctorObjetoSimulado(nuevaAltura, nuevaVelocidad, nuevaDireccion, calculadora)
+    }
+}
+
+internal object CallbacksMotor {
+    fun alActualizarVacio(obj: IObjetoSimulado) {
+        if (obj.tiempoTranscurrido < 0.0) obj.reiniciar()
     }
 
-    private fun crearObjeto(altura: IDouble, velocidad: IDouble, par: IParDirCalc): ObjetoSimulado {
-        return ctorObjetoSimulado(
-            alturaInicial = altura,
-            velocidadInicial = velocidad,
-            direccion = par.first,
-            calculadora = par.second
-        )
+    fun alImpactarVacio() {
+        check(true)
     }
 }
 
 class MotorSimulacionCanvas(
-    alturaInicial: IDouble = 20.0,
-    velocidadInicial: IDouble = 0.0,
+    alturaInicial: Double = 20.0,
+    velocidadInicial: Double = 0.0,
     direccion: DireccionMovimiento = DireccionMovimiento.CAIDA_LIBRE,
-    canvas: ICanvas? = null,
-    calculadora: ICalculadoraFisica = ctorCalculadoraMotor(),
-    limitarDeltaMaximo: IBoolean = false,
-    alActualizar: (ObjetoSimulado) -> IUnit = RelojAnimacionMotor::callbackObjetoVacio,
-    alImpactar: () -> IUnit = RelojAnimacionMotor::callbackSimpleVacio
+    canvas: Canvas? = null,
+    calculadora: ICalculadoraFisica = ICalculadoraFisica.porDefecto(),
+    limitarDeltaMaximo: Boolean = false,
+    alActualizar: (IObjetoSimulado) -> Unit = CallbacksMotor::alActualizarVacio,
+    alImpactar: () -> Unit = CallbacksMotor::alImpactarVacio
 ) : BaseMotorSimulacion(alturaInicial, velocidadInicial, direccion, calculadora), IMotorSimulacionCanvas {
 
-    private val topeDelta: IDouble = if (limitarDeltaMaximo) 0.05 else 3600.0
-    private val callbacks: IParCallbacksMotor = alActualizar to alImpactar
-    private var renderizador: IRenderizadorSimulacion? = canvas?.let { ctorRenderizadorCanvas(it) }
+    private val topeDelta: Double = if (limitarDeltaMaximo) 0.05 else 3600.0
+    private val callbacks: Pair<(IObjetoSimulado) -> Unit, () -> Unit> = alActualizar to alImpactar
+    private var renderizador: IRenderizadorSimulacion? = canvas?.let { ctorRenderizadorMotor(it) }
 
     init {
         sincronizarEscenaRenderizador()
-        timerLoop = ctorRelojMotor { dt -> avanzarFrame(dt) }
     }
 
-    override fun vincularCanvas(nuevoCanvas: ICanvas) {
-        renderizador = ctorRenderizadorCanvas(nuevoCanvas)
+    override fun procesarTickReloj(dt: Double) {
+        avanzarFrame(dt)
+    }
+
+    override fun vincularCanvas(nuevoCanvas: Canvas) {
+        renderizador = ctorRenderizadorMotor(nuevoCanvas)
         sincronizarEscenaRenderizador()
         renderizarEstadoActual()
     }
 
     override fun configurarCondiciones(
-        alturaInicial: IDouble,
-        velocidadInicial: IDouble,
+        alturaInicial: Double,
+        velocidadInicial: Double,
         direccion: DireccionMovimiento
     ) {
         super.reiniciar(alturaInicial, velocidadInicial, direccion)
@@ -162,8 +161,8 @@ class MotorSimulacionCanvas(
     }
 
     override fun reiniciar(
-        nuevaAltura: IDouble,
-        nuevaVelocidad: IDouble,
+        nuevaAltura: Double,
+        nuevaVelocidad: Double,
         nuevaDireccion: DireccionMovimiento
     ) {
         super.reiniciar(nuevaAltura, nuevaVelocidad, nuevaDireccion)
@@ -171,7 +170,7 @@ class MotorSimulacionCanvas(
         renderizarEstadoActual()
     }
 
-    override fun avanzarFrame(deltaSegundos: IDouble) {
+    override fun avanzarFrame(deltaSegundos: Double) {
         if (!enEjecucion || deltaSegundos <= 0.0) return
         val dt = min(deltaSegundos, topeDelta)
         objetoSimulado.actualizar(dt)

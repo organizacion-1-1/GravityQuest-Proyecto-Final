@@ -1,40 +1,41 @@
 package gravityquest.models
-import gravityquest.*; import kotlin.math.sqrt; import kotlin.random.Random
-typealias IRandom = Random
+import kotlin.math.sqrt; import kotlin.random.Random
+internal typealias ctorProblemaBanco = Problema
+internal typealias ctorBancoFacil = FabricaBancoFacil; internal typealias ctorBancoMedio = FabricaBancoMedio; internal typealias ctorBancoDificil = FabricaBancoDificil
 
 interface IRepositorioConsulta {
-    fun obtenerTodosLosProblemas(): IList<Problema>
-    fun obtenerProblemaPorId(id: IInt): Problema?
-    fun contarPorDificultad(dificultad: Dificultad): IInt
+    fun obtenerTodosLosProblemas(): List<Problema>
+    fun obtenerProblemaPorId(id: Int): Problema?
+    fun contarPorDificultad(dificultad: Dificultad): Int
 }
 
 interface IRepositorioProblemas : IRepositorioConsulta {
-    fun obtenerProblemasPorDificultad(dificultad: Dificultad): IList<Problema>
-    fun obtenerProblemasMezclados(dificultad: Dificultad, generadorAleatorio: IRandom = Random.Default): IList<Problema>
+    fun obtenerProblemasPorDificultad(dificultad: Dificultad): List<Problema>
+    fun obtenerProblemasMezclados(dificultad: Dificultad, generadorAleatorio: Random = Random.Default): List<Problema>
 }
 
 interface IFabricaBancoNivel {
-    fun construir(): IList<Problema>
+    fun construir(): List<Problema>
 }
 
 class FabricaBancoFacil : IFabricaBancoNivel {
-    private val g: IDouble = PhysicsConstants.GRAVEDAD_TIERRA
+    private val g: Double = 9.8
 
-    override fun construir(): IList<Problema> {
+    override fun construir(): List<Problema> {
         return (1..20).map { indice -> crearProblemaFacil(indice) }
     }
 
-    private fun crearProblemaFacil(indice: IInt): Problema {
+    private fun crearProblemaFacil(indice: Int): Problema {
         val t = indice * 0.5 + 0.5
         val h = 0.5 * g * t * t
         val resp = if (indice % 2 == 1) t else g * t
         return armarProblemaCaida(indice, h, resp)
     }
 
-    private fun armarProblemaCaida(id: IInt, h: IDouble, resp: IDouble): Problema {
+    private fun armarProblemaCaida(id: Int, h: Double, resp: Double): Problema {
         val inc = obtenerIncognitaFacil(id)
         val uni = obtenerUnidadFacil(id)
-        return Problema(
+        return ctorProblemaBanco(
             id = id,
             dificultad = Dificultad.FACIL,
             tipo = TipoProblema.CAIDA_LIBRE,
@@ -48,31 +49,31 @@ class FabricaBancoFacil : IFabricaBancoNivel {
         )
     }
 
-    private fun obtenerIncognitaFacil(id: IInt): IString {
+    private fun obtenerIncognitaFacil(id: Int): String {
         return if (id % 2 == 1) "\u0054iempo de ca\u00edda" else "\u0056elocidad de impacto"
     }
 
-    private fun obtenerUnidadFacil(id: IInt): IString {
+    private fun obtenerUnidadFacil(id: Int): String {
         return if (id % 2 == 1) "s" else "m/s"
     }
 }
 
 class FabricaBancoMedio : IFabricaBancoNivel {
-    private val g: IDouble = PhysicsConstants.GRAVEDAD_TIERRA
+    private val g: Double = 9.8
 
-    override fun construir(): IList<Problema> {
+    override fun construir(): List<Problema> {
         return (1..20).map { idx -> crearProblemaMedio(20 + idx, idx) }
     }
 
-    private fun crearProblemaMedio(id: IInt, idx: IInt): Problema {
+    private fun crearProblemaMedio(id: Int, idx: Int): Problema {
         val v0 = idx * 2.0 + 3.0
         if (idx % 2 == 1) return crearLanzamientoAbajo(id, idx * 8.0 + 10.0, v0)
         return crearLanzamientoArriba(id, v0)
     }
 
-    private fun crearLanzamientoAbajo(id: IInt, h: IDouble, v0: IDouble): Problema {
+    private fun crearLanzamientoAbajo(id: Int, h: Double, v0: Double): Problema {
         val vf = sqrt(v0 * v0 + 2.0 * g * h)
-        return Problema(
+        return ctorProblemaBanco(
             id = id,
             dificultad = Dificultad.MEDIO,
             tipo = TipoProblema.LANZAMIENTO_ABAJO,
@@ -86,9 +87,9 @@ class FabricaBancoMedio : IFabricaBancoNivel {
         )
     }
 
-    private fun crearLanzamientoArriba(id: IInt, v0: IDouble): Problema {
+    private fun crearLanzamientoArriba(id: Int, v0: Double): Problema {
         val hMax = (v0 * v0) / (2.0 * g)
-        return Problema(
+        return ctorProblemaBanco(
             id = id,
             dificultad = Dificultad.MEDIO,
             tipo = TipoProblema.LANZAMIENTO_ARRIBA,
@@ -104,24 +105,23 @@ class FabricaBancoMedio : IFabricaBancoNivel {
 }
 
 class FabricaBancoDificil : IFabricaBancoNivel {
-    private val g: IDouble = PhysicsConstants.GRAVEDAD_TIERRA
+    private val g: Double = 9.8
 
-    override fun construir(): IList<Problema> {
+    override fun construir(): List<Problema> {
         return (1..20).map { idx -> crearProblemaDificil(40 + idx, idx) }
     }
 
-    private fun crearProblemaDificil(id: IInt, idx: IInt): Problema {
+    private fun crearProblemaDificil(id: Int, idx: Int): Problema {
         val h = idx * 12.5 + 25.0
         val v0 = idx * 3.5 + 5.0
         val vf = sqrt(v0 * v0 + 2.0 * g * h)
         val t = (vf - v0) / g
-        return armarProblemaDificil(id, h, v0 to t)
+        return armarProblemaDificil(id, h, t)
     }
 
-    private fun armarProblemaDificil(id: IInt, h: IDouble, par: IPunto2D): Problema {
-        val v0 = par.first
-        val t = par.second
-        return Problema(
+    private fun armarProblemaDificil(id: Int, h: Double, t: Double): Problema {
+        val v0 = (id - 40) * 3.5 + 5.0
+        return ctorProblemaBanco(
             id = id,
             dificultad = Dificultad.DIFICIL,
             tipo = TipoProblema.LANZAMIENTO_ABAJO,
@@ -136,36 +136,38 @@ class FabricaBancoDificil : IFabricaBancoNivel {
     }
 }
 
+internal object ProveedorBancosDefecto {
+    fun crear(): List<IFabricaBancoNivel> {
+        return listOf(ctorBancoFacil(), ctorBancoMedio(), ctorBancoDificil())
+    }
+}
+
 class GeneradorProblemas(
-    private val fabricas: IList<IFabricaBancoNivel> = listOf(
-        FabricaBancoFacil(),
-        FabricaBancoMedio(),
-        FabricaBancoDificil()
-    )
+    private val fabricas: List<IFabricaBancoNivel> = ProveedorBancosDefecto.crear()
 ) : IRepositorioProblemas {
 
-    private val bancoProblemas: IList<Problema> = fabricas.flatMap { it.construir() }
+    private val bancoProblemas: List<Problema> = fabricas.flatMap { it.construir() }
 
-    override fun obtenerTodosLosProblemas(): IList<Problema> {
+    override fun obtenerTodosLosProblemas(): List<Problema> {
         return bancoProblemas.toList()
     }
 
-    override fun obtenerProblemasPorDificultad(dificultad: Dificultad): IList<Problema> {
+    override fun obtenerProblemasPorDificultad(dificultad: Dificultad): List<Problema> {
         return bancoProblemas.filter { it.dificultad == dificultad }
     }
 
     override fun obtenerProblemasMezclados(
         dificultad: Dificultad,
-        generadorAleatorio: IRandom
-    ): IList<Problema> {
+        generadorAleatorio: Random
+    ): List<Problema> {
         return obtenerProblemasPorDificultad(dificultad).shuffled(generadorAleatorio)
     }
 
-    override fun obtenerProblemaPorId(id: IInt): Problema? {
+    override fun obtenerProblemaPorId(id: Int): Problema? {
         return bancoProblemas.find { it.id == id }
     }
 
-    override fun contarPorDificultad(dificultad: Dificultad): IInt {
+    override fun contarPorDificultad(dificultad: Dificultad): Int {
         return bancoProblemas.count { it.dificultad == dificultad }
     }
 }

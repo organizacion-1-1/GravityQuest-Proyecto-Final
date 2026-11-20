@@ -1,7 +1,6 @@
 package gravityquest
 import gravityquest.models.*; import org.junit.jupiter.api.Assertions.*; import org.junit.jupiter.api.Test; import kotlin.random.Random
-internal typealias ctorProblemaTest = Problema; internal typealias ctorGeneradorTest = GeneradorProblemas; internal typealias ctorRandomTest = Random
-
+internal typealias ctorProblemaTest = Problema; internal typealias ctorGeneradorTest = GeneradorProblemas; 
 class DificultadYProblemaModelTest {
 
     @Test
@@ -35,7 +34,7 @@ class DificultadYProblemaModelTest {
         }
     }
 
-    private fun crearProblemaEjemplo(id: IInt): Problema {
+    private fun crearProblemaEjemplo(id: Int): Problema {
         return ctorProblemaTest(
             id = id,
             dificultad = Dificultad.FACIL,
@@ -50,7 +49,7 @@ class DificultadYProblemaModelTest {
         )
     }
 
-    private fun crearProblemaInvalido(id: IInt, altura: IDouble): Problema {
+    private fun crearProblemaInvalido(id: Int, altura: Double): Problema {
         return ctorProblemaTest(
             id = id,
             dificultad = Dificultad.FACIL,

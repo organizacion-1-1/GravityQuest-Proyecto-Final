@@ -1,5 +1,9 @@
 package gravityquest
-import gravityquest.models.Dificultad; import org.example.Juego.*; import org.junit.jupiter.api.Assertions.*; import org.junit.jupiter.api.Test
+import gravityquest.models.Dificultad; import javafx.application.Application
+import org.example.Juego.DemostracionConsola; import org.example.Juego.FabricaNivelEjercicio; import org.example.Juego.GravityQuestApp
+import org.example.Juego.INivelEjercicio; import org.example.Juego.Main; import org.example.Juego.RenderizadorConsola; import org.example.Juego.RenderizadorJavaFx
+import org.junit.jupiter.api.Assertions.assertEquals; import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull; import org.junit.jupiter.api.Assertions.assertTrue; import org.junit.jupiter.api.Test
 internal typealias ctorMainTest = Main; internal typealias ctorRenderConsolaTest = RenderizadorConsola; internal typealias ctorRenderFxTest = RenderizadorJavaFx
 
 class MainArquitecturaTest {
@@ -7,7 +11,7 @@ class MainArquitecturaTest {
     @Test
     fun testMainExtiendeApplicationYConfiguraModulos() {
         val app = ctorMainTest()
-        assertTrue(IApplication::class.isInstance(app))
+        assertTrue(Application::class.isInstance(app))
         assertTrue(GravityQuestApp::class.isInstance(app))
         assertNotNull(app.repositorio)
         assertNotNull(app.calculadora)

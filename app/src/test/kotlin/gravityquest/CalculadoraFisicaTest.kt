@@ -48,7 +48,7 @@ class CalculadoraCaidaLibreTest {
     }
 }
 
-class EstrategiasYObjetoSimuladoTest {
+class EstrategiasCinematicaTest {
 
     @Test
     fun testPolimorfismoEstrategiasCinematica() {
@@ -61,6 +61,9 @@ class EstrategiasYObjetoSimuladoTest {
         assertEquals(20.4, tiro.calcularPosicion(0.0, 20.0, 2.0), 1e-3)
         assertEquals(15.0, gen.calcularPosicion(15.0, 3.0, 1.0), 1e-3)
     }
+}
+
+class ObjetoYMotorSimulacionTest {
 
     @Test
     fun testEvolucionObjetoSimuladoYReinicio() {
