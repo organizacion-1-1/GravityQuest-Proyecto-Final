@@ -9,14 +9,14 @@
 
 | Aspecto | Resultado |
 |---|---|
-| Índice de calidad POO/SOLID | **92/100** |
-| Código (LOC) | 4,026 |
+| Índice de calidad POO/SOLID | **99/100** |
+| Código (LOC) | 4,136 |
 | Archivos de código | 29 |
-| Clases (bien usadas) | 182 (101 OK) |
+| Clases (bien usadas) | 209 (121 OK) |
 | Código dentro de clases (%POO) | 98% |
 | Funciones fuera de clases | 0 |
-| Duplicación lógica | 1.4% |
-| Señales S/O/L/I/D | 1/0/0/0/16 |
+| Duplicación lógica | 0.6% |
+| Señales S/O/L/I/D | 0/0/0/0/0 |
 
 > Este informe **describe** lo que el análisis midió con los criterios ya establecidos de la materia. No es una nota.
 
@@ -26,27 +26,27 @@ Criterios de `CRITERIOS-CALIDAD.md`. **Aprobar** se juega con el perfil `estanda
 
 | Semáforo | Resultado |
 |---|---|
-| Aprobar (`estandar`) | **no cumple** — 3/4 |
-| Destacar (`exigente`) | **no cumple** — 4/5 |
+| Aprobar (`estandar`) | **cumple** — 4/4 |
+| Destacar (`exigente`) | **cumple** — 5/5 |
 
 **Criterios para aprobar**
 
 | Criterio | Requisito | Tu resultado | Cumple |
 |---|---|---|---|
 | Código dentro de clases (%POO) | ≥ 85% | 98% | sí |
-| Duplicación lógica | ≤ 10% | 1.4% | sí |
+| Duplicación lógica | ≤ 10% | 0.6% | sí |
 | Funciones fuera de clases | ≤ 1 | 0 | sí |
-| Señales POO/SOLID críticas | ninguna | Acoplamiento alto (CBO) | no |
+| Señales POO/SOLID críticas | ninguna | ninguna | sí |
 
 **Criterios para destacar**
 
 | Criterio | Requisito | Tu resultado | Cumple |
 |---|---|---|---|
 | Código dentro de clases (%POO) | ≥ 95% | 98% | sí |
-| Duplicación lógica | ≤ 5% | 1.4% | sí |
+| Duplicación lógica | ≤ 5% | 0.6% | sí |
 | Funciones fuera de clases | ≤ 1 | 0 | sí |
-| Señales POO/SOLID críticas | ninguna | Baja cohesión (LCOM), Acoplamiento alto (CBO) | no |
-| Índice de calidad POO/SOLID | ≥ 60 | 92/100 | sí |
+| Señales POO/SOLID críticas | ninguna | ninguna | sí |
+| Índice de calidad POO/SOLID | ≥ 60 | 99/100 | sí |
 
 ### Cómo se calcula el %POO (y por qué no sube solo)
 
@@ -60,7 +60,7 @@ Sube cuando el código que hoy está **fuera** de clases pasa a ser método de u
 
 | Autor | Commits | Código (LOC) | Tests (LOC) | Docs (LOC) | Días activos | % del código |
 |---|---:|---:|---:|---:|---:|---:|
-| colombati-creator | 21 | 4,796 | 526 | 2 | 14 | 100% |
+| colombati-creator | 22 | 4,931 | 537 | 2 | 15 | 100% |
 
 > _El LOC de autoría lo calcula RepoSense sobre el historial y puede diferir del LOC de código del análisis de calidad (que mira solo el estado de `main`)._
 
@@ -70,7 +70,6 @@ Reúne lo que el análisis marcó y lo que todavía falta para cada semáforo. C
 
 | Falla | Tu resultado | Requisito | Archivos |
 |---|---|---|---|
-| Señales POO/SOLID críticas | Acoplamiento alto (CBO) | Aprobar: ninguna<br>Destacar: ninguna | `app/src/main/kotlin/gravityquest/GestorProgreso.kt`, `app/src/main/kotlin/gravityquest/MotorSimulacionCanvas.kt`, `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt`, `app/src/main/kotlin/gravityquest/PanelVidasView.kt`, `app/src/main/kotlin/gravityquest/RenderizadorSimulacion.kt`, `app/src/main/kotlin/gravityquest/UIComponents.kt` (+5 más) |
 | Campos mutables públicos (encapsulación) | **1** clase(s) con campos mutables públicos | Sin señales | `app/src/main/kotlin/org/example/Juego/Main.kt` |
 
 ## 4. Aspectos evaluados
@@ -81,19 +80,19 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Un resumen numérico (0-100) que combina la riqueza de clases bien usadas con la penalización por señales POO/SOLID y duplicación, y luego aplica topes duros.
 - **Por qué importa:** Ordena y prioriza la revisión: un índice bajo indica varias señales que conviene mirar juntas.
-- **Tu resultado:** índice **92/100**
+- **Tu resultado:** índice **99/100**
 
 ### 2. Duplicación lógica (DRY) (duplicacion) — sin señales
 
 - **Qué mide:** Porcentaje de bloques de LÓGICA repetidos. Quedan fuera imports/includes, anotaciones, declaraciones de campos y comentarios/Javadoc/docstrings: esos bloques son boilerplate, no lógica.
 - **Por qué importa:** Cada copia de lógica se mantiene por separado: un arreglo hay que repetirlo y los defectos se multiplican.
-- **Tu resultado:** **1.4%** de duplicación lógica
+- **Tu resultado:** **0.6%** de duplicación lógica
 
 ### 3. Adopción de POO (% de código en clases) (poo) — sin señales
 
 - **Qué mide:** Proporción de las **líneas de lógica** que viven dentro de una clase. Quedan fuera `package`/`import`/`using`/anotaciones y comentarios/Javadoc/docstrings: no son código que pueda estar dentro de una clase y, si contaran, el porcentaje quedaría topado por el boilerplate de cada archivo.
 - **Por qué importa:** El diseño orientado a objetos es el eje de la materia: el comportamiento debería vivir como método de una clase.
-- **Tu resultado:** **97.9%** del código dentro de clases
+- **Tu resultado:** **98.3%** del código dentro de clases
 - **Cómo leerlo:** Es una **proporción**, no un acumulado: agregar código dentro de una clase no la sube por sí solo (numerador y denominador crecen juntos). Sube cuando el código que está **fuera** de clases (funciones sueltas, `main`, constantes de módulo, scripts) pasa a ser método de una clase o deja de existir. La medición se hace sobre `main`: el trabajo que todavía vive en otra rama no se refleja hasta que se integra.
 
 ### 4. Funciones fuera de clases (sueltas) — sin señales
@@ -108,15 +107,11 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 - **Por qué importa:** Una clase que hace de todo cambia por muchos motivos y cuesta entenderla y probarla.
 - **Tu resultado:** **0** clase(s) demasiado grande(s)
 
-### 6. Baja cohesión (LCOM) (cohesion) — con señales
+### 6. Baja cohesión (LCOM) (cohesion) — sin señales
 
 - **Qué mide:** Métodos y campos de una clase que casi no se relacionan entre sí.
 - **Por qué importa:** Una unidad que cambia por motivos distintos y comparte poca información suele esconder más de una responsabilidad.
-- **Tu resultado:** **1** clase(s) con baja cohesión
-- **Para investigar la causa:**
-    - ¿Qué métodos de la clase no comparten estado con el resto?
-    - ¿Cambian por motivos distintos según la tarea?
-    - ¿Se pensó su responsabilidad antes de escribirla, o se fue agregando?
+- **Tu resultado:** **0** clase(s) con baja cohesión
 
 ### 7. Complejidad alta (complejidad) — sin señales
 
@@ -130,15 +125,11 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 - **Por qué importa:** Una función que hace varias cosas cuesta leerla, nombrarla y reutilizarla.
 - **Tu resultado:** **0** método(s)/función(es) largos o con muchos parámetros
 
-### 9. Acoplamiento alto (CBO) (acoplamiento) — con señales
+### 9. Acoplamiento alto (CBO) (acoplamiento) — sin señales
 
 - **Qué mide:** Cuánto depende una clase de otros tipos del proyecto. No cuentan los tipos de la plataforma (biblioteca estándar, DOM, motor Godot) ni los métodos/propiedades propias.
 - **Por qué importa:** Piezas muy enlazadas hacen que un cambio se propague y que sea difícil reemplazar partes.
-- **Tu resultado:** **16** clase(s) muy acoplada(s)
-- **Para investigar la causa:**
-    - ¿La clase conoce detalles internos de muchas otras?
-    - ¿Se puede cambiar una parte sin tocar las demás?
-    - ¿Los colaboradores llegan como parámetros o se crean por dentro?
+- **Tu resultado:** **0** clase(s) muy acoplada(s)
 
 ### 10. Herencia profunda (DIT) (herencia) — sin señales
 
@@ -188,58 +179,22 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 ### Archivos donde se originan las señales
 
-> Se listan **23** hallazgo(s) localizados en **12** archivo(s). La columna `Línea` es la línea del archivo donde el análisis detectó la señal; `—` indica una señal de nivel repositorio (sin archivo propio).
+> Se listan **1** hallazgo(s) localizados en **1** archivo(s). La columna `Línea` es la línea del archivo donde el análisis detectó la señal; `—` indica una señal de nivel repositorio (sin archivo propio).
 
 | Aspecto | Archivo | Línea | Hallazgo |
 |---|---|---:|---|
-| Duplicación lógica (DRY) | — | — | duplicación lógica: 1.4% · boilerplate: 0.0% |
-| Duplicación lógica (DRY) | `app/src/main/kotlin/gravityquest/EstadisticasPartida.kt` | 86 | bloque de 8 líneas repetido 3 veces en app/src/main/kotlin/gravityquest/EstadisticasPartida.kt:86, app/src/main/kotlin/gravityquest/EstadisticasPartida.kt:96, app/src/main/kotlin/gravityquest/EstadisticasPartida.kt:107 |
-| Duplicación lógica (DRY) | `app/src/main/kotlin/org/example/Juego/Main.kt` | 51 | bloque de 8 líneas repetido 3 veces en app/src/main/kotlin/org/example/Juego/Main.kt:51, app/src/main/kotlin/org/example/Juego/Main.kt:72, app/src/main/kotlin/org/example/Juego/Main.kt:94 |
-| Duplicación lógica (DRY) | `app/src/main/kotlin/org/example/Juego/Main.kt` | 52 | bloque de 8 líneas repetido 3 veces en app/src/main/kotlin/org/example/Juego/Main.kt:52, app/src/main/kotlin/org/example/Juego/Main.kt:73, app/src/main/kotlin/org/example/Juego/Main.kt:95 |
-| Duplicación lógica (DRY) | `app/src/main/kotlin/org/example/Juego/Main.kt` | 53 | bloque de 8 líneas repetido 3 veces en app/src/main/kotlin/org/example/Juego/Main.kt:53, app/src/main/kotlin/org/example/Juego/Main.kt:74, app/src/main/kotlin/org/example/Juego/Main.kt:96 |
-| Baja cohesión (LCOM) | `app/src/main/kotlin/gravityquest/MotorSimulacionCanvas.kt` | 68 | clase 'BaseMotorSimulacion' con baja cohesión (33%) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/GestorProgreso.kt` | 118 | clase 'EstadoSesionNivel' muy acoplada (CBO=8) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/MotorSimulacionCanvas.kt` | 68 | clase 'BaseMotorSimulacion' muy acoplada (CBO=9) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/MotorSimulacionCanvas.kt` | 128 | clase 'MotorSimulacionCanvas' muy acoplada (CBO=8) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt` | 37 | clase 'BaseNavegadorEscenas' muy acoplada (CBO=8) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/NavegadorEscenas.kt` | 115 | clase 'FabricaVistasNavegacion' muy acoplada (CBO=8) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/PanelVidasView.kt` | 48 | clase 'PanelVidasView' muy acoplada (CBO=8) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/RenderizadorSimulacion.kt` | 64 | clase 'RenderizadorCanvas' muy acoplada (CBO=10) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/UIComponents.kt` | 22 | clase 'BaseUIFactoryTextos' muy acoplada (CBO=8) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/UIComponents.kt` | 99 | clase 'ConstructorTarjetaHolografica' muy acoplada (CBO=9) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/VistaJuego.kt` | 103 | clase 'CoordinadorHudSimulacion' muy acoplada (CBO=8) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/VistaMenu.kt` | 151 | clase 'VistaMenu' muy acoplada (CBO=9) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/gravityquest/VistaNivelCompletado.kt` | 42 | clase 'VistaNivelCompletado' muy acoplada (CBO=8) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/org/example/Juego/Main.kt` | 20 | clase 'NivelEjercicio' muy acoplada (CBO=8) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/org/example/Juego/Main.kt` | 221 | clase 'SesionJuegoApp' muy acoplada (CBO=9) |
-| Acoplamiento alto (CBO) | `app/src/main/kotlin/org/example/Juego/Main.kt` | 300 | clase 'GravityQuestApp' muy acoplada (CBO=12) |
-| Acoplamiento alto (CBO) | `app/src/test/kotlin/gravityquest/NavegacionTest.kt` | 11 | clase 'NavegadorEspia' muy acoplada (CBO=8) |
-| Campos mutables públicos (encapsulación) | `app/src/main/kotlin/org/example/Juego/Main.kt` | 221 | clase 'SesionJuegoApp' con 4 campos mutables públicos (encapsulación) |
-
-### Desglose de la columna S (SRP)
-
-> La columna **S** no es un puntaje: cuenta **señales** de SRP. Aquí suma **1** entrada(s) sobre **1** clase(s) distinta(s).
-
-| Señal | Entradas | Regla (perfil exigente) |
-|---|---:|---|
-| Cohesión baja | 1 | < 50 % de los pares de métodos comparten algún campo (con ≥ 4 métodos con lógica y ≥ 3 campos). |
-
-**Clases con baja cohesión (1)**
-
-- `BaseMotorSimulacion`: cohesión baja (33% de pares comparten campos)
-
-> El análisis no excluye tests: una clase de test que supere los umbrales también suma.
+| Campos mutables públicos (encapsulación) | `app/src/main/kotlin/org/example/Juego/Main.kt` | 232 | clase 'BaseSesionJuegoApp' con 4 campos mutables públicos (encapsulación) |
 
 ## 5. Evolución por commit
 
-Métricas calculadas sobre el estado de `main` en **cada commit** (28 commits con trabajo), del primero al último. La calidad usa el perfil `exigente`; el aporte de código lo mide RepoSense. El índice puede **bajar** al crecer el proyecto: se acumulan señales.
+Métricas calculadas sobre el estado de `main` en **cada commit** (30 commits con trabajo), del primero al último. La calidad usa el perfil `exigente`; el aporte de código lo mide RepoSense. El índice puede **bajar** al crecer el proyecto: se acumulan señales.
 
 ```mermaid
 xychart-beta
     title "Índice POO/SOLID a lo largo de los commits"
-    x-axis ["052883a", "f27feb0", "52dd827", "9a37451", "6f47bc8", "9f0b68b", "42dbe3e", "6cb23a6", "f662fcc", "967a698", "8501235", "62f0ff0", "aaddf8e", "652075e", "1e2658f", "a3a2de3", "471f067", "f8ab0c3", "61da5f8", "8c32766", "7743f06", "a10333f", "1bb2cf0", "90f7847", "d63d1fb", "fc7f50c", "69ed21d", "e4f12c0"]
+    x-axis ["052883a", "f27feb0", "52dd827", "9a37451", "6f47bc8", "9f0b68b", "42dbe3e", "6cb23a6", "f662fcc", "967a698", "8501235", "62f0ff0", "aaddf8e", "652075e", "1e2658f", "a3a2de3", "471f067", "f8ab0c3", "61da5f8", "8c32766", "7743f06", "a10333f", "1bb2cf0", "90f7847", "d63d1fb", "fc7f50c", "69ed21d", "e4f12c0", "53d2b31", "19ec21a"]
     y-axis "Índice" 0 --> 100
-    line [0, 0, 50, 50, 58, 58, 0, 17, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 92, 92, 92, 92, 92]
+    line [0, 0, 50, 50, 58, 58, 0, 17, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 92, 92, 92, 92, 92, 92, 99]
 ```
 
 | # | Fecha | Commit | Autor | LOC | Índice | %POO | Duplic. | Sueltas |
@@ -272,55 +227,8 @@ xychart-beta
 | 26 | 2026-11-14 | `fc7f50c` | dqmdz-etec | 4,026 | 92 | 98% | 1.4% | 0 |
 | 27 | 2026-11-16 | `69ed21d` | dqmdz-etec | 4,026 | 92 | 98% | 1.4% | 0 |
 | 28 | 2026-11-17 | `e4f12c0` | dqmdz-etec | 4,026 | 92 | 98% | 1.4% | 0 |
-
-<!-- actividad-clases:inicio -->
-## Actividad en días de clase
-
-> Período evaluado **2026-08-14 → 2026-11-20** · **23 clases** (lunes, viernes) · días de clase del calendario, extendidos hasta la fecha de corte.
->
-> `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**. El cuadro principal usa sólo las fechas de clase del calendario oficial.
->
-> **Aportes fuera del calendario:** cada alumno tiene un cuadro aparte con las fechas no lectivas con actividad, desde **2026-08-14** hasta **2026-11-20** (ventana de aportes). Esas fechas no forman parte del cuadro principal, pero se muestran para no perder trabajo hecho en fines de semana, feriados o después del período.
->
-> Se recorre `git log --all` sobre un mirror (todas las ramas y `refs/pull/*`), con deduplicación por commit. Fecha = fecha de autor en UTC-3. Los commits locales no pusheados no se ven. Si el trabajo fue en pareja y el commit es de otra persona, figura a nombre del autor del commit; para reflejarlo, usar `Co-authored-by` o una nota manual.
->
-> Sección informativa: no modifica el semáforo de aprobación.
-
-### colombati-creator
-
-**14/23 clases con actividad** · 22 commits · 18 merges
-
-| Fecha | Marca | Repositorios | Commits / merges |
-|---|:--:|---|--:|
-| 2026-08-14 | No | sin actividad | 0 / 0 |
-| 2026-08-21 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-| 2026-08-24 | No | sin actividad | 0 / 0 |
-| 2026-08-28 | **Sí** | GravityQuest-Proyecto-Final | 2 / 2 |
-| 2026-08-31 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-| 2026-09-04 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
-| 2026-09-07 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-09-14 | No | sin actividad | 0 / 0 |
-| 2026-09-25 | No | sin actividad | 0 / 0 |
-| 2026-09-28 | No | sin actividad | 0 / 0 |
-| 2026-10-02 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
-| 2026-10-05 | **Sí** | GravityQuest-Proyecto-Final | 2 / 3 |
-| 2026-10-09 | **Sí** | GravityQuest-Proyecto-Final | 3 / 3 |
-| 2026-10-16 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-10-19 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-10-23 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-| 2026-10-26 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
-| 2026-10-30 | **Sí** | GravityQuest-Proyecto-Final | 2 / 3 |
-| 2026-11-02 | No | sin actividad | 0 / 0 |
-| 2026-11-06 | No | sin actividad | 0 / 0 |
-| 2026-11-13 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-11-16 | No | sin actividad | 0 / 0 |
-| 2026-11-20 | No | sin actividad | 0 / 0 |
-
-#### Aportes fuera del calendario de clases — colombati-creator
-
-_Sin aportes fuera del calendario de clases para colombati-creator._
-
-<!-- actividad-clases:fin -->
+| 29 | 2026-11-20 | `53d2b31` | dqmdz-etec | 4,026 | 92 | 98% | 1.4% | 0 |
+| 30 | 2026-11-20 | `19ec21a` | dqmdz-etec | 4,136 | 99 | 98% | 0.6% | 0 |
 
 ---
 _Informe generado por la cátedra. Los criterios y umbrales de medición corresponden al perfil `exigente` de `calidad.py`; el semáforo de aprobación, a `CRITERIOS-CALIDAD.md` (ver `README.md`). Ante dudas, revisá el archivo señalado._
