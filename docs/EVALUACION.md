@@ -3,13 +3,14 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación II (RepoSense + análisis de calidad POO/SOLID). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-11-20.
+> Generado: 2026-11-25.
 
 ## 1. Veredicto
 
 | Aspecto | Resultado |
 |---|---|
 | Índice de calidad POO/SOLID | **99/100** |
+| Commit evaluado | `d4312d2e8b09` (2026-11-20) |
 | Código (LOC) | 4,136 |
 | Archivos de código | 29 |
 | Clases (bien usadas) | 209 (121 OK) |
@@ -177,6 +178,20 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 - **Por qué importa:** Es comportamiento procedural disfrazado de clase: no se instancia ni participa del modelo de objetos.
 - **Tu resultado:** **0** clase(s) solo con métodos estáticos
 
+### Resumen de señales por tipo
+
+| Señal | Cantidad | Principio | Archivos |
+|---|---:|---|---:|
+| campos públicos | 1 | OOP | 1 |
+
+### Resumen por archivo
+
+> Archivos ordenados por cantidad de señales. Se excluyen **0** señal(es) de nivel repositorio sin archivo propio.
+
+| Archivo | Señales | Aspectos | Líneas |
+|---|---:|---|---|
+| `app/src/main/kotlin/org/example/Juego/Main.kt` | 1 | encapsulación | 232 |
+
 ### Archivos donde se originan las señales
 
 > Se listan **1** hallazgo(s) localizados en **1** archivo(s). La columna `Línea` es la línea del archivo donde el análisis detectó la señal; `—` indica una señal de nivel repositorio (sin archivo propio).
@@ -185,16 +200,43 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 |---|---|---:|---|
 | Campos mutables públicos (encapsulación) | `app/src/main/kotlin/org/example/Juego/Main.kt` | 232 | clase 'BaseSesionJuegoApp' con 4 campos mutables públicos (encapsulación) |
 
+### Clases señaladas — métricas
+
+> Solo clases con al menos una señal. `LOC lóg.` y `Mét. lóg.` descuentan getters/setters; `LCOM` es la cantidad de pares de métodos sin campos en común.
+
+| Clase | Archivo | Línea | LOC lóg. | Mét. lóg. | Campos | CBO | LCOM | Cohesión | WMC | RFC | Señales |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| `BaseSesionJuegoApp` | `app/src/main/kotlin/org/example/Juego/Main.kt` | 232 | 14 | 3 | 5 | 3 | 1 | 67% | 7 | 11 | campos públicos×1 |
+
+### Umbrales aplicados (perfil exigente)
+
+| Señal | Regla |
+|---|---|
+| Clase grande (SRP) | ≥ 200 LOC lógico, o ≥ 15 métodos con lógica y ≥ 100 LOC lógico; no cuentan getters/setters. |
+| Baja cohesión (LCOM) | < 50 % de pares de métodos comparten algún campo, con ≥ 4 métodos con lógica y ≥ 3 campos. |
+| Complejidad alta | algún método con complejidad ciclomática ≥ 10. |
+| Método largo | ≥ 30 líneas. |
+| Muchos parámetros | > 4 parámetros (5 o más). |
+| Acoplamiento alto (CBO) | CBO ≥ 8. |
+| Herencia profunda | DIT ≥ 3. |
+| Type-check / switch de tipos | ≥ 1 cadena de type-check. |
+| Interfaz demasiado grande (ISP) | > 6 métodos (7 o más). |
+| Override vacío (LSP) | método vacío o marcado como 'no implementado'. |
+| Clase solo de datos | 0 métodos y ≥ 3 campos. |
+| Campos mutables públicos | ≥ 4 campos mutables públicos y ≥ 4 campos. |
+| Clase estática | ≥ 2 métodos y todos estáticos. |
+| Duplicación lógica | ventana de 8 líneas; solo lógica; se informa desde 1 %. |
+
 ## 5. Evolución por commit
 
-Métricas calculadas sobre el estado de `main` en **cada commit** (32 commits con trabajo), del primero al último. La calidad usa el perfil `exigente`; el aporte de código lo mide RepoSense. El índice puede **bajar** al crecer el proyecto: se acumulan señales.
+Métricas calculadas sobre el estado de `main` en **cada commit** (33 commits con trabajo), del primero al último. La calidad usa el perfil `exigente`; el aporte de código lo mide RepoSense. El índice puede **bajar** al crecer el proyecto: se acumulan señales.
 
 ```mermaid
 xychart-beta
     title "Índice POO/SOLID a lo largo de los commits"
-    x-axis ["052883a", "f27feb0", "52dd827", "9a37451", "6f47bc8", "9f0b68b", "42dbe3e", "6cb23a6", "f662fcc", "967a698", "8501235", "62f0ff0", "aaddf8e", "652075e", "1e2658f", "a3a2de3", "471f067", "f8ab0c3", "61da5f8", "8c32766", "7743f06", "a10333f", "1bb2cf0", "90f7847", "d63d1fb", "fc7f50c", "69ed21d", "e4f12c0", "53d2b31", "19ec21a", "87c9596", "94943b9"]
+    x-axis ["052883a", "f27feb0", "52dd827", "9a37451", "6f47bc8", "9f0b68b", "42dbe3e", "6cb23a6", "f662fcc", "967a698", "8501235", "62f0ff0", "aaddf8e", "652075e", "1e2658f", "a3a2de3", "471f067", "f8ab0c3", "61da5f8", "8c32766", "7743f06", "a10333f", "1bb2cf0", "90f7847", "d63d1fb", "fc7f50c", "69ed21d", "e4f12c0", "53d2b31", "19ec21a", "87c9596", "94943b9", "d4312d2"]
     y-axis "Índice" 0 --> 100
-    line [0, 0, 50, 50, 58, 58, 0, 17, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 92, 92, 92, 92, 92, 92, 99, 99, 99]
+    line [0, 0, 50, 50, 58, 58, 0, 17, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 92, 92, 92, 92, 92, 92, 99, 99, 99, 99]
 ```
 
 | # | Fecha | Commit | Autor | LOC | Índice | %POO | Duplic. | Sueltas |
@@ -231,55 +273,7 @@ xychart-beta
 | 30 | 2026-11-20 | `19ec21a` | dqmdz-etec | 4,136 | 99 | 98% | 0.6% | 0 |
 | 31 | 2026-11-20 | `87c9596` | dqmdz-etec | 4,136 | 99 | 98% | 0.6% | 0 |
 | 32 | 2026-11-20 | `94943b9` | dqmdz-etec | 4,136 | 99 | 98% | 0.6% | 0 |
-
-<!-- actividad-clases:inicio -->
-## Actividad en días de clase
-
-> Período evaluado **2026-08-14 → 2026-11-20** · **23 clases** (lunes, viernes) · días de clase del calendario, extendidos hasta la fecha de corte.
->
-> `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**. El cuadro principal usa sólo las fechas de clase del calendario oficial.
->
-> **Aportes fuera del calendario:** cada alumno tiene un cuadro aparte con las fechas no lectivas con actividad, desde **2026-08-14** hasta **2026-11-20** (ventana de aportes). Esas fechas no forman parte del cuadro principal, pero se muestran para no perder trabajo hecho en fines de semana, feriados o después del período.
->
-> Se recorre `git log --all` sobre un mirror (todas las ramas y `refs/pull/*`), con deduplicación por commit. Fecha = fecha de autor en UTC-3. Los commits locales no pusheados no se ven. Si el trabajo fue en pareja y el commit es de otra persona, figura a nombre del autor del commit; para reflejarlo, usar `Co-authored-by` o una nota manual.
->
-> Sección informativa: no modifica el semáforo de aprobación.
-
-### colombati-creator
-
-**15/23 clases con actividad** · 23 commits · 18 merges
-
-| Fecha | Marca | Repositorios | Commits / merges |
-|---|:--:|---|--:|
-| 2026-08-14 | No | sin actividad | 0 / 0 |
-| 2026-08-21 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-| 2026-08-24 | No | sin actividad | 0 / 0 |
-| 2026-08-28 | **Sí** | GravityQuest-Proyecto-Final | 2 / 2 |
-| 2026-08-31 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-| 2026-09-04 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
-| 2026-09-07 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-09-14 | No | sin actividad | 0 / 0 |
-| 2026-09-25 | No | sin actividad | 0 / 0 |
-| 2026-09-28 | No | sin actividad | 0 / 0 |
-| 2026-10-02 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
-| 2026-10-05 | **Sí** | GravityQuest-Proyecto-Final | 2 / 3 |
-| 2026-10-09 | **Sí** | GravityQuest-Proyecto-Final | 3 / 3 |
-| 2026-10-16 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-10-19 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-10-23 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-| 2026-10-26 | **Sí** | GravityQuest-Proyecto-Final | 2 / 1 |
-| 2026-10-30 | **Sí** | GravityQuest-Proyecto-Final | 2 / 3 |
-| 2026-11-02 | No | sin actividad | 0 / 0 |
-| 2026-11-06 | No | sin actividad | 0 / 0 |
-| 2026-11-13 | **Sí** | GravityQuest-Proyecto-Final | 1 / 1 |
-| 2026-11-16 | No | sin actividad | 0 / 0 |
-| 2026-11-20 | **Sí** | GravityQuest-Proyecto-Final | 1 / 0 |
-
-#### Aportes fuera del calendario de clases — colombati-creator
-
-_Sin aportes fuera del calendario de clases para colombati-creator._
-
-<!-- actividad-clases:fin -->
+| 33 | 2026-11-20 | `d4312d2` | dqmdz-etec | 4,136 | 99 | 98% | 0.6% | 0 |
 
 ---
 _Informe generado por la cátedra. Los criterios y umbrales de medición corresponden al perfil `exigente` de `calidad.py`; el semáforo de aprobación, a `CRITERIOS-CALIDAD.md` (ver `README.md`). Ante dudas, revisá el archivo señalado._
